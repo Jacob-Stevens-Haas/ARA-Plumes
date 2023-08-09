@@ -1,8 +1,11 @@
+# Script for testing variance detection through the use of cv2.findContours
+
 import cv2
 import matplotlib.pyplot as plt
 
-img_path = "/Users/Malachite/Documents/UW/ARA/Plumes/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
-# img_path = "/Users/Malachite/Documents/UW/ARA/Plumes/July_20/video_low_1/fixed_avg_frames/subtract_0107.png"
+img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
+img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0102.png"
+# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0690.png"
 
 # Load image 
 image = cv2.imread(img_path,0) # Load in as grayscale
@@ -26,11 +29,20 @@ _, threshold = cv2.threshold(image, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 ############################
 
 # Find Contours
-contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+contours, hierarchy = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+# print("hierarchy type:", type(hierarchy))
+# print("hierarchy:", hierarchy)
+
+# print("hierarchy shape:", hierarchy.shape)
+# print("contours shape:", len(contours))
 
 # Select n largest contours
-n=3
-contours.sort(key=lambda c: cv2.contourArea(c), reverse = True)
+n=2
+contours = sorted(contours,key=cv2.contourArea, reverse = True)
+
+for c in contours[:n]:
+    print(cv2.contourArea(c))
 
 selected_contours = contours[:n]
 
@@ -74,7 +86,3 @@ plt.scatter(*zip(*center_points), color='red', marker='x', s=50)
 plt.title("Plume with Center Points")
 plt.axis('off')
 plt.show()
-
-# print(type(contours))
-# print(center_points)
-# print("Number of contours:", len(contours)) 
