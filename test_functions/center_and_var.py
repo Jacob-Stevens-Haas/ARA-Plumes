@@ -55,7 +55,7 @@ n=1
 contours = sorted(contours,key=cv2.contourArea, reverse = True)
 selected_contours = contours[:n]
 
-# Creating distances
+# Creating distances contours
 contour_dist_list = []
 for contour in selected_contours:
     a = contour.reshape(-1,2)
@@ -222,9 +222,9 @@ cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickne
 if fit_poly==True:
     contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
 
-#############################
-## Messing with var_points ##
-#############################
+##########################
+## Splitting var_points ##
+##########################
 
 var_points_np = np.array(var_points)
 # print(type(var_points_np),var_points_np.shape)
