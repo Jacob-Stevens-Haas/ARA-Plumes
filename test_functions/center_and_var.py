@@ -54,6 +54,38 @@ n=1
 contours = sorted(contours,key=cv2.contourArea, reverse = True)
 selected_contours = contours[:n]
 
+# Creating distances
+contour_dist_list = []
+for contour in selected_contours:
+    a = contour.reshape(-1,2)
+    b = np.array(orig_center)
+    contour_dist = np.sqrt(np.sum((a-b)**2,axis=1))
+    contour_dist_list.append(contour_dist)
+
+
+# test = np.isclose(contour_dist,2*50, rtol=1e-2)
+# intersection_points=selected_contours[0].reshape(-1,2)[test]
+# print(intersection_points)
+# print("Printing intersection points;")
+# for point in intersection_points:
+#     print(point)
+
+
+# print(True in test)
+# print(np.count_nonzero(test))
+# print(True in (contour_dist <= 50.5))
+
+
+
+
+
+    
+
+    # for point in contour:
+    #     print(point)
+
+# print("selected contours size:", selected_contours[0].shape)
+
 # Draw contours on the original image (or a copy of it)
 contour_image_original = image.copy()
 cv2.drawContours(contour_image_original, selected_contours, -1, (0, 255, 0), 2)
@@ -82,15 +114,49 @@ red_color = (0,0,255)
 points = np.zeros(shape=(num_of_circs+1,2))
 points[0] = orig_center
 
+# Instantie list to store variance points
+var_points = []
+
 # Plot first point on path
 _, center = find_max_on_boundary(image_gray, orig_center,radii, rtol=rtol,atol=atol)
 points[1]=center
+
+##### Check variance intersection
+for i in range(len(selected_contours)):
+    contour_dist = contour_dist_list[i]
+    contour = selected_contours[i]
+
+    dist_mask =np.isclose(contour_dist,radii, rtol=1e-2)
+    intersection_points = contour.reshape(-1,2)[dist_mask]
+
+    for point in intersection_points:
+        var_points.append(list(point))
+
+
+# for contour_dist in contour_dist_list:
+#     dist_mask =np.isclose(contour_dist,radii, rtol=1e-2)
+#     intersection_points=selected_contours[0].reshape(-1,2)[dist_mask]
+
+
+
 # Draw rings
 if boundary_ring == True:
     cv2.circle(contour_image_original, orig_center, radii, (0,0,255),1, lineType = cv2.LINE_AA)
 
 for step in range(2, num_of_circs+1):
     radius = radii*step
+
+    ##### Check variance intersection
+    for i in range(len(selected_contours)):
+        contour_dist = contour_dist_list[i]
+        contour = selected_contours[i]
+
+        dist_mask =np.isclose(contour_dist,radius, rtol=1e-2)
+        intersection_points = contour.reshape(-1,2)[dist_mask]
+
+    for point in intersection_points:
+        var_points.append(list(point))
+    
 
     # Draw interior ring
     if interior_ring == True:
@@ -134,6 +200,8 @@ for step in range(2, num_of_circs+1):
                    thickness=1,
                    lineType=cv2.LINE_AA)
 
+for point in var_points:
+    cv2.circle(contour_image_original, point, 5, blue_color,-1)
 
 ####################
 ## Apply Poly fit ##
@@ -150,6 +218,8 @@ cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickne
 if fit_poly==True:
     contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
 
+
+
 #################################
 ## Apply smoothing to Contours ##
 #################################
@@ -162,7 +232,7 @@ epsilon = 100  # Adjust epsilon as needed
 for contour in selected_contours:
     smoothed_contours.append(cv2.approxPolyDP(contour, epsilon, True))
 
-
+# print("Smoothed contours size:", smoothed_contours[0].shape)
 # Draw smoothed contours on the original image (or a copy of it)
 contour_image_smoothed = image.copy()
 cv2.drawContours(contour_image_smoothed, smoothed_contours, -1, (0, 255, 0), 2)
@@ -175,6 +245,7 @@ comparison_image = cv2.hconcat([contour_image_original, contour_image_smoothed])
 cv2.imshow(f"Orig vs eps={epsilon} smoothed Contours", comparison_image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
 
 
 
