@@ -275,7 +275,10 @@ def moving_average_subtract(frames_path: str,
 
         subtract_id+=1
 
-# Edge detection functions 
+##############################
+## Edge detection functions ##
+##############################
+
 # ADD variables for hyperparameter tuning 
 def edge_detect(frames_path,
                 extension="png",
@@ -323,6 +326,39 @@ def edge_detect(frames_path,
 
         count += 1
     return
+
+########################
+## Finding Plume Path ##
+########################
+
+# Class for having users pick initial center for plume detection
+
+class ImagePointPicker:
+    def __init__(self, img_path):
+        self.img_path = img_path
+        self.clicked_point = None
+
+    def mouse_callback(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.clicked_point = (x, y)
+            # print(f"Clicked at ({x}, {y})")
+            cv2.destroyAllWindows()
+
+    def ask_user(self):
+        image = cv2.imread(self.img_path)
+        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        cv2.namedWindow("Image")
+        cv2.setMouseCallback("Image", self.mouse_callback)
+
+        cv2.imshow("Image", image_gray)
+
+        while self.clicked_point is None:
+            cv2.waitKey(1)
+
+        # print("Clicked point:", self.clicked_point)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
 
 # Getting paths on each image
 def find_max_on_boundary(array, center,r,rtol=1e-3,atol=1e-6):
@@ -570,6 +606,10 @@ def find_center_of_mass(frames_path: str,
         i +=1
         print(f"{file_name} success.")
     return poly_coef_array
+
+#####################
+## Post Processing ##
+#####################
 
 # For saving frames as video
 def create_video(directory, output_file, fps=15, extension="png", folder = "movies"):
