@@ -2,48 +2,31 @@
 
 import cv2
 import matplotlib.pyplot as plt
+import sys
+sys.path.append('/Users/Malachite/Documents/UW/ARA/ARA-Plumes/')
+
+from utils import ImagePointPicker
 
 # img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
 # img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0102.png"
-img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0690.png"
-# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
+# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0690.png"
+img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
 
 #########################
 ## Ask user for center ##
 #########################
 
-# Global variable to store the clicked point
-clicked_point = None
+image_to_click = ImagePointPicker(img_path)
+image_to_click.ask_user()
+center = image_to_click.clicked_point 
 
-def mouse_callback(event, x, y, flags, param):
-    global clicked_point
-    if event == cv2.EVENT_LBUTTONDOWN:
-        clicked_point = (x, y)
-        print(f"Clicked at ({x}, {y})")
-        cv2.destroyAllWindows()
+print("test")
+print(center)
 
-# Load image 
-image = cv2.imread(img_path) 
-
-# Convert to gray
+# Load image and convert to gray
+image = cv2.imread(img_path)
 image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-# Create a window and set the mouse callback
-cv2.namedWindow("Image")
-cv2.setMouseCallback("Image", mouse_callback)
-
-# Display the image
-cv2.imshow("Image", image_gray)
-
-# Keep the script running until a click event occurs
-while clicked_point is None:
-    cv2.waitKey(1)  # Check for a key press every 1 millisecond
-
-
-# After a click event, continue with the rest of the script
-print("Clicked point:", clicked_point)
-
-center = clicked_point
 
 ########################
 ## Apply Thresholding ##
@@ -68,7 +51,7 @@ contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SI
 
 
 # Select n largest contours
-n=3
+n=1
 contours = sorted(contours,key=cv2.contourArea, reverse = True)
 selected_contours = contours[:n]
 
@@ -102,6 +85,8 @@ comparison_image = cv2.hconcat([contour_image_original, contour_image_smoothed])
 cv2.imshow(f"Orig vs eps={epsilon} smoothed Contours", comparison_image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
+
 
 
 ###################################
