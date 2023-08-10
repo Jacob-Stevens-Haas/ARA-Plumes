@@ -8,10 +8,10 @@ sys.path.append('/Users/Malachite/Documents/UW/ARA/ARA-Plumes/')
 
 from utils import ImagePointPicker, find_max_on_boundary, find_next_center
 
-img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
+# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
 # img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0102.png"
 # img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0690.png"
-# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
+img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
 
 #########################
 ## Ask user for center ##
@@ -21,6 +21,7 @@ image_to_click = ImagePointPicker(img_path)
 image_to_click.ask_user()
 orig_center = image_to_click.clicked_point 
 
+print("orig center:", type(orig_center), orig_center)
 
 # Load image and convert to gray
 image = cv2.imread(img_path)
@@ -106,20 +107,20 @@ rtol=1e-2
 atol=1e-6
 poly_deg = 2
 x_less = 600
-x_plus = 50
+x_plus = 0 #50
 blue_color = (255,0,0)
 red_color = (0,0,255)
 
 # Instatiate numpy array to store centers
-points = np.zeros(shape=(num_of_circs+1,2))
-points[0] = orig_center
+points_mean = np.zeros(shape=(num_of_circs+1,2))
+points_mean[0] = orig_center
 
 # Instantie list to store variance points
 var_points = []
 
 # Plot first point on path
 _, center = find_max_on_boundary(image_gray, orig_center,radii, rtol=rtol,atol=atol)
-points[1]=center
+points_mean[1]=center
 
 ##### Check variance intersection
 for i in range(len(selected_contours)):
@@ -146,7 +147,9 @@ if boundary_ring == True:
 for step in range(2, num_of_circs+1):
     radius = radii*step
 
-    ##### Check variance intersection
+    #################################
+    ## Check variance intersection ##
+    #################################
     for i in range(len(selected_contours)):
         contour_dist = contour_dist_list[i]
         contour = selected_contours[i]
@@ -186,7 +189,7 @@ for step in range(2, num_of_circs+1):
     if error_occured == True:
         break   
     
-    points[step] = center
+    points_mean[step] = center
 
     # Draw next point
     cv2.circle(contour_image_original, center,5,red_color,-1)
@@ -200,16 +203,17 @@ for step in range(2, num_of_circs+1):
                    thickness=1,
                    lineType=cv2.LINE_AA)
 
-for point in var_points:
-    cv2.circle(contour_image_original, point, 5, blue_color,-1)
+# # ploting var_points
+# for point in var_points:
+#     cv2.circle(contour_image_original, point, 5, blue_color,-1)
 
-####################
-## Apply Poly fit ##
-####################
-poly_coef = np.polyfit(points[:,0], points[:,1],deg=poly_deg)
+############################
+## Apply Poly fit to mean ##
+############################
+poly_coef_mean = np.polyfit(points_mean[:,0], points_mean[:,1],deg=poly_deg)
 
-x = np.linspace(np.min(points[:,0])-x_less,np.max(points[:,0])+x_plus,100)
-y = poly_coef[0]*x**2 + poly_coef[1]*x+poly_coef[2]
+x = np.linspace(np.min(points_mean[:,0])-x_less,np.max(points_mean[:,0])+x_plus,100)
+y = poly_coef_mean[0]*x**2 + poly_coef_mean[1]*x+poly_coef_mean[2]
 
 curve_img = np.zeros_like(contour_image_original)
 curve_points = np.column_stack((x,y)).astype(np.int32)
@@ -218,6 +222,68 @@ cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickne
 if fit_poly==True:
     contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
 
+#############################
+## Messing with var_points ##
+#############################
+
+var_points_np = np.array(var_points)
+# print(type(var_points_np),var_points_np.shape)
+
+x_var = var_points_np[:,0]
+y_var = var_points_np[:,1]
+
+poly_out = poly_coef_mean[0]*x_var**2 + poly_coef_mean[1]*x_var + poly_coef_mean[2]
+
+above_mask = y_var >= poly_out
+below_mask = ~above_mask
+
+points_var1 = np.vstack((var_points_np[above_mask], list(orig_center)))
+points_var2 = np.vstack((var_points_np[below_mask], list(orig_center)))
+
+
+## Plotting as different colors
+for point in points_var1:
+    cv2.circle(contour_image_original,
+               point,
+               7,
+               red_color,
+               -1)
+
+for point in points_var2:
+    cv2.circle(contour_image_original,
+               point,
+               7,
+               blue_color,
+               -1)  
+
+##########################
+## Apply polyfit to var ##
+##########################
+
+poly_coef_var1 = np.polyfit(points_var1[:,0],
+                            points_var1[:,1],
+                            deg=poly_deg)
+poly_coef_var2 = np.polyfit(points_var2[:,0],
+                            points_var2[:,1],
+                            deg=poly_deg)
+
+x = np.linspace(np.min(points_var1[:,0])-x_less,np.max(points_var1[:,0])+x_plus,100)
+y = poly_coef_var1[0]*x**2 + poly_coef_var1[1]*x+poly_coef_var1[2]
+
+curve_points = np.column_stack((x,y)).astype(np.int32)
+
+cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
+if fit_poly==True:
+    contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
+
+x = np.linspace(np.min(points_var2[:,0])-x_less,np.max(points_var2[:,0])+x_plus,100)
+y = poly_coef_var2[0]*x**2 + poly_coef_var2[1]*x+poly_coef_var2[2]
+
+curve_points = np.column_stack((x,y)).astype(np.int32)
+
+cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
+if fit_poly==True:
+    contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
 
 
 #################################
