@@ -483,7 +483,7 @@ def find_center_of_mass(frames_path: str,
     create_directory(save_path)
 
     # For naming convection
-    frames_mag = len(str(len(frames_id)))
+    frames_mag = len(str(len(frames_id))) # might need to move this later - actually think this is fine
 
     # Select appropriate frame range - default None is all frames
     if frames_range is None:
