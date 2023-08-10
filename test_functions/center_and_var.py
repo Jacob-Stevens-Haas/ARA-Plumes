@@ -3,10 +3,10 @@
 import cv2
 import matplotlib.pyplot as plt
 
-img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
-img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0102.png"
+# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
+# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0102.png"
 img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0690.png"
-img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
+# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
 
 #########################
 ## Ask user for center ##
@@ -43,19 +43,21 @@ while clicked_point is None:
 # After a click event, continue with the rest of the script
 print("Clicked point:", clicked_point)
 
+center = clicked_point
+
 ########################
 ## Apply Thresholding ##
 ########################
 
 # Simple Thresholding
 # threshold_value = 60
-# _, threshold = cv2.threshold(image, threshold_value, 255, cv2.THRESH_BINARY)
+# _, threshold = cv2.threshold(image_gray, threshold_value, 255, cv2.THRESH_BINARY)
 
 # OTSU thresholding (automatically choose params)
 _, threshold = cv2.threshold(image_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-# Adaptive Thresholding
-# threshold = cv2.adaptiveThreshold(image, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, constant)
+## Adaptive Thresholding
+# threshold = cv2.adaptiveThreshold(image_gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, constant)
 
 ############################
 ## Find Contours in image ##
@@ -64,27 +66,40 @@ _, threshold = cv2.threshold(image_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_
 # Find Contours
 contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-# print("hierarchy type:", type(hierarchy))
-# print("hierarchy:", hierarchy)
-
-# print("hierarchy shape:", hierarchy.shape)
-# print("contours shape:", len(contours))
 
 # Select n largest contours
-n=1
+n=3
 contours = sorted(contours,key=cv2.contourArea, reverse = True)
-
-for c in contours[:n]:
-    print(cv2.contourArea(c))
-
 selected_contours = contours[:n]
 
 # Draw contours on the original image (or a copy of it)
-contour_image = image.copy()
-cv2.drawContours(contour_image, selected_contours, -1, (0, 255, 0), 2)
+contour_image_original = image.copy()
+cv2.drawContours(contour_image_original, selected_contours, -1, (0, 255, 0), 2)
+cv2.circle(contour_image_original, center, 5, (0, 0, 255), -1)  # Draw red circle based on input
+
+#################################
+## Apply smoothing to Contours ##
+#################################
+
+# Create an empty list to store smoothed contours
+smoothed_contours = []
+
+# Apply contour smoothing (contour approximation) to each selected contour
+epsilon = 125  # Adjust epsilon as needed
+for contour in selected_contours:
+    smoothed_contours.append(cv2.approxPolyDP(contour, epsilon, True))
+
+
+# Draw smoothed contours on the original image (or a copy of it)
+contour_image_smoothed = image.copy()
+cv2.drawContours(contour_image_smoothed, smoothed_contours, -1, (0, 255, 0), 2)
+cv2.circle(contour_image_smoothed, center, 5, (0, 0, 255), -1)  # Draw red circle based on input
+
+# Display the images side by side
+comparison_image = cv2.hconcat([contour_image_original, contour_image_smoothed])
 
 # Display the image with contours
-cv2.imshow("Image with Contours", contour_image)
+cv2.imshow(f"Orig vs eps={epsilon} smoothed Contours", comparison_image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
