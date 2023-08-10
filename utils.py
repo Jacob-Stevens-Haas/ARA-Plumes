@@ -419,7 +419,7 @@ def find_center_of_mass(frames_path: str,
                         x_plus =0,
                         x_less = 0):
     """
-    Generate frames of learned path on background subtracte frames.
+    Generate frames of learned path on background subtract frames.
 
     Args:
         frames_path (str): directory path to background subtract frames to learn path on.
