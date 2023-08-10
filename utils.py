@@ -482,7 +482,7 @@ def find_center_of_mass(frames_path: str,
         points = np.zeros(shape=(num_of_circs+1,2))
         points[0] = orig_center
 
-        # pick and draw initial center (in lue)
+        # pick and draw initial center (in blue)
         # center = center
         cir_radius = 3
         blue_color = (255,0,0)
