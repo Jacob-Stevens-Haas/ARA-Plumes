@@ -55,7 +55,7 @@ n=1
 contours = sorted(contours,key=cv2.contourArea, reverse = True)
 selected_contours = contours[:n]
 
-# Creating distances contours
+# Creating distances contours - array of distance of each point on contour to original center
 contour_dist_list = []
 for contour in selected_contours:
     a = contour.reshape(-1,2)
@@ -115,23 +115,23 @@ red_color = (0,0,255)
 points_mean = np.zeros(shape=(num_of_circs+1,2))
 points_mean[0] = orig_center
 
-# Instantie list to store variance points
+# Instantiate list to store variance points
 var_points = []
 
 # Plot first point on path
 _, center = find_max_on_boundary(image_gray, orig_center,radii, rtol=rtol,atol=atol)
 points_mean[1]=center
 
-##### Check variance intersection
-for i in range(len(selected_contours)):
-    contour_dist = contour_dist_list[i]
-    contour = selected_contours[i]
+# ##### Check variance intersection
+# for i in range(len(selected_contours)):
+#     contour_dist = contour_dist_list[i]
+#     contour = selected_contours[i]
 
-    dist_mask =np.isclose(contour_dist,radii, rtol=1e-2)
-    intersection_points = contour.reshape(-1,2)[dist_mask]
+#     dist_mask =np.isclose(contour_dist,radii, rtol=1e-2)
+#     intersection_points = contour.reshape(-1,2)[dist_mask]
 
-    for point in intersection_points:
-        var_points.append(list(point))
+#     for point in intersection_points:
+#         var_points.append(list(point))
 
 
 # for contour_dist in contour_dist_list:
@@ -147,18 +147,18 @@ if boundary_ring == True:
 for step in range(2, num_of_circs+1):
     radius = radii*step
 
-    #################################
-    ## Check variance intersection ##
-    #################################
-    for i in range(len(selected_contours)):
-        contour_dist = contour_dist_list[i]
-        contour = selected_contours[i]
+    # #################################
+    # ## Check variance intersection ##
+    # #################################
+    # for i in range(len(selected_contours)):
+    #     contour_dist = contour_dist_list[i]
+    #     contour = selected_contours[i]
 
-        dist_mask =np.isclose(contour_dist,radius, rtol=1e-2)
-        intersection_points = contour.reshape(-1,2)[dist_mask]
+    #     dist_mask =np.isclose(contour_dist,radius, rtol=1e-2)
+    #     intersection_points = contour.reshape(-1,2)[dist_mask]
 
-    for point in intersection_points:
-        var_points.append(list(point))
+    # for point in intersection_points:
+    #     var_points.append(list(point))
     
 
     # Draw interior ring
@@ -212,8 +212,10 @@ for step in range(2, num_of_circs+1):
 ############################
 poly_coef_mean = np.polyfit(points_mean[:,0], points_mean[:,1],deg=poly_deg)
 
+f_mean = lambda x: poly_coef_mean[0]*x**2 + poly_coef_mean[1]*x+poly_coef_mean[2]
+
 x = np.linspace(np.min(points_mean[:,0])-x_less,np.max(points_mean[:,0])+x_plus,100)
-y = poly_coef_mean[0]*x**2 + poly_coef_mean[1]*x+poly_coef_mean[2]
+y = f_mean(x)
 
 curve_img = np.zeros_like(contour_image_original)
 curve_points = np.column_stack((x,y)).astype(np.int32)
@@ -222,32 +224,70 @@ cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickne
 if fit_poly==True:
     contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
 
+##############################
+## Checking Variance points ##
+##############################
+
+# Initialize variance list to store points
+var1_points = []
+var2_points = []
+
+for step in range(1, num_of_circs+1):
+    radius = step*radii
+
+    var_above = []
+    var_below = []
+
+    for i in range(len(selected_contours)):
+        contour_dist = contour_dist_list[i]
+        contour = selected_contours[i]
+
+        dist_mask = np.isclose(contour_dist,radius, rtol=1e-2)
+        intersection_points = contour.reshape(-1,2)[dist_mask]
+    
+    for point in intersection_points:
+        if f_mean(point[0]) <= point[1]:
+            var_above.append(point)
+        else:
+            var_below.append(point)
+    
+    if bool(var_above):
+        var1_points.append(list(np.array(var_above).mean(axis=0).round().astype(int)))
+
+    if bool(var_below):
+        var2_points.append(list(np.array(var_below).mean(axis=0).round().astype(int)))
+
+  
+
 ##########################
 ## Splitting var_points ##
 ##########################
 
-var_points_np = np.array(var_points)
-# print(type(var_points_np),var_points_np.shape)
+# var_points_np = np.array(var_points)
+# # print(type(var_points_np),var_points_np.shape)
 
-x_var = var_points_np[:,0]
-y_var = var_points_np[:,1]
+# x_var = var_points_np[:,0]
+# y_var = var_points_np[:,1]
 
-poly_out = poly_coef_mean[0]*x_var**2 + poly_coef_mean[1]*x_var + poly_coef_mean[2]
+# poly_out = poly_coef_mean[0]*x_var**2 + poly_coef_mean[1]*x_var + poly_coef_mean[2]
 
-above_mask = y_var >= poly_out
-below_mask = ~above_mask
+# above_mask = y_var >= poly_out
+# below_mask = ~above_mask
 
-points_var1 = np.vstack((var_points_np[above_mask], list(orig_center)))
-points_var2 = np.vstack((var_points_np[below_mask], list(orig_center)))
+points_var1 = np.vstack((np.array(var1_points), list(orig_center)))
+points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
 
 
 ## Plotting as different colors
 for point in points_var1:
+    print("point type:", type(list(point)))
+    print(point[0], type(point[0]))
     cv2.circle(contour_image_original,
                point,
                7,
                red_color,
                -1)
+    print("made it here.")
 
 for point in points_var2:
     cv2.circle(contour_image_original,
