@@ -8,10 +8,10 @@ sys.path.append('/Users/Malachite/Documents/UW/ARA/ARA-Plumes/')
 
 from utils import ImagePointPicker, find_max_on_boundary, find_next_center
 
-# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
+img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0287.png"
 # img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0102.png"
 # img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0690.png"
-img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
+# img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
 
 #########################
 ## Ask user for center ##
@@ -64,28 +64,6 @@ for contour in selected_contours:
     contour_dist_list.append(contour_dist)
 
 
-# test = np.isclose(contour_dist,2*50, rtol=1e-2)
-# intersection_points=selected_contours[0].reshape(-1,2)[test]
-# print(intersection_points)
-# print("Printing intersection points;")
-# for point in intersection_points:
-#     print(point)
-
-
-# print(True in test)
-# print(np.count_nonzero(test))
-# print(True in (contour_dist <= 50.5))
-
-
-
-
-
-    
-
-    # for point in contour:
-    #     print(point)
-
-# print("selected contours size:", selected_contours[0].shape)
 
 # Draw contours on the original image (or a copy of it)
 contour_image_original = image.copy()
@@ -122,44 +100,12 @@ var_points = []
 _, center = find_max_on_boundary(image_gray, orig_center,radii, rtol=rtol,atol=atol)
 points_mean[1]=center
 
-# ##### Check variance intersection
-# for i in range(len(selected_contours)):
-#     contour_dist = contour_dist_list[i]
-#     contour = selected_contours[i]
-
-#     dist_mask =np.isclose(contour_dist,radii, rtol=1e-2)
-#     intersection_points = contour.reshape(-1,2)[dist_mask]
-
-#     for point in intersection_points:
-#         var_points.append(list(point))
-
-
-# for contour_dist in contour_dist_list:
-#     dist_mask =np.isclose(contour_dist,radii, rtol=1e-2)
-#     intersection_points=selected_contours[0].reshape(-1,2)[dist_mask]
-
-
-
 # Draw rings
 if boundary_ring == True:
     cv2.circle(contour_image_original, orig_center, radii, (0,0,255),1, lineType = cv2.LINE_AA)
 
 for step in range(2, num_of_circs+1):
     radius = radii*step
-
-    # #################################
-    # ## Check variance intersection ##
-    # #################################
-    # for i in range(len(selected_contours)):
-    #     contour_dist = contour_dist_list[i]
-    #     contour = selected_contours[i]
-
-    #     dist_mask =np.isclose(contour_dist,radius, rtol=1e-2)
-    #     intersection_points = contour.reshape(-1,2)[dist_mask]
-
-    # for point in intersection_points:
-    #     var_points.append(list(point))
-    
 
     # Draw interior ring
     if interior_ring == True:
@@ -192,7 +138,7 @@ for step in range(2, num_of_circs+1):
     points_mean[step] = center
 
     # Draw next point
-    cv2.circle(contour_image_original, center,5,red_color,-1)
+    cv2.circle(contour_image_original, center,7,blue_color,-1)
 
     # Draw boundary ring
     if boundary_ring == True:
@@ -203,9 +149,6 @@ for step in range(2, num_of_circs+1):
                    thickness=1,
                    lineType=cv2.LINE_AA)
 
-# # ploting var_points
-# for point in var_points:
-#     cv2.circle(contour_image_original, point, 5, blue_color,-1)
 
 ############################
 ## Apply Poly fit to mean ##
@@ -260,19 +203,8 @@ for step in range(1, num_of_circs+1):
   
 
 ##########################
-## Splitting var_points ##
+## Plotting var_points ##
 ##########################
-
-# var_points_np = np.array(var_points)
-# # print(type(var_points_np),var_points_np.shape)
-
-# x_var = var_points_np[:,0]
-# y_var = var_points_np[:,1]
-
-# poly_out = poly_coef_mean[0]*x_var**2 + poly_coef_mean[1]*x_var + poly_coef_mean[2]
-
-# above_mask = y_var >= poly_out
-# below_mask = ~above_mask
 
 points_var1 = np.vstack((np.array(var1_points), list(orig_center)))
 points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
@@ -280,20 +212,18 @@ points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
 
 ## Plotting as different colors
 for point in points_var1:
-    print("point type:", type(list(point)))
-    print(point[0], type(point[0]))
     cv2.circle(contour_image_original,
                point,
                7,
                red_color,
                -1)
-    print("made it here.")
 
+yellow_color = (0,255,255)
 for point in points_var2:
     cv2.circle(contour_image_original,
                point,
                7,
-               blue_color,
+               red_color,
                -1)  
 
 ##########################
@@ -334,7 +264,7 @@ if fit_poly==True:
 smoothed_contours = []
 
 # Apply contour smoothing (contour approximation) to each selected contour
-epsilon = 100  # Adjust epsilon as needed
+epsilon = 50  # Adjust epsilon as needed
 for contour in selected_contours:
     smoothed_contours.append(cv2.approxPolyDP(contour, epsilon, True))
 
@@ -352,38 +282,3 @@ cv2.imshow(f"Orig vs eps={epsilon} smoothed Contours", comparison_image)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 
-
-
-
-
-###################################
-## Get center points of contours ##
-###################################
-
-# # Calculate center of mass
-# center_points = []
-
-# for contour in selected_contours:
-#     # Calculate moments of the contour
-#     moments = cv2.moments(contour)
-
-#     # Calculate center of mass
-#     if moments["m00"] !=0:
-#         center_x = int(moments["m10"] / moments["m00"])
-#         center_y = int(moments["m01"] / moments["m00"])
-#         center_points.append((center_x, center_y))
-
-# ##############################
-# ## Plot centers of contours ##
-# ##############################
-
-# # Convert the OpenCV image to a format compatible with matplotlib
-# plt_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
-# # Create a scatter plot for the center points
-# plt.figure(figsize=(8, 6))
-# plt.imshow(plt_image)
-# plt.scatter(*zip(*center_points), color='red', marker='x', s=50)
-# plt.title("Plume with Center Points")
-# plt.axis('off')
-# plt.show()
