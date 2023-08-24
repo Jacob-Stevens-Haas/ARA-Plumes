@@ -172,7 +172,7 @@ def fixed_average_subtract(frames_path,
     # Get desired frame range from frames_range
     if frames_range is None:
         tot_frames = len(frames_id)
-        start_frame = background_range[0]+1
+        start_frame = background_range[1]+1
         end_frame = tot_frames-1
     elif isinstance(frames_range, list) and len(frames_range)==2:
         start_frame, end_frame = frames_range
