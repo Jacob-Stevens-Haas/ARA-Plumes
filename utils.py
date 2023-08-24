@@ -110,7 +110,7 @@ def get_frame_ids(directory: str, extension: str = "png") -> list:
     return file_ids
 
 def fixed_average_subtract(frames_path,
-                           background_range = [0,2700],
+                           background_range,
                            frames_range = None,
                            extension = "png",
                            save_path="fixed_avg_frames",
@@ -184,7 +184,7 @@ def fixed_average_subtract(frames_path,
         raise ValueError("frames_range must be a 2 int list, single int, or None type  (uses remaining frames).")
 
     # Get magnitude of number of pictures for naming convention
-    subtracted_mag = len(str(frames_range[1]-frames_range[0]))
+    subtracted_mag = len(str(end_frame-start_frame))
 
     subtract_id = 0 
     for current_id in range(start_frame,end_frame+1):
