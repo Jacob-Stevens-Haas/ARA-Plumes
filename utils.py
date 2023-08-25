@@ -437,7 +437,257 @@ def find_next_center(array, orig_center, neig_center, r,scale=3/5, rtol=1e-3,ato
 
     max_indicies = (col,row)
 
-    return max_value, max_indicies   
+    return max_value, max_indicies
+
+def learn_center_var(img_path,
+                     orig_center,
+                     smoothing = False,
+                     eps_smooth = 50,
+                     radii = 50,
+                     num_of_circs = 22,
+                     fit_poly = True,
+                     boundary_ring = True,
+                     interior_ring = False,
+                     scale = 3/5,
+                     rtol=1e-2,
+                     atol=1e-6,
+                     poly_deg=2,
+                     x_less = 600,
+                     x_plus = 0):
+    """Applyes concentric cricles to single image learning both mean and edges of plumes."""
+    
+    # Load image and convert to gray
+    image = cv2.imread(img_path)
+    image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    ########################
+    ## Apply Thresholding ##
+    ########################
+
+    # Simple Thresholding
+    # threshold_value = 60
+    # _, threshold = cv2.threshold(image_gray, threshold_value, 255, cv2.THRESH_BINARY)
+
+    # OTSU thresholding (automatically choose params)
+    _, threshold = cv2.threshold(image_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+    ## Adaptive Thresholding
+    # threshold = cv2.adaptiveThreshold(image_gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, block_size, constant)
+
+    ############################
+    ## Find Contours in image ##
+    ############################
+
+    # Find Contours
+    contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+
+    # Select n largest contours
+    n=1
+    contours = sorted(contours,key=cv2.contourArea, reverse = True)
+    selected_contours = contours[:n]
+
+    #############################
+    ## Apply Contour Smoothing ##
+    #############################
+    if smoothing == True:
+        smoothed_contours = []
+
+        for contour in selected_contours:
+            smoothed_contours.append(cv2.approxPolyDP(contour, eps_smooth, True))
+        
+        selected_contours = smoothed_contours
+
+
+    # Creating distances contours - array of distance of each point on contour to original center
+    contour_dist_list = []
+    for contour in selected_contours:
+        a = contour.reshape(-1,2)
+        b = np.array(orig_center)
+        contour_dist = np.sqrt(np.sum((a-b)**2,axis=1))
+        contour_dist_list.append(contour_dist)
+
+
+
+    # Draw contours on the original image (or a copy of it)
+    contour_image_original = image.copy()
+    cv2.drawContours(contour_image_original, selected_contours, -1, (0, 255, 0), 2)
+    cv2.circle(contour_image_original, orig_center, 8, (255, 0, 0), -1)  # Draw red circle based on input
+
+    ##############################
+    ## Apply Concentric Circles ##
+    ##############################
+    blue_color = (255,0,0)
+    red_color = (0,0,255)
+
+    # Instatiate numpy array to store centers
+    points_mean = np.zeros(shape=(num_of_circs+1,2))
+    points_mean[0] = orig_center
+
+    # Instantiate list to store variance points
+    var_points = []
+
+    # Plot first point on path
+    _, center = find_max_on_boundary(image_gray, orig_center,radii, rtol=rtol,atol=atol)
+    points_mean[1]=center
+
+    # Draw rings
+    if boundary_ring == True:
+        cv2.circle(contour_image_original, orig_center, radii, (0,0,255),1, lineType = cv2.LINE_AA)
+
+    for step in range(2, num_of_circs+1):
+        radius = radii*step
+
+        # Draw interior ring
+        if interior_ring == True:
+            cv2.circle(contour_image_original,
+                    center,
+                    int(radius*scale),
+                    blue_color,
+                    1,
+                    lineType=cv2.LINE_AA)
+            
+        
+        # Get center of next point
+        ## Throw in try catch error --> break out of loop if does not work.
+        error_occured = False
+        try:
+            _, center = find_next_center(array=image_gray,
+                                        orig_center=orig_center,
+                                        neig_center=center,
+                                        r=radius,
+                                        scale=scale,
+                                        rtol=rtol,
+                                        atol=atol)
+        except Exception as e:
+            print("empty search")
+            error_occured = True
+        
+        if error_occured == True:
+            break   
+        
+        points_mean[step] = center
+
+        # Draw next point
+        cv2.circle(contour_image_original, center,7,blue_color,-1)
+
+        # Draw boundary ring
+        if boundary_ring == True:
+            cv2.circle(contour_image_original,
+                    center=orig_center,
+                    radius=radius,
+                    color=red_color,
+                    thickness=1,
+                    lineType=cv2.LINE_AA)
+            
+    ############################
+    ## Apply Poly fit to mean ##
+    ############################
+    poly_coef_mean = np.polyfit(points_mean[:,0], points_mean[:,1],deg=poly_deg)
+
+    f_mean = lambda x: poly_coef_mean[0]*x**2 + poly_coef_mean[1]*x+poly_coef_mean[2]
+
+    x = np.linspace(np.min(points_mean[:,0])-x_less,np.max(points_mean[:,0])+x_plus,100)
+    y = f_mean(x)
+
+    curve_img = np.zeros_like(contour_image_original)
+    curve_points = np.column_stack((x,y)).astype(np.int32)
+
+    cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
+    if fit_poly==True:
+        contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
+    
+    ##############################
+    ## Checking Variance points ##
+    ##############################
+
+    # Initialize variance list to store points
+    var1_points = []
+    var2_points = []
+
+    for step in range(1, num_of_circs+1):
+        radius = step*radii
+
+        var_above = []
+        var_below = []
+
+        for i in range(len(selected_contours)):
+            contour_dist = contour_dist_list[i]
+            contour = selected_contours[i]
+
+            dist_mask = np.isclose(contour_dist,radius, rtol=1e-2)
+            intersection_points = contour.reshape(-1,2)[dist_mask]
+        
+        for point in intersection_points:
+            if f_mean(point[0]) <= point[1]:
+                var_above.append(point)
+            else:
+                var_below.append(point)
+        
+        if bool(var_above):
+            var1_points.append(list(np.array(var_above).mean(axis=0).round().astype(int)))
+
+        if bool(var_below):
+            var2_points.append(list(np.array(var_below).mean(axis=0).round().astype(int)))
+
+    
+
+    ##########################
+    ## Plotting var_points ##
+    ##########################
+
+    points_var1 = np.vstack((np.array(var1_points), list(orig_center)))
+    points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
+
+
+    ## Plotting as different colors
+    for point in points_var1:
+        cv2.circle(contour_image_original,
+                point,
+                7,
+                red_color,
+                -1)
+
+    yellow_color = (0,255,255)
+    for point in points_var2:
+        cv2.circle(contour_image_original,
+                point,
+                7,
+                red_color,
+                -1)  
+
+    ##########################
+    ## Apply polyfit to var ##
+    ##########################
+
+    poly_coef_var1 = np.polyfit(points_var1[:,0],
+                                points_var1[:,1],
+                                deg=poly_deg)
+    poly_coef_var2 = np.polyfit(points_var2[:,0],
+                                points_var2[:,1],
+                                deg=poly_deg)
+
+    x = np.linspace(np.min(points_var1[:,0])-x_less,np.max(points_var1[:,0])+x_plus,100)
+    y = poly_coef_var1[0]*x**2 + poly_coef_var1[1]*x+poly_coef_var1[2]
+
+    curve_points = np.column_stack((x,y)).astype(np.int32)
+
+    cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
+    if fit_poly==True:
+        contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
+
+    x = np.linspace(np.min(points_var2[:,0])-x_less,np.max(points_var2[:,0])+x_plus,100)
+    y = poly_coef_var2[0]*x**2 + poly_coef_var2[1]*x+poly_coef_var2[2]
+
+    curve_points = np.column_stack((x,y)).astype(np.int32)
+
+    cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
+    if fit_poly==True:
+        contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
+
+
+    return contour_image_original, poly_coef_mean, poly_coef_var1, poly_coef_var2
+ 
 
 def find_center_of_mass(frames_path: str,
                         center: tuple,
@@ -453,7 +703,9 @@ def find_center_of_mass(frames_path: str,
                         scale=3/5,
                         fit_poly=True,
                         x_plus =0,
-                        x_less = 0):
+                        x_less = 0,
+                        smoothing=False,
+                        eps_smooth=10):
     """
     Generate frames of learned path on background subtract frames.
 
@@ -501,102 +753,37 @@ def find_center_of_mass(frames_path: str,
     
     # Instantiate numpy array to store poly coeff
     poly_deg = 2
-    poly_coef_array = np.zeros(shape=(len(frames_id),poly_deg+1))
+    poly_coef_mean_array = np.zeros(shape=(len(frames_id),poly_deg+1))
+    poly_coef_var1_array = np.zeros(shape=(len(frames_id),poly_deg+1))
+    poly_coef_var2_array = np.zeros(shape=(len(frames_id),poly_deg+1))
 
 
     # Retain original center coordinates
-    orig_center = center
+    orig_center = center # MIGHT NOT NEED TO DO THIS ANYMORE
     i = 0
     for frame in frames_id:
         img_path = os.path.join(frames_path,frame)
-        img = cv2.imread(img_path)
 
-        # convert to gray
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # apply mean and var learning
+        img, poly_coef_mean, poly_coef_var1, poly_coef_var2 = learn_center_var(img_path=img_path,
+                                                                                orig_center=orig_center,
+                                                                                smoothing=smoothing,
+                                                                                eps_smooth=eps_smooth,
+                                                                                radii=radii,
+                                                                                num_of_circs=num_of_circs,
+                                                                                fit_poly=fit_poly,
+                                                                                boundary_ring=boundary_ring,
+                                                                                interior_ring=interior_ring,
+                                                                                scale=scale,
+                                                                                rtol=rtol,
+                                                                                atol=atol,
+                                                                                poly_deg=poly_deg,
+                                                                                x_less=x_less,
+                                                                                x_plus=x_plus)
+        poly_coef_mean_array[i] = poly_coef_mean
+        poly_coef_var1_array[i] = poly_coef_var1
+        poly_coef_var1_array[i] = poly_coef_var2
 
-        # Instantiate numpy array to store centers
-        points = np.zeros(shape=(num_of_circs+1,2))
-        points[0] = orig_center
-
-        # pick and draw initial center (in blue)
-        # center = center
-        cir_radius = 3
-        blue_color = (255,0,0)
-        thickness = -1
-
-        # Plot original center
-        cv2.circle(img,orig_center, cir_radius, blue_color,thickness)
-
-        # Select and plot first point on path
-        _, center = find_max_on_boundary(array=gray, center=orig_center, r=radii, rtol=rtol,atol=atol)
-        points[1] = center
-
-        # plot red circle
-        cir_radius = 3
-        red_color = (0,0,255)
-        thickness = -1
-        cv2.circle(img,center,cir_radius,red_color,thickness)
-
-        # Draw the ring
-        if boundary_ring == True:
-            cv2.circle(img,orig_center, radii, red_color, thickness=1,lineType=cv2.LINE_AA)
-
-        for step in range(2, num_of_circs+1):
-            radius = radii*step
-
-            # Draw interior ring
-            if interior_ring == True:
-                cv2.circle(img,
-                           center = center,
-                           radius = int(radius*scale),
-                           color = blue_color,
-                           thickness = 1,
-                           lineType = cv2.LINE_AA)
-                
-            # Get center of next point
-            ## Throw in try catch error --> break out of loop if does not work.
-            error_occured = False
-            try:
-                _, center = find_next_center(array=gray,
-                                            orig_center=orig_center,
-                                            neig_center=center,
-                                            r=radius,
-                                            scale=scale,
-                                            rtol=rtol,
-                                            atol=atol)
-            except Exception as e:
-                print("empty search")
-                error_occured = True
-            
-            if error_occured == True:
-                break
-        
-            points[step]=center
-            
-            #draw next red point
-            cv2.circle(img,center,cir_radius,red_color,thickness)
-
-            # draw boundary ring
-            if boundary_ring == True:
-                cv2.circle(img,center=orig_center, radius=radius,color=red_color,thickness=1,lineType=cv2.LINE_AA)
-
-        # Learn polynomial coeff
-        poly_coef = np.polyfit(points[:,0],points[:,1], deg=poly_deg)
-        poly_coef_array[i] = poly_coef
-        
-        # x_plus = 50
-        # x_plus = 0
-        x = np.linspace(np.min(points[:,0])-x_less,np.max(points[:,0])+x_plus,100)
-        y = poly_coef[0]*x**2 + poly_coef[1]*x+poly_coef[2]
-
-        curve_img = np.zeros_like(img)
-        curve_points = np.column_stack((x,y)).astype(np.int32)
-
-        cv2.polylines(curve_img, [curve_points], isClosed=False,color = (255,0,0), thickness=5)
-
-        if fit_poly == True:
-            img = cv2.addWeighted(img,1,curve_img,1,0) 
-        
         # save path frame
         new_id = create_id(count, frames_mag)
         file_name = "path_"+new_id+"."+extension
@@ -605,7 +792,104 @@ def find_center_of_mass(frames_path: str,
         count += 1    
         i +=1
         print(f"{file_name} success.")
-    return poly_coef_array
+
+        # img = cv2.imread(img_path)
+
+        # # convert to gray
+        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # # Instantiate numpy array to store centers
+        # points = np.zeros(shape=(num_of_circs+1,2))
+        # points[0] = orig_center
+
+        # # pick and draw initial center (in blue)
+        # # center = center
+        # cir_radius = 3
+        # blue_color = (255,0,0)
+        # thickness = -1
+
+        # # Plot original center
+        # cv2.circle(img,orig_center, cir_radius, blue_color,thickness)
+
+        # # Select and plot first point on path
+        # _, center = find_max_on_boundary(array=gray, center=orig_center, r=radii, rtol=rtol,atol=atol)
+        # points[1] = center
+
+        # # plot red circle
+        # cir_radius = 3
+        # red_color = (0,0,255)
+        # thickness = -1
+        # cv2.circle(img,center,cir_radius,red_color,thickness)
+
+        # # Draw the ring
+        # if boundary_ring == True:
+        #     cv2.circle(img,orig_center, radii, red_color, thickness=1,lineType=cv2.LINE_AA)
+
+        # for step in range(2, num_of_circs+1):
+        #     radius = radii*step
+
+        #     # Draw interior ring
+        #     if interior_ring == True:
+        #         cv2.circle(img,
+        #                    center = center,
+        #                    radius = int(radius*scale),
+        #                    color = blue_color,
+        #                    thickness = 1,
+        #                    lineType = cv2.LINE_AA)
+                
+        #     # Get center of next point
+        #     ## Throw in try catch error --> break out of loop if does not work.
+        #     error_occured = False
+        #     try:
+        #         _, center = find_next_center(array=gray,
+        #                                     orig_center=orig_center,
+        #                                     neig_center=center,
+        #                                     r=radius,
+        #                                     scale=scale,
+        #                                     rtol=rtol,
+        #                                     atol=atol)
+        #     except Exception as e:
+        #         print("empty search")
+        #         error_occured = True
+            
+        #     if error_occured == True:
+        #         break
+        
+        #     points[step]=center
+            
+        #     #draw next red point
+        #     cv2.circle(img,center,cir_radius,red_color,thickness)
+
+        #     # draw boundary ring
+        #     if boundary_ring == True:
+        #         cv2.circle(img,center=orig_center, radius=radius,color=red_color,thickness=1,lineType=cv2.LINE_AA)
+
+        # # Learn polynomial coeff
+        # poly_coef = np.polyfit(points[:,0],points[:,1], deg=poly_deg)
+        # poly_coef_mean_array[i] = poly_coef
+        
+        # # x_plus = 50
+        # # x_plus = 0
+        # x = np.linspace(np.min(points[:,0])-x_less,np.max(points[:,0])+x_plus,100)
+        # y = poly_coef[0]*x**2 + poly_coef[1]*x+poly_coef[2]
+
+        # curve_img = np.zeros_like(img)
+        # curve_points = np.column_stack((x,y)).astype(np.int32)
+
+        # cv2.polylines(curve_img, [curve_points], isClosed=False,color = (255,0,0), thickness=5)
+
+        # if fit_poly == True:
+        #     img = cv2.addWeighted(img,1,curve_img,1,0) 
+        
+        # # save path frame
+        # new_id = create_id(count, frames_mag)
+        # file_name = "path_"+new_id+"."+extension
+        # cv2.imwrite(os.path.join(save_path,file_name),img)
+
+        # count += 1    
+        # i +=1
+        # print(f"{file_name} success.")
+    return poly_coef_mean_array, poly_coef_var1_array, poly_coef_var2_array
 
 #####################
 ## Post Processing ##
