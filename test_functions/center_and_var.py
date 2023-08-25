@@ -14,6 +14,7 @@ img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/vi
 # img_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_low_1/fixed_avg_frames/subtract_0628.png"
 
 def learn_center_var(img_path,
+                     orig_center,
                      smoothing = False,
                      eps_smooth = 50,
                      radii = 50,
@@ -27,17 +28,7 @@ def learn_center_var(img_path,
                      poly_deg=2,
                      x_less = 600,
                      x_plus = 0):
-     
-    #########################
-    ## Ask user for center ##
-    #########################
-
-    image_to_click = ImagePointPicker(img_path)
-    image_to_click.ask_user()
-    orig_center = image_to_click.clicked_point 
-
-    print("orig center:", type(orig_center), orig_center)
-
+    
     # Load image and convert to gray
     image = cv2.imread(img_path)
     image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -268,7 +259,7 @@ def learn_center_var(img_path,
         contour_image_original = cv2.addWeighted(contour_image_original,1,curve_img,1,0)
 
 
-    return contour_image_original
+    return contour_image_original, poly_coef_mean, poly_coef_var1, poly_coef_var2
 
 
 # #################################
@@ -289,13 +280,28 @@ def learn_center_var(img_path,
 # cv2.drawContours(contour_image_smoothed, smoothed_contours, -1, (0, 255, 0), 2)
 # cv2.circle(contour_image_smoothed, orig_center, 5, (255, 0, 0), -1)  # Draw red circle based on input
 
+
+#########################
+## Ask user for center ##
+#########################
+
+image_to_click = ImagePointPicker(img_path)
+image_to_click.ask_user()
+orig_center = image_to_click.clicked_point 
+
+print("orig center:", type(orig_center), orig_center)
+
 eps_smooth = 10
 print("testing unsmoothed")
-contour_image_original = learn_center_var(img_path=img_path)
+contour_image_original = learn_center_var(img_path=img_path,
+                                          orig_center=orig_center)
 print("success\n")
 
 print("testing smoothed")
-contour_image_smoothed = learn_center_var(img_path=img_path,smoothing=True, eps_smooth=eps_smooth)
+contour_image_smoothed = learn_center_var(img_path=img_path,
+                                          orig_center=orig_center,
+                                          smoothing=True,
+                                          eps_smooth=eps_smooth)
 print("success")
 
 # Display the images side by side
