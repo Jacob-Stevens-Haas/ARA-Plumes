@@ -772,7 +772,7 @@ def find_center_of_mass(frames_path: str,
     # Retain original center coordinates
     orig_center = center # MIGHT NOT NEED TO DO THIS ANYMORE
     i = 0
-    for frame in frames_id:
+    for frame in tqdm(frames_id):
         img_path = os.path.join(frames_path,frame)
 
         # apply mean and var learning
@@ -802,103 +802,6 @@ def find_center_of_mass(frames_path: str,
 
         count += 1    
         i +=1
-        print(f"{file_name} success.")
-
-        # img = cv2.imread(img_path)
-
-        # # convert to gray
-        # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # # Instantiate numpy array to store centers
-        # points = np.zeros(shape=(num_of_circs+1,2))
-        # points[0] = orig_center
-
-        # # pick and draw initial center (in blue)
-        # # center = center
-        # cir_radius = 3
-        # blue_color = (255,0,0)
-        # thickness = -1
-
-        # # Plot original center
-        # cv2.circle(img,orig_center, cir_radius, blue_color,thickness)
-
-        # # Select and plot first point on path
-        # _, center = find_max_on_boundary(array=gray, center=orig_center, r=radii, rtol=rtol,atol=atol)
-        # points[1] = center
-
-        # # plot red circle
-        # cir_radius = 3
-        # red_color = (0,0,255)
-        # thickness = -1
-        # cv2.circle(img,center,cir_radius,red_color,thickness)
-
-        # # Draw the ring
-        # if boundary_ring == True:
-        #     cv2.circle(img,orig_center, radii, red_color, thickness=1,lineType=cv2.LINE_AA)
-
-        # for step in range(2, num_of_circs+1):
-        #     radius = radii*step
-
-        #     # Draw interior ring
-        #     if interior_ring == True:
-        #         cv2.circle(img,
-        #                    center = center,
-        #                    radius = int(radius*scale),
-        #                    color = blue_color,
-        #                    thickness = 1,
-        #                    lineType = cv2.LINE_AA)
-                
-        #     # Get center of next point
-        #     ## Throw in try catch error --> break out of loop if does not work.
-        #     error_occured = False
-        #     try:
-        #         _, center = find_next_center(array=gray,
-        #                                     orig_center=orig_center,
-        #                                     neig_center=center,
-        #                                     r=radius,
-        #                                     scale=scale,
-        #                                     rtol=rtol,
-        #                                     atol=atol)
-        #     except Exception as e:
-        #         print("empty search")
-        #         error_occured = True
-            
-        #     if error_occured == True:
-        #         break
-        
-        #     points[step]=center
-            
-        #     #draw next red point
-        #     cv2.circle(img,center,cir_radius,red_color,thickness)
-
-        #     # draw boundary ring
-        #     if boundary_ring == True:
-        #         cv2.circle(img,center=orig_center, radius=radius,color=red_color,thickness=1,lineType=cv2.LINE_AA)
-
-        # # Learn polynomial coeff
-        # poly_coef = np.polyfit(points[:,0],points[:,1], deg=poly_deg)
-        # poly_coef_mean_array[i] = poly_coef
-        
-        # # x_plus = 50
-        # # x_plus = 0
-        # x = np.linspace(np.min(points[:,0])-x_less,np.max(points[:,0])+x_plus,100)
-        # y = poly_coef[0]*x**2 + poly_coef[1]*x+poly_coef[2]
-
-        # curve_img = np.zeros_like(img)
-        # curve_points = np.column_stack((x,y)).astype(np.int32)
-
-        # cv2.polylines(curve_img, [curve_points], isClosed=False,color = (255,0,0), thickness=5)
-
-        # if fit_poly == True:
-        #     img = cv2.addWeighted(img,1,curve_img,1,0) 
-        
-        # # save path frame
-        # new_id = create_id(count, frames_mag)
-        # file_name = "path_"+new_id+"."+extension
-        # cv2.imwrite(os.path.join(save_path,file_name),img)
-
-        # count += 1    
-        # i +=1
         # print(f"{file_name} success.")
     return poly_coef_mean_array, poly_coef_var1_array, poly_coef_var2_array
 
