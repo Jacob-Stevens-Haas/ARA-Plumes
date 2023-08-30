@@ -636,8 +636,18 @@ def learn_center_var(img_path,
     ## Plotting var_points ##
     ##########################
 
-    points_var1 = np.vstack((np.array(var1_points), list(orig_center)))
-    points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
+    # check if list is empty 
+    if bool(var1_points):
+        points_var1 = np.vstack((np.array(var1_points), list(orig_center)))
+    else:
+        points_var1 = np.array(orig_center)
+
+    if bool(var2_points):
+        points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
+    else:
+        points_var2 = np.array(orig_center)
+    # points_var1 = np.vstack((np.array(var1_points), list(orig_center)))
+    # points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
 
 
     ## Plotting as different colors
@@ -660,6 +670,7 @@ def learn_center_var(img_path,
     ## Apply polyfit to var ##
     ##########################
 
+    # Add additional check for potentially underdetermined systems
     poly_coef_var1 = np.polyfit(points_var1[:,0],
                                 points_var1[:,1],
                                 deg=poly_deg)
