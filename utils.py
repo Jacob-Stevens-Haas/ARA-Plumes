@@ -640,12 +640,12 @@ def learn_center_var(img_path,
     if bool(var1_points):
         points_var1 = np.vstack((np.array(var1_points), list(orig_center)))
     else:
-        points_var1 = np.array(orig_center)
+        points_var1 = np.array([orig_center])
 
     if bool(var2_points):
         points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
     else:
-        points_var2 = np.array(orig_center)
+        points_var2 = np.array([orig_center])
     # points_var1 = np.vstack((np.array(var1_points), list(orig_center)))
     # points_var2 = np.vstack((np.array(var2_points), list(orig_center)))
 
