@@ -97,9 +97,12 @@ def gaussian_time_blur(directory: list,
     if not window%2==1:
         raise Exception("window must be a positive odd int.")
 
+    create_directory(save_directory)
+
     # Get images directory paths in list  
     img_paths = get_img_paths(directory)
-    frame_mag = len(str(len(img_path)))
+    frame_mag = len(str(len(img_paths)))
+    print("frame_mag:", frame_mag)
 
     
     # Create Gaussian Weights
@@ -117,8 +120,12 @@ def gaussian_time_blur(directory: list,
 
         # Save image
         new_id = create_id(blur_id,frame_mag)
+        # print("new_id:", new_id)
         file_name = "gauss_time_blur_"+new_id+"."+extension
+        # print("file_name:", file_name)
+        # print("full_name:", os.path.join(save_directory,file_name))
         cv2.imwrite(os.path.join(save_directory,file_name), avg_img)
+        blur_id+=1
     return weights
 
 
@@ -146,33 +153,46 @@ save_directory = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July
 window=5
 sigma=2
 # 11 and 5
+gaussian_time_blur(directory=directory, window=window,sigma=sigma,save_directory=save_directory)
 
+#########################
+## Apply path learning ##
+######################
 
+# img_path = get_img_paths(img_folder_path)
+# frame_mag = len(str(len(img_path)))
+# print(frame_mag)
+
+# for i in range(10):
+#     new_id = create_id(i,frame_mag)
+#     file_name="gauss_time_blur_"+new_id+"."+"png"
+#     full_name = os.path.join(save_directory,file_name)
+#     print(full_name)
 
 # For testing values
 # Create Gaussian Weights
-gauss_center = window//2
-weights = np.zeros(window)
-for x in range(window):
-    weights[x] = np.exp(-(x-gauss_center)**2 / (2*sigma**2))
-weights /= np.sum(weights)
+# gauss_center = window//2
+# weights = np.zeros(window)
+# for x in range(window):
+#     weights[x] = np.exp(-(x-gauss_center)**2 / (2*sigma**2))
+# weights /= np.sum(weights)
 
-print("Weights:", weights)
-print("Weight sum:", sum(weights))
-img_path = get_img_paths(img_folder_path)
-imgs = [cv2.imread(path) for path in img_path[218:218+window]]
-
-
-avg_img = average_weighted_images(imgs,weights)
-avg_img=cv2.convertScaleAbs(avg_img) # To convert to the correct type for cv2
+# print("Weights:", weights)
+# print("Weight sum:", sum(weights))
+# img_path = get_img_paths(img_folder_path)
+# imgs = [cv2.imread(path) for path in img_path[218:218+window]]
 
 
-for i,img in enumerate(imgs):
-    cv2.imshow(f"Img {i+1}",img)
+# avg_img = average_weighted_images(imgs,weights)
+# avg_img=cv2.convertScaleAbs(avg_img) # To convert to the correct type for cv2
 
-cv2.imshow("avg Img", avg_img)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+
+# for i,img in enumerate(imgs):
+#     cv2.imshow(f"Img {i+1}",img)
+
+# cv2.imshow("avg Img", avg_img)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
 
 
