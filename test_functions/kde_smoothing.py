@@ -61,7 +61,7 @@ def gaussian_space_blur(directory,
 
     frame_mag = len(str(len(img_paths)))
     i=0
-    for img in img_paths:
+    for img in tqdm(img_paths):
         # Apply blurring
         img = cv2.imread(img)
         blurred_img = cv2.GaussianBlur(img,kernel_size,sigma,sigma)
@@ -125,23 +125,54 @@ def gaussian_time_blur(directory: list,
 window=11
 sigma=5
 
-weights = gaussian_time_blur(img_folder_path,window=window,sigma=sigma)
-# print("Weights:", weights)
-# print("Weight sum:", sum(weights))
-# img_path = get_img_paths(img_folder_path)
-# imgs = [cv2.imread(path) for path in img_path[218:218+window]]
+##################################
+## Apply kde smoothing in space ##
+##################################
+save_directory = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_high_1/space_blur"
+kernel_size = (25,25)
+sigma=4
+
+# gaussian_space_blur(directory=img_folder_path,
+#                     kernel_size=kernel_size,
+#                     sigma=sigma,
+#                     save_directory=save_directory)
+
+#################################
+## Apply kde smoothing in time ##
+#################################
+
+directory = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_high_1/space_blur"
+save_directory = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_high_1/time_blur"
+window=5
+sigma=2
+# 11 and 5
 
 
-# avg_img = average_weighted_images(imgs,weights)
-# avg_img=cv2.convertScaleAbs(avg_img) # To convert to the correct type for cv2
+
+# For testing values
+# Create Gaussian Weights
+gauss_center = window//2
+weights = np.zeros(window)
+for x in range(window):
+    weights[x] = np.exp(-(x-gauss_center)**2 / (2*sigma**2))
+weights /= np.sum(weights)
+
+print("Weights:", weights)
+print("Weight sum:", sum(weights))
+img_path = get_img_paths(img_folder_path)
+imgs = [cv2.imread(path) for path in img_path[218:218+window]]
 
 
-# # for i,img in enumerate(imgs):
-# #     cv2.imshow(f"Img {i+1}",img)
+avg_img = average_weighted_images(imgs,weights)
+avg_img=cv2.convertScaleAbs(avg_img) # To convert to the correct type for cv2
 
-# cv2.imshow("avg Img", avg_img)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
+
+for i,img in enumerate(imgs):
+    cv2.imshow(f"Img {i+1}",img)
+
+cv2.imshow("avg Img", avg_img)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
 
 
 
