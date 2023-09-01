@@ -716,7 +716,8 @@ def find_center_of_mass(frames_path: str,
                         x_plus =0,
                         x_less = 0,
                         smoothing=False,
-                        eps_smooth=10):
+                        eps_smooth=10,
+                        save_figs = True):
     """
     Generate frames of learned path on background subtract frames.
 
@@ -796,9 +797,10 @@ def find_center_of_mass(frames_path: str,
         poly_coef_var1_array[i] = poly_coef_var2
 
         # save path frame
-        new_id = create_id(count, frames_mag)
-        file_name = "path_"+new_id+"."+extension
-        cv2.imwrite(os.path.join(save_path,file_name),img)
+        if save_figs == True:
+            new_id = create_id(count, frames_mag)
+            file_name = "path_"+new_id+"."+extension
+            cv2.imwrite(os.path.join(save_path,file_name),img)
 
         count += 1    
         i +=1
