@@ -9,14 +9,130 @@ import cv2
 class PLUME():
     def __init__(self, video_path):
         self.video_path = video_path
+        self.video_capture = cv2.VideoCapture(video_path)
         self.mean_poly = None
         self.var1_poly = None
         self.var2_poly = None
-        self.center = None
+        self.orig_center = None
     
 
     def extract_frames(self, extension: str = "jpg"):
         video_path = self.video_path
+    
+    def concentric_circle(self,
+                          img,
+                          contour_smoothing = True,
+                          contour_smoothing_eps = 50,
+                          radii=50,
+                          num_of_circs = 22,
+                          fit_poly = True,
+                          boundary_ring = False,
+                          interior_ring = False,
+                          interior_scale = 3/5,
+                          rtol=1e-2,
+                          atol=1e-6,
+                          poly_deg = 2,
+                          x_less = 600,
+                          x_plus = 0,
+                          mean_smoothing = True,
+                          mean_smoothing_sigma =2):
+        # convert image to gray
+        img_gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+
+        ########################
+        ## Apply Thresholding ##
+        ########################
+
+        # OTSU thresholding (automatically choose params)
+        _, threshold = cv2.threshold(img_gray,0,255,cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+
+        ###################
+        ## Find Contours ##
+        ###################
+        contours, _ = cv2.findContours(threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # Select n largest contours
+        n=1
+        contours = sorted(contours, key=cv2.contourArea,reverse=True)
+        selected_contours = contours[:n]
+
+        #############################
+        ## Apply Contour Smoothing ##
+        #############################
+
+        # POTENTIALLY REMOVE SINCE IT REMOVES VERTICIES 
+        if contour_smoothing == True:
+            smoothed_contours = []
+
+            for contour in selected_contours:
+                smoothed_contours.append(cv2.approxPolyDP(contour, contour_smoothing_eps, True))
+            
+            selected_contours = smoothed_contours  
+
+        ##############################
+        ## Create Distance Array(s) ##
+        ##############################
+        # array of distance of each point on contour to original center
+        contour_dist_list = []
+        for contour in selected_contours:
+            a = contour.reshape(-1,2)
+            b = np.array(self.orig_center)
+            contour_dist = np.sqrt(np.sum((a-b)**2,axis=1)) 
+            contour_dist_list.append(contour_dist)
+
+        ############################
+        ## Draw contours on image ##
+        ############################
+        green_color = (0,255,0)
+        red_color = (255,0,0)
+        blue_color = (0,0,255)
+
+        contour_img = img.copy()
+        cv2.drawContours(contour_img, selected_contours,-1,green_color,2)
+        cv2.circle(contour_img, self.orig_center,8,red_color,-1)
+
+        ##############################
+        ## Apply Concentric Circles ##
+        ##############################
+
+        # Initialize numpy array to store center
+        points_mean = np.zeros(shape=(num_of_circs+1,2))
+        points_mean[0] = self.orig_center
+
+
+        return
+    
+    def find_max_on_boundary(self, array, center,r,rtol=1e-3,atol=1e-6):
+        col, row = center
+        n, d = array.shape
+
+        # Generate a grid of indicies for the array
+        xx, yy = np.meshgrid(np.arange(d), np.arange(n)) 
+
+        # Get Euclidean distance from each point on grid to center
+        distances = np.sqrt((xx-col)**2+(yy-row)**2)
+
+        # Create mask for points on the boundary (distances == r)
+        boundary_mask = np.isclose(distances,r,rtol=rtol,atol=atol)
+
+        # Apply the boundary mask to the array to get the subset
+        boundary_subset = array[boundary_mask]
+
+        # Find the maximum value within the subset
+        max_value = np.max(boundary_subset)
+
+        # Find the indices of the maximum elements within the boundary 
+        max_indicies = np.argwhere(np.isclose(array,max_value) & boundary_mask)
+
+        row, col = max_indicies[0]
+        
+        max_indicies = (col, row)
+
+        return max_value, max_indicies
+    
+    def train(self, subtraction: str = "fixed", ):
+        # Apply subtraction
+        return
 
 
     
