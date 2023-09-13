@@ -6,7 +6,7 @@ import numpy as np
 import glob
 from PIL import Image
 from tqdm import tqdm
-
+from scipy.ndimage import gaussian_filter
 
 
 # General Purpose functions
@@ -453,7 +453,9 @@ def learn_center_var(img_path,
                      atol=1e-6,
                      poly_deg=2,
                      x_less = 600,
-                     x_plus = 0):
+                     x_plus = 0,
+                     mean_smoothing = True,
+                     sigma=2):
     """Applyes concentric cricles to single image learning both mean and edges of plumes."""
     
     # Load image and convert to gray
@@ -490,6 +492,8 @@ def learn_center_var(img_path,
     #############################
     ## Apply Contour Smoothing ##
     #############################
+
+    # POTENTIALLY REMOVE SINCE IT REMOVES VERTICIES 
     if smoothing == True:
         smoothed_contours = []
 
@@ -569,7 +573,7 @@ def learn_center_var(img_path,
         points_mean[step] = center
 
         # Draw next point
-        cv2.circle(contour_image_original, center,7,blue_color,-1)
+        # cv2.circle(contour_image_original, center,7,blue_color,-1)
 
         # Draw boundary ring
         if boundary_ring == True:
@@ -583,6 +587,20 @@ def learn_center_var(img_path,
     ############################
     ## Apply Poly fit to mean ##
     ############################
+    
+    # Apply gaussian filtering in y only
+    if mean_smoothing == True:
+        # Apply Gaussian filtering to mean points
+        # smooth_x = gaussian_filter(points_mean[:,0], sigma=sigma)
+        smooth_x = points_mean[:,0]
+        smooth_y = gaussian_filter(points_mean[:,1], sigma=sigma)
+        points_mean = np.column_stack((smooth_x,smooth_y))
+
+    # Draw points on image
+    for center in points_mean:
+        center = center.round().astype(int)
+        cv2.circle(contour_image_original, center,7,blue_color,-1)
+
     poly_coef_mean = np.polyfit(points_mean[:,0], points_mean[:,1],deg=poly_deg)
 
     f_mean = lambda x: poly_coef_mean[0]*x**2 + poly_coef_mean[1]*x+poly_coef_mean[2]
@@ -717,7 +735,9 @@ def find_center_of_mass(frames_path: str,
                         x_less = 0,
                         smoothing=False,
                         eps_smooth=10,
-                        save_figs = True):
+                        save_figs = True,
+                        mean_smoothing = True,
+                        sigma = 2):
     """
     Generate frames of learned path on background subtract frames.
 
@@ -791,7 +811,9 @@ def find_center_of_mass(frames_path: str,
                                                                                 atol=atol,
                                                                                 poly_deg=poly_deg,
                                                                                 x_less=x_less,
-                                                                                x_plus=x_plus)
+                                                                                x_plus=x_plus,
+                                                                                mean_smoothing=mean_smoothing,
+                                                                                sigma=sigma)
         poly_coef_mean_array[i] = poly_coef_mean
         poly_coef_var1_array[i] = poly_coef_var1
         poly_coef_var1_array[i] = poly_coef_var2
