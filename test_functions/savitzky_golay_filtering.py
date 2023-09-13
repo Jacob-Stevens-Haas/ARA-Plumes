@@ -4,6 +4,7 @@
 import numpy as np
 import scipy
 import time
+import matplotlib.pyplot as plt
 
 from scipy.ndimage import gaussian_filter
 
@@ -163,11 +164,17 @@ def sgolay2d ( z, window_size, order, derivative=None):
 
 np.random.seed(1234)
 
-arr = np.arange(22)+1
-arr = arr.reshape(22,-1)
-arr = np.hstack((arr,arr))
+x = np.arange(22)+1
+x = x.reshape(22,-1)
+# arr = np.hstack((x,x))
 
-noise_mag = 0.2
+f = lambda x: 1/50*(x-2)**2
+y = f(x)
+
+arr = np.hstack((x,y))
+
+
+noise_mag = 0.5
 gauss_noise = np.random.normal(size=(22,2))
 
 noisy_arr = arr + noise_mag*gauss_noise
@@ -175,14 +182,14 @@ noisy_arr = arr + noise_mag*gauss_noise
 ## Testing different smoothing techniques 
 
 t1 = time.time()
-window_size = 5
+window_size = 11
 order = 3
 savitzky_golay_smoothed = sgolay2d(z=noisy_arr,window_size=window_size,order=order)
 t2 = time.time()
 print(t2-t1)
 
 t1 = time.time()
-sigma = 0.5
+sigma = 2
 smoothed_x = gaussian_filter(noisy_arr[:,0],sigma=sigma)
 smoothed_y = gaussian_filter(noisy_arr[:,1],sigma=sigma)
 
@@ -196,6 +203,23 @@ gauss_error = np.linalg.norm(arr - gauss_smoothed)
 
 print("sav error:", sav_error)
 print("gauss_error:", gauss_error)
+
+# Plot points
+plt.scatter(noisy_arr[:,0], noisy_arr[:,1],label="noisy true", color='green',
+            marker='v')
+plt.scatter(arr[:,0], arr[:,1],label="true",color='blue', marker="o")
+plt.scatter(savitzky_golay_smoothed[:,0],savitzky_golay_smoothed[:,1],
+            label="savitzky", color='red', marker="s")
+plt.scatter(gauss_smoothed[:,0], gauss_smoothed[:,1],label="gauss",
+            color="black", marker='s')
+
+plt.xlabel("x-axis")
+plt.ylabel("y-axis")
+plt.title(f"Smoothing methods, Noise {noise_mag}")
+plt.legend()
+
+plt.show()
+
 
 
 
