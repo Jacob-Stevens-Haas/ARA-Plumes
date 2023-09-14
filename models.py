@@ -81,8 +81,11 @@ class PLUME():
         # array of distance of each point on contour to original center
         contour_dist_list = []
         for contour in selected_contours:
+            print("made it in loops")
             a = contour.reshape(-1,2)
+            print("got to a")
             b = np.array(self.orig_center)
+            print("got to b")
             contour_dist = np.sqrt(np.sum((a-b)**2,axis=1)) 
             contour_dist_list.append(contour_dist)
 
@@ -280,7 +283,7 @@ class PLUME():
 
         cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
         if fit_poly == True:
-            contour_img = cv2.addWeighed(contour_img,1,curve_img,1,0)
+            contour_img = cv2.addWeighted(contour_img,1,curve_img,1,0)
         
         return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
     
