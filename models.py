@@ -36,6 +36,9 @@ class PLUME():
                           x_plus = 0,
                           mean_smoothing = True,
                           mean_smoothing_sigma =2):
+        """
+        To be applied to a single image. 
+        """
         # convert image to gray
         img_gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
@@ -99,9 +102,72 @@ class PLUME():
         points_mean = np.zeros(shape=(num_of_circs+1,2))
         points_mean[0] = self.orig_center
 
+        # Plot first point on path 
+        _, center = self.find_max_on_boundary(img_gray,
+                                              self.orig_center,
+                                              r=radii,
+                                              rtol=rtol,
+                                              atol=atol)
+        points_mean[1] = center
+
+        # draw rings if True
+        if boundary_ring == True:
+            cv2.circle(contour_img, self.orig_center, radii, (0,0,255),1, lineType = cv2.LINE_AA)
+        
+        for step in range(2, num_of_circs+1):
+            radius = radii*step
+
+            # Draw interior_ring == True:
+            if interior_ring == True:
+                cv2.circle(contour_img,
+                           center = center,
+                           radius = int(radius*interior_scale),
+                           color=blue_color,
+                           thickness=1,
+                           lineType=cv2.LINE_AA)
+            
+            # Get center of next point
+            error_occured = False
+            # try:
+            #     _, center = (5,5)
+        
+
 
         return
     
+    def find_next_center(self, array, orig_center, neig_center,r,scale=3/5,rtol=1e-3,atol=1e-6):
+        col, row = orig_center,
+        n, d = array.shape
+
+        # generate grid of indicies from array
+        xx, yy = np.meshgrid(np.arange(d), np.arange(n))
+
+        # Get array of distances
+        distances = np.sqrt((xx-col)**2 + (yy-row)*2)
+
+        # Create mask for points on boundary (distances == r)
+        boundary_mask = np.isclose(distances,r,rtol=rtol,atol=atol)
+
+        # Appply to neighboring point
+        col, row = neig_center
+
+        interior_mask = distances <= r*scale
+
+        search_mask = boundary_mask & interior_mask
+
+        search_subset = array[search_mask]
+
+        max_value = np.max(search_subset)
+
+        # find indicies of max element
+        max_indicies = np.argwhere(np.isclose(array,max_value) & search_mask)
+
+        row, col = max_indicies[0]
+
+        max_indicies = (col, row)
+
+        return max_value, max_indicies
+        return
     def find_max_on_boundary(self, array, center,r,rtol=1e-3,atol=1e-6):
         col, row = center
         n, d = array.shape
