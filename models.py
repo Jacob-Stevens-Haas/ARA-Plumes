@@ -38,6 +38,9 @@ class PLUME():
                           mean_smoothing_sigma =2):
         """
         To be applied to a single image. 
+
+        Args:
+            img (np.ndarray): numpy array of read image
         """
         # convert image to gray
         img_gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
@@ -159,7 +162,7 @@ class PLUME():
         ############################
         
         # Apply gaussian filtering to poitns in y direction
-        if mean_smoothing = True:
+        if mean_smoothing == True:
             smooth_x = points_mean[:,0]
             smooth_y = gaussian_filter(points_mean[:,1], sigma=mean_smoothing_sigma)
             points_mean = np.column_stack((smooth_x,smooth_y))
@@ -188,7 +191,98 @@ class PLUME():
         ## Checking Variance points ##
         ##############################
 
-        return
+        # Initialize variance list to store points
+        var1_points = []
+        var2_points = []
+
+        for step in range(1, num_of_circs+1):
+            radius = step*radii
+            
+            var_above = []
+            var_below = []
+
+            for i in range(len(selected_contours)):
+                contour_dist = contour_dist_list[i]
+                contour = selected_contours[i]
+
+                dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
+                intersection_points = contour.reshape(-1,2)[dist_mask]
+            
+            for point in intersection_points:
+                if f_mean(point[0]) <= point[1]:
+                    var_above.append(point)
+                else:
+                    var_below.append(point)
+            
+            if bool(var_above):
+                var1_points.append(list(np.array(var_above).mean(axis=0).round().astype(int)))
+            
+            if bool(var_below):
+                var2_points.append(list(np.array(var_below).mean(axis=0).round().astype(int)))
+
+        
+        # Concatenate original center to both lists
+        if bool(var1_points):
+            points_var1 = np.vstack((np.array(var1_points), list(self.orig_center)))
+        else:
+            points_var1 = np.array([self.orig_center])
+        
+        if bool(var2_points):
+            points_var2 = np.vstack((np.array(var2_points), list(self.orig_center)))
+        else:
+            points_var2 = np.array([self.orig_center])
+
+        
+        # Plotting poitns
+        for point in points_var1:
+            cv2.circle(contour_img,
+                       point,
+                       7,
+                       red_color,
+                       -1)
+        
+        for point in points_var2:
+            cv2.circle(contour_img,
+                       point,
+                       7,
+                       red_color,
+                       -1)
+            
+        ##########################
+        ## Apply polyfit to var ##
+        ##########################
+
+        # Add additional check for potentially underdetermined systems?
+        # Possibly modify function
+        poly_coef_var1 = np.polyfit(points_var1[:,0],
+                                    points_var1[:,1],
+                                    deg=poly_deg)
+        
+        poly_coef_var2 = np.polyfit(points_var2[:,0],
+                                    points_var2[:,1],
+                                    deg=poly_deg)
+        
+        # Plotting var 1
+        x = np.linspace(np.min(points_var1[:,0])-x_less,np.max(points_var1[:,0])+x_plus,100)
+        y = poly_coef_var1[0]*x**2 + poly_coef_var1[1]*x+poly_coef_var1[2]
+
+        curve_points = np.column_stack((x,y)).astype(np.int32)
+        
+        cv2.polylines(curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5)
+        if fit_poly == True:
+            contour_img = cv2.addWeighted(contour_img,1,curve_img,1,0)
+        
+        # Plotting var 2
+        x = np.linspace(np.min(points_var2[:,0])-x_less,np.max(points_var2[:,0])+x_plus,100)
+        y = poly_coef_var2[0]*x**2 + poly_coef_var2[1]*x + poly_coef_var2[2]
+
+        curve_points = np.column_stack((x,y)).astype(np.int32)
+
+        cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
+        if fit_poly == True:
+            contour_img = cv2.addWeighed(contour_img,1,curve_img,1,0)
+        
+        return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
     
     def find_next_center(self, array, orig_center, neig_center,r,scale=3/5,rtol=1e-3,atol=1e-6):
         col, row = orig_center,
@@ -256,39 +350,43 @@ class PLUME():
         return
 
 
-    
-video_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_high_1/high_1.MP4"
+
+def main():   
+    video_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July_20/video_high_1/high_1.MP4"
 
 
-clip = VideoFileClip(video_path)
+    clip = VideoFileClip(video_path)
 
-test_num =15
+    test_num =15
 
-t0 = time.time()
-fps = clip.fps
-total_frames = int(fps*clip.duration)
-frames = list(np.arange(test_num)*100+100)
-for frame in tqdm(frames):
-    frame_time = frame/fps
-    output = clip.get_frame(frame_time)
-t1 = time.time()
-print("time:", t1-t0,"\n")
-
-
-# We are going to use the cv2 method (faster)
-video_capture = cv2.VideoCapture(video_path)
-t0 = time.time()
-
-fps = video_capture.get(cv2.CAP_PROP_FPS)
-total_frames = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
-middle_frame = total_frames //2
-frames = list(np.arange(test_num)*100+100)  
-for frame in tqdm(frames):
-    video_capture.set(cv2.CAP_PROP_POS_FRAMES,frame)
-    _,output = video_capture.read()
+    t0 = time.time()
+    fps = clip.fps
+    total_frames = int(fps*clip.duration)
+    frames = list(np.arange(test_num)*100+100)
+    for frame in tqdm(frames):
+        frame_time = frame/fps
+        output = clip.get_frame(frame_time)
+    t1 = time.time()
+    print("time:", t1-t0,"\n")
 
 
-t1 = time.time()
-print("time:", t1-t0)
+    # We are going to use the cv2 method (faster)
+    video_capture = cv2.VideoCapture(video_path)
+    t0 = time.time()
 
-print("new test")
+    fps = video_capture.get(cv2.CAP_PROP_FPS)
+    total_frames = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+    middle_frame = total_frames //2
+    frames = list(np.arange(test_num)*100+100)  
+    for frame in tqdm(frames):
+        video_capture.set(cv2.CAP_PROP_POS_FRAMES,frame)
+        _,output = video_capture.read()
+
+
+    t1 = time.time()
+    print("time:", t1-t0)
+
+    print("new test")
+
+if __name__ == "__main__":
+    main()
