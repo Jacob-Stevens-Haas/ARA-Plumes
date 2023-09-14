@@ -128,10 +128,65 @@ class PLUME():
             
             # Get center of next point
             error_occured = False
-            # try:
-            #     _, center = (5,5)
-        
+            try:
+                _, center = self.find_next_center(array=img_gray,
+                                                  orig_center=self.orig_center,
+                                                  neig_center=center,
+                                                  r=radius,
+                                                  scale=interior_scale,
+                                                  rtol=rtol,
+                                                  atol=atol)
+            except Exception as e:
+                print("empty search")
+                error_occured = True
+            
+            if error_occured == True:
+                break
 
+            points_mean[step] = center
+
+            # Draw boundary ring
+            if boundary_ring == True:
+                cv2.circle(contour_img,
+                           center=self.orig_center,
+                           radius=radius,
+                           color=red_color,
+                           thickness=1,
+                           lineType = cv2.LINE_AA)
+        
+        ############################
+        ## Apply poly fit to mean ##
+        ############################
+        
+        # Apply gaussian filtering to poitns in y direction
+        if mean_smoothing = True:
+            smooth_x = points_mean[:,0]
+            smooth_y = gaussian_filter(points_mean[:,1], sigma=mean_smoothing_sigma)
+            points_mean = np.column_stack((smooth_x,smooth_y))
+        
+        # Draw points on image
+        for center in points_mean:
+            center = center.round().astype(int)
+            cv2.circle(contour_img,center,7,blue_color,-1)
+        
+        poly_coef_mean = np.polyfit(points_mean[:,0], points_mean[:,1],deg=poly_deg)
+
+        f_mean = lambda x: poly_coef_mean[0]*x**2 + poly_coef_mean[1]*x + poly_coef_mean[2]
+
+        x = np.linspace(np.min(points_mean[:,0])-x_less,np.max(points_mean[:,0])+x_plus,100)
+        y=f_mean(x)
+
+        curve_img = np.zeros_like(contour_img)
+        curve_points = np.column_stack((x,y)).astype(np.int32)
+
+        cv2.polylines(curve_img,[curve_points], isClosed=False,color=blue_color, thickness=5)
+        if fit_poly==True:
+            contour_img = cv2.addWeighted(contour_img,1,curve_img,1,0)
+
+
+        ##############################
+        ## Checking Variance points ##
+        ##############################
 
         return
     
@@ -167,7 +222,7 @@ class PLUME():
         max_indicies = (col, row)
 
         return max_value, max_indicies
-        return
+        
     def find_max_on_boundary(self, array, center,r,rtol=1e-3,atol=1e-6):
         col, row = center
         n, d = array.shape
