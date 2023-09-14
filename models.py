@@ -21,7 +21,7 @@ class PLUME():
     
     def concentric_circle(self,
                           img,
-                          contour_smoothing = True,
+                          contour_smoothing = False,
                           contour_smoothing_eps = 50,
                           radii=50,
                           num_of_circs = 22,
