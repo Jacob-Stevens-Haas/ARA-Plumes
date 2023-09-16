@@ -42,8 +42,12 @@ class PLUME():
         Args:
             img (np.ndarray): numpy array of read image
         """
+        # Check that original center has been declared
+        if not isinstance(self.orig_center, tuple):
+            raise TypeError(f"orig_center must be declared as {tuple}.\nPlease declare center or use find_center function.")
+
         # convert image to gray
-        img_gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         ########################
         ## Apply Thresholding ##
@@ -81,11 +85,8 @@ class PLUME():
         # array of distance of each point on contour to original center
         contour_dist_list = []
         for contour in selected_contours:
-            print("made it in loops")
             a = contour.reshape(-1,2)
-            print("got to a")
             b = np.array(self.orig_center)
-            print("got to b")
             contour_dist = np.sqrt(np.sum((a-b)**2,axis=1)) 
             contour_dist_list.append(contour_dist)
 
@@ -98,7 +99,7 @@ class PLUME():
 
         contour_img = img.copy()
         cv2.drawContours(contour_img, selected_contours,-1,green_color,2)
-        cv2.circle(contour_img, self.orig_center,8,red_color,-1)
+        cv2.circle(contour_img, self.orig_center,8,blue_color,-1)
 
         ##############################
         ## Apply Concentric Circles ##
@@ -114,10 +115,12 @@ class PLUME():
                                               r=radii,
                                               rtol=rtol,
                                               atol=atol)
+        # print("center_1:", center)
         points_mean[1] = center
 
         # draw rings if True
         if boundary_ring == True:
+            # print("boundary_ring:", boundary_ring)
             cv2.circle(contour_img, self.orig_center, radii, (0,0,255),1, lineType = cv2.LINE_AA)
         
         for step in range(2, num_of_circs+1):
@@ -135,6 +138,7 @@ class PLUME():
             # Get center of next point
             error_occured = False
             try:
+                # print(self.orig_center,center,radius,interior_scale,rtol,atol)
                 _, center = self.find_next_center(array=img_gray,
                                                   orig_center=self.orig_center,
                                                   neig_center=center,
@@ -142,6 +146,7 @@ class PLUME():
                                                   scale=interior_scale,
                                                   rtol=rtol,
                                                   atol=atol)
+                # print(f"center_{step}:", center)
             except Exception as e:
                 print("empty search")
                 error_occured = True
@@ -180,7 +185,7 @@ class PLUME():
         f_mean = lambda x: poly_coef_mean[0]*x**2 + poly_coef_mean[1]*x + poly_coef_mean[2]
 
         x = np.linspace(np.min(points_mean[:,0])-x_less,np.max(points_mean[:,0])+x_plus,100)
-        y=f_mean(x)
+        y = f_mean(x)
 
         curve_img = np.zeros_like(contour_img)
         curve_points = np.column_stack((x,y)).astype(np.int32)
@@ -193,6 +198,8 @@ class PLUME():
         ##############################
         ## Checking Variance points ##
         ##############################
+
+        ## NEED TO COMPARE AGAINST SCRIPT GOING FORAWRD
 
         # Initialize variance list to store points
         var1_points = []
@@ -288,37 +295,51 @@ class PLUME():
         return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
     
     def find_next_center(self, array, orig_center, neig_center,r,scale=3/5,rtol=1e-3,atol=1e-6):
-        col, row = orig_center,
+        # print("entered find_next_center")
+        col, row = orig_center
         n, d = array.shape
 
         # generate grid of indicies from array
         xx, yy = np.meshgrid(np.arange(d), np.arange(n))
 
         # Get array of distances
-        distances = np.sqrt((xx-col)**2 + (yy-row)*2)
+        distances = np.sqrt((xx-col)**2 + (yy-row)**2)
 
         # Create mask for points on boundary (distances == r)
+        # print(rtol, atol)
         boundary_mask = np.isclose(distances,r,rtol=rtol,atol=atol)
 
         # Appply to neighboring point
         col, row = neig_center
 
+        # get array of new distances from pervious circle
+        distances = np.sqrt((xx-col)**2 + (yy-row)**2)
+
         interior_mask = distances <= r*scale
+
+        # print(np.argwhere(interior_mask==True))
 
         search_mask = boundary_mask & interior_mask
 
+        # print(np.argwhere(search_mask == True))
+
         search_subset = array[search_mask]
+        # print(search_subset)
+
+        # print("made it here")
 
         max_value = np.max(search_subset)
+        # print("made it here??")
+        # print("max_value:", max_value)
 
         # find indicies of max element
-        max_indicies = np.argwhere(np.isclose(array,max_value) & search_mask)
+        max_indices = np.argwhere(np.isclose(array,max_value) & search_mask)
 
-        row, col = max_indicies[0]
+        row, col = max_indices[0]
 
-        max_indicies = (col, row)
+        max_indices = (col, row)
 
-        return max_value, max_indicies
+        return max_value, max_indices
         
     def find_max_on_boundary(self, array, center,r,rtol=1e-3,atol=1e-6):
         col, row = center
@@ -340,13 +361,13 @@ class PLUME():
         max_value = np.max(boundary_subset)
 
         # Find the indices of the maximum elements within the boundary 
-        max_indicies = np.argwhere(np.isclose(array,max_value) & boundary_mask)
+        max_indices = np.argwhere(np.isclose(array, max_value) & boundary_mask)
 
-        row, col = max_indicies[0]
+        row, col = max_indices[0]
         
-        max_indicies = (col, row)
+        max_indices = (col, row)
 
-        return max_value, max_indicies
+        return max_value, max_indices
     
     def train(self, subtraction: str = "fixed", ):
         # Apply subtraction
