@@ -407,14 +407,12 @@ def find_next_center(array, orig_center, neig_center, r,scale=3/5, rtol=1e-3,ato
     distances = np.sqrt((xx-col)**2 + (yy-row)**2)
 
     # Create a mask for points on the boundary (distances == r)
+    # print(rtol,atol)
     boundary_mask = np.isclose(distances,r,rtol=rtol,atol=atol)
     # boundary_mask = np.isclose(distances,r)
 
-
     # create interion on previous circle
     col, row = neig_center
-
-    # print("prev center:", (col,row))
 
     # get array of new distnaces from previous circle
     distances = np.sqrt((xx-col)**2 + (yy-row)**2)
@@ -521,8 +519,8 @@ def learn_center_var(img_path,
     ##############################
     ## Apply Concentric Circles ##
     ##############################
-    blue_color = (255,0,0)
-    red_color = (0,0,255)
+    blue_color = (0,0,255)
+    red_color = (255,0,0)
 
     # Instatiate numpy array to store centers
     points_mean = np.zeros(shape=(num_of_circs+1,2))
@@ -533,6 +531,8 @@ def learn_center_var(img_path,
 
     # Plot first point on path
     _, center = find_max_on_boundary(image_gray, orig_center,radii, rtol=rtol,atol=atol)
+
+    # print("center_1:", center)
     points_mean[1]=center
 
     # Draw rings
@@ -556,6 +556,7 @@ def learn_center_var(img_path,
         ## Throw in try catch error --> break out of loop if does not work.
         error_occured = False
         try:
+            # print(orig_center, center, radius, scale,rtol, atol)
             _, center = find_next_center(array=image_gray,
                                         orig_center=orig_center,
                                         neig_center=center,
@@ -563,6 +564,7 @@ def learn_center_var(img_path,
                                         scale=scale,
                                         rtol=rtol,
                                         atol=atol)
+            # print(f"center_{step}:", center)
         except Exception as e:
             print("empty search")
             error_occured = True
