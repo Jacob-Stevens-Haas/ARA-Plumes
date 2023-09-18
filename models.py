@@ -369,6 +369,26 @@ class PLUME():
 
         return max_value, max_indices
     
+    def create_background_img(self, img_count):
+        ret, frame = self.video_capture.read()
+        background_img_np = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY).astype(float)
+
+        k=0
+        try:
+            while ret:
+                if k< img_count:
+                    background_img_np += cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(float)
+                k+=1
+                ret,frame = self.video_capture.read()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            self.video_capture.release()
+
+        background_img_np = (background_img_np/img_count).astype(np.uint8)
+        
+        return background_img_np
+    
     def train(self, subtraction: str = "fixed", ):
         # Apply subtraction
         return
