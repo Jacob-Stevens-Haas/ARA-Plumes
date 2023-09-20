@@ -3,6 +3,10 @@ sys.path.append('/Users/Malachite/Documents/UW/ARA/ARA-Plumes')
 from utils import *
 from tqdm import tqdm
 
+# For dislaying clips in Jupyter notebooks 
+# from IPython.display import Image, display 
+import IPython
+
 import time
 import cv2
 
@@ -386,8 +390,51 @@ class PLUME():
             self.video_capture.release()
 
         background_img_np = (background_img_np/img_count).astype(np.uint8)
-        
+
         return background_img_np
+    
+    def clip_video(self, init_frame, fin_frame, extension: str = "mp4", display_vid: bool = True, save_path: str = "clipped_video"):
+        video = self.video_capture
+        ret, frame = video.read()
+
+        # grab vieo info for saving new file 
+        frame_width = int(video.get(3))
+        frame_height = int(video.get(4))
+        frame_rate = int(video.get(5))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+        # Possibly resave video
+        clip_title = save_path+"."+extension
+        out = cv2.VideoWriter(clip_title, fourcc, frame_rate, (frame_width, frame_height),0)
+
+        if display_vid == True:
+            print("display_handle defined.")
+            display_handle = IPython.display.display(None, display_id = True)
+        
+        # Loop results in the writing of B&W shortned video clip
+        k=0
+        try:
+            while ret:
+                if k<fin_frame and k>=init_frame:
+                    # print("entered update")
+                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    out.write(frame)
+                    _, frame = cv2.imencode('.jpeg', frame) # why is this jpeg?
+                    if display_vid == True:
+                        # print("update display")
+                        display_handle.update(IPython.display.Image(data=frame.tobytes()))
+                # print("k:", k)
+                k+=1
+                ret, frame = video.read()
+        except KeyboardInterrupt:
+            pass
+        finally:
+            print("finished")
+            video.release()
+            out.release()
+            display_handle.update(None)
+
+        return
     
     def train(self, subtraction: str = "fixed", ):
         # Apply subtraction
