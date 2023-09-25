@@ -360,6 +360,34 @@ class ImagePointPicker:
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
 
+class VideoPointPicker:
+    def __init__(self, video_path):
+        self.video_path = video_path
+        self.video_capture = cv2.VideoCapture(video_path)
+        self.clicked_point = None
+
+    def mouse_callback(self, event, x, y, flags, param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.clicked_point = (x, y)
+            print(f"Clicked at ({x}, {y})")
+            cv2.destroyAllWindows()
+
+    def ask_user(self):
+        video_cap = self.video_capture
+        tot_frames = int(video_cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        middle_frame_id = tot_frames//2
+        video_cap.set(cv2.CAP_PROP_POS_FRAMES, middle_frame_id)
+
+        ret, frame = video_cap.read()
+
+        if ret:
+            cv2.namedWindow("Image")
+            cv2.setMouseCallback("Image", self.mouse_callback)
+            cv2.imshow("Image", frame)
+
+            while self.clicked_point is None:
+                cv2.waitKey(1)
+                
 # Getting paths on each image
 def find_max_on_boundary(array, center,r,rtol=1e-3,atol=1e-6):
 
