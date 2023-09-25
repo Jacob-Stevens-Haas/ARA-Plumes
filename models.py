@@ -23,6 +23,85 @@ class PLUME():
     def extract_frames(self, extension: str = "jpg"):
         video_path = self.video_path
     
+    def train(self,
+            img_range: list,
+            subtraction_method: str = "fixed",
+            fixed_range: int = None,
+            extension = "mp4",
+            save_path = "tracked",
+            display_vid = True):
+
+        # Create background image 
+        if subtraction_method == "fixed" and isinstance(fixed_range,int):
+            print("Creating background image...")
+            background_img_np = self.create_background_img(img_count = fixed_range)
+            # print("back shape:", background_img_np.shape)
+            print("done.")
+        else:
+            raise TypeError("fixed_range must be a positive int for fixed subtraction method.")
+        
+        # Reread after releasing from create_bacground_img
+        self.video_capture = cv2.VideoCapture(self.video_path)
+
+        video = self.video_capture
+        ret, frame = video.read()
+        # print("first ret:", ret)
+
+        # grab vieo info for saving new file 
+        frame_width = int(video.get(3))
+        frame_height = int(video.get(4))
+        frame_rate = int(video.get(5))
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+
+        # Possibly resave video
+        clip_title = save_path+"."+extension
+        out = cv2.VideoWriter(clip_title, fourcc, frame_rate, (frame_width, frame_height),0)
+
+        if display_vid == True:
+            display_handle = IPython.display.display(None, display_id = True)
+        
+        # Loop over frames and apply tracking to img_range
+        init_frame, fin_frame = img_range
+        
+        # Initialize poly arrays
+        mean_array = np.zeros((fin_frame-init_frame,3))
+        var1_array = np.zeros((fin_frame-init_frame,3))
+        var2_array = np.zeros((fin_frame-init_frame,3))
+
+        for _ in range(init_frame):
+            _ = video.read()
+
+        for k in tqdm(range(init_frame,fin_frame)):
+            ret, frame = video.read()
+
+            if not ret:
+                break
+
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            frame = cv2.subtract(frame, background_img_np)
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            out_data = self.concentric_circle(frame)
+
+            frame = out_data[0]
+            mean_array[k] = out_data[1]
+            var1_array[k] = out_data[2]
+            var2_array[k] = out_data[3]
+
+            _, frame = cv2.imencode('.jpeg', frame)
+
+            if display_vid == True:
+                display_handle.update(IPython.display.Image(data=frame.tobytes()))
+            
+        video.release()
+        out.release()
+
+
+        if display_vid == True:
+            display_handle.update(None)
+
+        return mean_array, var1_array, var2_array
+
+
     def concentric_circle(self,
                           img,
                           contour_smoothing = False,
@@ -50,6 +129,7 @@ class PLUME():
         if not isinstance(self.orig_center, tuple):
             raise TypeError(f"orig_center must be declared as {tuple}.\nPlease declare center or use find_center function.")
 
+        # print(img.shape)
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -374,6 +454,13 @@ class PLUME():
         return max_value, max_indices
     
     def create_background_img(self, img_count):
+        """
+        Create background image for fixed subtraction method. 
+        Args:
+            img_count (int): number of initial frames to create average image to subtract from frames.
+        Returns:
+            background_img_np (np.ndarray): Numpy array of average image (in grayscale).
+        """
         ret, frame = self.video_capture.read()
         background_img_np = cv2.cvtColor(frame,cv2.COLOR_BGR2GRAY).astype(float)
 
@@ -395,7 +482,9 @@ class PLUME():
     
     def clip_video(self, init_frame, fin_frame, extension: str = "mp4", display_vid: bool = True, save_path: str = "clipped_video"):
         video = self.video_capture
+        print(type(video.read()))
         ret, frame = video.read()
+        # return frame
 
         # grab vieo info for saving new file 
         frame_width = int(video.get(3))
@@ -423,7 +512,7 @@ class PLUME():
                     if display_vid == True:
                         # print("update display")
                         display_handle.update(IPython.display.Image(data=frame.tobytes()))
-                # print("k:", k)
+                print("k:", k)
                 k+=1
                 ret, frame = video.read()
         except KeyboardInterrupt:
@@ -432,13 +521,12 @@ class PLUME():
             print("finished")
             video.release()
             out.release()
-            display_handle.update(None)
+            if display_vid == True:
+                display_handle.update(None)
 
         return
     
-    def train(self, subtraction: str = "fixed", ):
-        # Apply subtraction
-        return
+    
 
 
 
