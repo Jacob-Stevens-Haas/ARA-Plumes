@@ -2,6 +2,7 @@ import sys
 sys.path.append('/Users/Malachite/Documents/UW/ARA/ARA-Plumes')
 from utils import *
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 # For dislaying clips in Jupyter notebooks 
 # from IPython.display import Image, display 
@@ -19,6 +20,63 @@ class PLUME():
         self.var2_poly = None
         self.orig_center = None
     
+
+    def get_center(self, frame = None):
+        """
+        QUITE BROKEN RIGHT NOW.
+        Allows users to easily get coordinate point values from image. 
+        Args:
+            frame (int): Which frame to select from. Default is None type which gives middle frame of video. 
+        Returns:
+            orig_center (tuple): Assigns tuple of selected coordinate to self.orig_center
+        """
+        video_capture = self.video_capture
+        tot_frames = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+        middle_frame_id = tot_frames // 2
+        video_capture.set(cv2.CAP_PROP_POS_FRAMES, middle_frame_id) 
+
+        ret, frame = video_capture.read()
+
+        # cid = None
+
+        # if ret:
+        #     plt.figure()
+        #     plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        #     plt.axis('off')
+        #     plt.title('Click image to select point')
+
+        #     def on_image_click(event):
+        #         x = int(event.xdata)
+        #         y = int(event.ydata)
+        #         print(f"Selected point: ({x}, {y})")
+        #         plt.disconnected(cid)
+        #         plt.close()
+            
+        #     cid = plt.gcf().canvas.mpl_connect('button_press_event', on_image_click)
+
+        #     # Display the plot
+        #     IPython.display.display(plt.gcf())
+        #     IPython.display.clear_output(wait=True)
+        
+        # video_capture.release()
+        
+
+        if ret:
+            plt.imshow(cv2.cvtColor(frame,cv2.COLOR_BGR2RGB))
+            plt.axis('off')
+            plt.show()
+        
+        # allow users to select point 
+        print("made it to pre selected points")
+        selected_point = plt.ginput(n=1,timeout=0)
+        print("made it to after selection.")
+        if selected_point:
+            x,y = selected_point[0]
+            self.orig_center = (x,y)
+            print(f"Selected point: ({x}, {y})")
+        else:
+            print("No point selected.")
+        return
 
     def extract_frames(self, extension: str = "jpg"):
         video_path = self.video_path
