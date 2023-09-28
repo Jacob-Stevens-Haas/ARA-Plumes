@@ -2,8 +2,16 @@ import cv2
 import numpy as np
 
 vid_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/Bryan_videos/Hsv-F0-3000.mp4"
+output_path = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/Bryan_videos/new_subtraction.mp4"  # Specify the output file path
+
 cap = cv2.VideoCapture(vid_path)
 fps = int(cap.get(cv2.CAP_PROP_FPS))
+frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+# Define the codec and create a VideoWriter object
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width * 2, frame_height * 2))  # Double the width and height
 
 subtractor = cv2.createBackgroundSubtractorMOG2(varThreshold=1, detectShadows=False)
 
@@ -24,6 +32,9 @@ lower_thresh_vals = [230, 130, 130, 130, 130, 130, 130, 130, 130, 130, 130, 110]
 while True:
     ret, frame = cap.read()
 
+    if not ret:
+        break
+
     mog_frame = subtractor.apply(frame)
 
     mask1 = mean_thresholding(mog_frame, 1, ksize_vals, lower_thresh_vals)
@@ -31,12 +42,10 @@ while True:
     mask3 = mean_thresholding(mog_frame, 10, ksize_vals, lower_thresh_vals)
 
     # Apply Gaussian Blurring
-    kernel_size =(71,41)
-    sigma=20
+    kernel_size = (71, 41)
+    sigma = 30
     sigma_x = sigma
     sigma_y = sigma
-
-    
 
     # Convert grayscale images to color (BGR)
     mog_frame_color = cv2.cvtColor(mog_frame, cv2.COLOR_GRAY2BGR)
@@ -55,32 +64,22 @@ while True:
     filled_mask = np.zeros_like(mask3_color)
 
     # Color to be used on contours
-    fill_color = (0, 255, 0)
+    fill_color = (0, 0, 255)
 
-    # combined_contour = []
-    # for contour in contours:
-    #     combined_contour.extend(contour)
+    n = 1
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    selected_contours = contours[:n]
 
-    # # print(len(combined_contour))
-    # if combined_contour:
-    #     # print("test")
-    #     combined_contour = np.array(combined_contour)
-    #     cv2.drawContours(filled_mask, [combined_contour],-1,fill_color, thickness=cv2.FILLED)
-    for contour in contours:
-        cv2.drawContours(filled_mask, [contour], 0, fill_color, thickness=cv2.FILLED)
-
-    contours, _ = cv2.findContours(cv2.cvtColor(filled_mask, cv2.COLOR_BGR2GRAY), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    for contour in contours:
-        cv2.drawContours(filled_mask,[contour],0,(0,0,255), thickness=2)
-
-
-
+    for contour in selected_contours:
+        cv2.drawContours(filled_mask, [contour], 0, fill_color, thickness=2)
 
     # Create 2x2 grid
     top_row = np.hstack((mog_frame_color, mask3_color))
     bottom_row = np.hstack((mask3_color_2, filled_mask))
     display_frame = np.vstack((top_row, bottom_row))
+
+    # Write the frame to the output video
+    out.write(display_frame)
 
     cv2.imshow("Mask", display_frame)
     key = cv2.waitKey(fps)
@@ -88,7 +87,9 @@ while True:
         break
 
 cap.release()
+out.release()
 cv2.destroyAllWindows()
+
 
 
    # cv2.imshow("Mog Frame", mog_frame)
@@ -131,3 +132,18 @@ cv2.destroyAllWindows()
 
     # mask3 = subtractor3.apply(mask2)
     # mask2 = cv2.medianBlur(mask2, 3)
+
+    # combined_contour = []
+    # for contour in contours:
+    #     combined_contour.extend(contour)
+
+    # # print(len(combined_contour))
+    # if combined_contour:
+    #     # print("test")
+    #     combined_contour = np.array(combined_contour)
+    #     cv2.drawContours(filled_mask, [combined_contour],-1,fill_color, thickness=cv2.FILLED)
+
+      # contours, _ = cv2.findContours(cv2.cvtColor(filled_mask, cv2.COLOR_BGR2GRAY), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # for contour in contours:
+    #     cv2.drawContours(filled_mask,[contour],0,(0,0,255), thickness=2)
