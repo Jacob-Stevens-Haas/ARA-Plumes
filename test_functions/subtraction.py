@@ -30,25 +30,56 @@ while True:
     mask2 = mean_thresholding(mog_frame, 2, ksize_vals, lower_thresh_vals)
     mask3 = mean_thresholding(mog_frame, 10, ksize_vals, lower_thresh_vals)
 
+    # Apply Gaussian Blurring
+    kernel_size =(71,41)
+    sigma=20
+    sigma_x = sigma
+    sigma_y = sigma
+
+    
+
     # Convert grayscale images to color (BGR)
     mog_frame_color = cv2.cvtColor(mog_frame, cv2.COLOR_GRAY2BGR)
     mask1_color = cv2.cvtColor(mask1, cv2.COLOR_GRAY2BGR)
     mask2_color = cv2.cvtColor(mask2, cv2.COLOR_GRAY2BGR)
     mask3_color = cv2.cvtColor(mask3, cv2.COLOR_GRAY2BGR)
 
+    mask3 = cv2.GaussianBlur(mask3, kernel_size, sigma_x, sigma_y)
+
+    mask3_color_2 = cv2.cvtColor(mask3, cv2.COLOR_GRAY2BGR)
+
     # Find contours in mask3
     contours, _ = cv2.findContours(mask3, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
+    # Create blank array to fill in with contours
     filled_mask = np.zeros_like(mask3_color)
 
+    # Color to be used on contours
     fill_color = (0, 255, 0)
 
+    # combined_contour = []
+    # for contour in contours:
+    #     combined_contour.extend(contour)
+
+    # # print(len(combined_contour))
+    # if combined_contour:
+    #     # print("test")
+    #     combined_contour = np.array(combined_contour)
+    #     cv2.drawContours(filled_mask, [combined_contour],-1,fill_color, thickness=cv2.FILLED)
     for contour in contours:
-        cv2.drawContours(filled_mask, [contour], 0, fill_color, thickness=2)
+        cv2.drawContours(filled_mask, [contour], 0, fill_color, thickness=cv2.FILLED)
+
+    contours, _ = cv2.findContours(cv2.cvtColor(filled_mask, cv2.COLOR_BGR2GRAY), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        cv2.drawContours(filled_mask,[contour],0,(0,0,255), thickness=2)
+
+
+
 
     # Create 2x2 grid
-    top_row = np.hstack((mog_frame_color, mask1_color))
-    bottom_row = np.hstack((mask2_color, filled_mask))
+    top_row = np.hstack((mog_frame_color, mask3_color))
+    bottom_row = np.hstack((mask3_color_2, filled_mask))
     display_frame = np.vstack((top_row, bottom_row))
 
     cv2.imshow("Mask", display_frame)
