@@ -70,7 +70,7 @@ class PLUME():
         # Possibly resave video
         if save:
             clip_title = save_path+"."+extension
-            out = cv2.VideoWriter(clip_title, fourcc, frame_rate, (frame_width, frame_height),0)
+            out = cv2.VideoWriter(clip_title, fourcc, frame_rate, (frame_width, frame_height),1)
     
         if display_vid == True:
             display_handle = IPython.display.display(None, display_id = True)
@@ -221,7 +221,8 @@ class PLUME():
         # Possibly resave video
         if isinstance(save_path,str):
             clip_title = save_path+"."+extension
-            out = cv2.VideoWriter(clip_title, fourcc, frame_rate, (frame_width, frame_height),0)
+            color_true=1
+            out = cv2.VideoWriter(clip_title, fourcc, frame_rate, (frame_width, frame_height),color_true)
 
         if display_vid == True:
             display_handle = IPython.display.display(None, display_id = True)
@@ -276,6 +277,9 @@ class PLUME():
             var1_array[k] = out_data[2]
             var2_array[k] = out_data[3]
 
+            if isinstance(save_path, str):
+                out.write(frame)
+                # print("frames saved..")
             _, frame = cv2.imencode('.jpeg', frame)
 
             if display_vid == True:
@@ -283,6 +287,8 @@ class PLUME():
             
         # video.release()
         if isinstance(save_path, str):
+            # print("we got eem")
+            video.release()
             out.release()
 
 
