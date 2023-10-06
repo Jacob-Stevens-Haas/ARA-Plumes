@@ -3,6 +3,7 @@ sys.path.append('/Users/Malachite/Documents/UW/ARA/ARA-Plumes')
 from utils import *
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from scipy.ndimage import gaussian_filter
 
 # For dislaying clips in Jupyter notebooks 
 # from IPython.display import Image, display 
@@ -10,6 +11,9 @@ import IPython
 
 import time
 import cv2
+
+class plume_results():
+    pass
 
 class PLUME():
     def __init__(self, video_path):
@@ -455,11 +459,21 @@ class PLUME():
             smooth_y = gaussian_filter(points_mean[:,1], sigma=mean_smoothing_sigma)
             points_mean = np.column_stack((smooth_x,smooth_y))
         
-        # Draw points on image
+        ###########################################
+        ## Check if points fall within a contour ##
+        ###########################################
+    
+        new_points_mean = []
         for center in points_mean:
-            center = center.round().astype(int)
-            cv2.circle(contour_img,center,7,red_color,-1)
+            for contour in selected_contours:
+                if cv2.pointPolygonTest(contour, center, False)==1:
+                    new_points_mean.append(center)
+                    center = center.round().astype(int)
+                    cv2.circle(contour_img,center,7,red_color,-1)
         
+        if bool(new_points_mean):
+            points_mean = np.array(new_points_mean).reshape(-1,2)
+
         poly_coef_mean = np.polyfit(points_mean[:,0], points_mean[:,1],deg=poly_deg)
 
         f_mean = lambda x: poly_coef_mean[0]*x**2 + poly_coef_mean[1]*x + poly_coef_mean[2]
@@ -571,6 +585,10 @@ class PLUME():
         cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
         if fit_poly == True:
             contour_img = cv2.addWeighted(contour_img,1,curve_img,1,0)
+
+        self.mean_poly = poly_coef_mean
+        self.var1_poly = poly_coef_var1
+        self.var2_poly = poly_coef_var2
         
         return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
     
