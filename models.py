@@ -298,6 +298,10 @@ class PLUME():
 
         if display_vid == True:
             display_handle.update(None)
+        
+        self.mean_poly = mean_array
+        self.var1_poly = var1_array
+        self.var2_poly = var2_array
 
         return mean_array, var1_array, var2_array
 
@@ -309,7 +313,7 @@ class PLUME():
                           radii=50,
                           num_of_circs = 22,
                           fit_poly = True,
-                          boundary_ring = False,
+                          boundary_ring = True,
                           interior_ring = False,
                           interior_scale = 3/5,
                           rtol=1e-2,
@@ -585,10 +589,6 @@ class PLUME():
         cv2.polylines(curve_img, [curve_points], isClosed=False,color=blue_color,thickness=5)
         if fit_poly == True:
             contour_img = cv2.addWeighted(contour_img,1,curve_img,1,0)
-
-        self.mean_poly = poly_coef_mean
-        self.var1_poly = poly_coef_var1
-        self.var2_poly = poly_coef_var2
         
         return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
     
