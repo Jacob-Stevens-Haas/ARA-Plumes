@@ -188,9 +188,17 @@ class PLUME():
             img_range: list=None,
             subtraction_method: str = "fixed",
             fixed_range: int = None,
+            gauss_space_blur = True,
+            gauss_kernel_size = 81,
+            gauss_space_sigma = 15,
+            gauss_time_blur = True,
+            gauss_time_window = 5,
+            gauss_time_sigma = 1,
             extension = "mp4",
             save_path = None,
-            display_vid = True):
+            display_vid = True,
+            mean_smoothing = True,
+            mean_smoothing_sigma =2):
         """
         Apply connetric circles to frames range and providing timeseries of learned polynomials.
 
@@ -198,7 +206,14 @@ class PLUME():
             img_range (list): Range of images to apply subtraction and concentric circles too.
             subtraction_method (str): Method used to apply subtraction.
             fixed_range (int): Range of images to use as background image for subtraction.
-            extension (str): 
+            gauss_space_blur (bool): Apply GaussianBlur in space
+            gauss_kernel_size (odd int): size of kernel for GaussianBlur (must be odd)
+            gauss_space_sigma (int?): standard variation of kernel size.
+            extension (str): file format video is saved as.
+            save_path (str): Path/name of video. Default None will not save video.
+            display_vid (bool): Display concentric circles in jupyter notebook window
+            mean_smoothing (bool): Additional gaussian smoothing for leaning concentric circle points
+            mean_smoothing_sigma (int): standard variation for gaussian kernel smoother of mean_smoothing
         """
         # Create background image 
         if subtraction_method == "fixed" and isinstance(fixed_range,int):
@@ -252,15 +267,41 @@ class PLUME():
         var1_array = np.zeros((fin_frame-init_frame,3))
         var2_array = np.zeros((fin_frame-init_frame,3))
 
-        i=0
+        # Check for Gaussian Time Blur
+        if gauss_time_blur == True:
+            if not isinstance(gauss_time_window,int):
+                raise Exception("window must be a positive odd int.")
+            if not gauss_time_window%2==1:
+                raise Exception("window must be a positive odd int.") 
+
+            # Create gaussian_time_blur variables
+            buffer = int(gauss_time_window/2)
+            frames_to_average = list(np.zeros(gauss_time_window))
+            gauss_time_weights = [np.exp(-(x-buffer)**2/(2*gauss_time_sigma**2)) for x in range(gauss_time_window)]
+            gauss_time_weights /= np.sum(gauss_time_weights)
+        else:
+            buffer = 0   
+
         # Ignore first set of frames not in desired range
-        for _ in range(init_frame):
+        for _ in tqdm(range(init_frame-buffer)):
             # print(i)
             ret, frame = video.read()
             _, frame = cv2.imencode('.jpeg', frame)
             if display_vid == True:
                 display_handle.update(IPython.display.Image(data=frame.tobytes()))
-            i+=1
+        
+        i=0
+        for _ in tqdm(range(2*buffer)):
+            ret, frame = video.read()
+            # convert frame to gray 
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # Apply subtraction (still in gray)
+            frame = cv2.subtract(frame, background_img_np)
+            # Convert to BGR
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)  
+            frames_to_average[i]=frame
+            i +=1            
+
 
         for k in tqdm(range(fin_frame-init_frame)):
             ret, frame = video.read()
@@ -268,13 +309,37 @@ class PLUME():
             i+=1
             self.count = i
 
+            # Check if video_capture was read in correctly
             if not ret:
                 break
-
+            
+            # convert frame to gray 
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # Apply subtraction
             frame = cv2.subtract(frame, background_img_np)
+
+            # Convert to BGR
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-            out_data = self.concentric_circle(frame)
+
+            if gauss_time_blur == True:
+                frames_to_average[i]=frame
+                # Apply gaussian filter over windows
+                frame = self.BGRframes_dot_weights(frames_to_average,
+                                                   gauss_time_weights)
+                # Move frames over left
+                frames_to_average[:-1]=frames_to_average[1:]
+                i=-1             
+
+            if gauss_space_blur == True:
+                kernel_size = (gauss_kernel_size,gauss_kernel_size)
+                sigma = gauss_space_sigma
+
+                frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
+
+            out_data = self.concentric_circle(frame,
+                                              mean_smoothing=mean_smoothing,
+                                              mean_smoothing_sigma=mean_smoothing_sigma)
 
             frame = out_data[0]
             mean_array[k] = out_data[1]
@@ -313,7 +378,7 @@ class PLUME():
                           radii=50,
                           num_of_circs = 22,
                           fit_poly = True,
-                          boundary_ring = True,
+                          boundary_ring = False,
                           interior_ring = False,
                           interior_scale = 3/5,
                           rtol=1e-2,
@@ -695,7 +760,20 @@ class PLUME():
         background_img_np = (background_img_np/img_count).astype(np.uint8)
 
         return background_img_np
-    
+
+    def BGRframes_dot_weights(self,frames,weights):
+        """
+        Takes list of numpy arrays (imgs) and dots them with vector of weights 
+
+        Args:
+            frames (list): List of numpy ararys in BGR format
+            weights (np.ndarray): vector of weights summing to one
+        """
+        a = np.array(frames)
+        b = np.array(weights)[:,np.newaxis,np.newaxis,np.newaxis] # Might need to change if working with gray images
+        c = np.round(np.sum(a*b,axis=0)).astype(np.uint8)
+        return c 
+
     def clip_video(self, init_frame, fin_frame, extension: str = "mp4", display_vid: bool = True, save_path: str = "clipped_video"):
         video = self.video_capture
         print(type(video.read()))
