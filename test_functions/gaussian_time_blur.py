@@ -391,6 +391,19 @@ def create_background_img(video_path, img_count):
 
     return background_img_np
 
+def BGRframes_dot_weights(frames, weights):
+    """
+    Takes list of numpy arrays (imgs) and dots them with vector of weights 
+
+    Args:
+        frames (list): List of numpy ararys in BGR format
+        weights (np.ndarray): vector of weights summing to one
+    """
+    a = np.array(frames)
+    b = np.array(weights)[:,np.newaxis,np.newaxis,np.newaxis] # Might need to change if working with gray images
+    c = np.round(np.sum(a*b,axis=0)).astype(np.uint8)
+    return c    
+
 def train(video_path,
           orig_center,
             img_range: list=None,
@@ -470,29 +483,56 @@ def train(video_path,
             fin_frame = tot_frames - 1
         elif isinstance(img_range, None):
             init_frame = fixed_range
-            fin_frame = tot_frames -1
+            fin_frame = tot_frames - 1
         
         # Initialize poly arrays
         mean_array = np.zeros((fin_frame-init_frame,3))
         var1_array = np.zeros((fin_frame-init_frame,3))
         var2_array = np.zeros((fin_frame-init_frame,3))
 
+        # Check for Gaussian Time Blur
+        if gauss_time_blur == True:
+            if not isinstance(gauss_time_window,int):
+                raise Exception("window must be a positive odd int.")
+            if not gauss_time_window%2==1:
+                raise Exception("window must be a positive odd int.") 
+
+            # Create gaussian_time_blur variables
+            buffer = int(gauss_time_window/2)
+            frames_to_average = list(np.zeros(gauss_time_window))
+            gauss_time_weights = [np.exp(-(x-buffer)**2/(2*gauss_time_sigma**2)) for x in range(gauss_time_window)]
+            gauss_time_weights /= np.sum(gauss_time_weights)
+            # print(gauss_time_weights)
+        else:
+            buffer = 0
         
 
-        i=0
         # Ignore first set of frames not in desired range
-        for _ in tqdm(range(init_frame)):
+        for _ in tqdm(range(init_frame-buffer)):
             # print(i)
             ret, frame = video.read()
             _, frame = cv2.imencode('.jpeg', frame)
             # if display_vid == True:
             #     display_handle.update(IPython.display.Image(data=frame.tobytes()))
-            i+=1
+
+        i=0
+        # This for loop get's skipped when guassian_time_blur = False (buffer = 0)
+        for _ in tqdm(range(2*buffer)):
+            ret, frame = video.read()
+            # convert frame to gray 
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # Apply subtraction (still in gray)
+            frame = cv2.subtract(frame, background_img_np)
+            # Convert to BGR
+            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)  
+            frames_to_average[i]=frame
+            i +=1 
+
+                   
 
         for k in tqdm(range(fin_frame-init_frame)):
             ret, frame = video.read()
             # print(i)
-            i+=1
             # self.count = i
 
             # Check if video_capture was read in correctly
@@ -507,6 +547,17 @@ def train(video_path,
 
             # Convert to BGR
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+
+            if gauss_time_blur == True:
+                frames_to_average[i]=frame
+                # Apply gaussian filter over windows
+                frame = BGRframes_dot_weights(frames_to_average,
+                                           gauss_time_weights)
+                # Move frames over left
+                frames_to_average[:-1]=frames_to_average[1:]
+                i=-1 
+
+                # print(frame.dtype)
 
             if gauss_space_blur == True:
                 kernel_size = (gauss_kernel_size,gauss_kernel_size)
@@ -555,15 +606,32 @@ def main():
     fixed_range = 4*fps+36
     seconds = 2
 
+    gauss_time_blur = True
+    gauss_time_window = 5
+    gauss_time_sigma =0.5
+
+    gauss_space_blur = True
+    gauss_kernel_size = 251
+    gauss_space_sigma = 51
+
+    save_path = f"gtb_{gauss_time_window}_{gauss_time_sigma}_gsb_{gauss_kernel_size}_{gauss_space_sigma}"
+    save_path = "gauss_time_blur/"+save_path
+
     img_range = [fixed_range+seconds*fps, fixed_range+seconds*fps+25]
 
     out_data = train(video_path=video_path,
                      orig_center=plume_leak_source,
                      img_range=img_range,
                      fixed_range=fixed_range,
-                     save_path="test_vid")
+                     save_path=save_path,
+                     gauss_time_blur=gauss_time_blur,
+                     gauss_time_window = gauss_time_window,
+                     gauss_time_sigma = gauss_time_sigma,
+                     gauss_space_blur=gauss_space_blur,
+                     gauss_kernel_size=gauss_kernel_size,
+                     gauss_sigma=gauss_space_sigma)
 
-    print(out_data[0])
+    # print(out_data[0])
 
 
 if __name__ == '__main__':

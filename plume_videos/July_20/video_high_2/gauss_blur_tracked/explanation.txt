@@ -1,0 +1,19 @@
+Parameters:
+- save_path = gauss_blur_tracked/gauss_blur_tracked.mp4
+- gauss_space_blur = True
+    - gauss_kernel_size = 81
+    - gauss_sigma = 15
+- mean_smoothing = True
+    - mean_smoothing_sigma = 2
+
+
+SINDy Results:
+Unnormalized mean_array - Ensemble SINDy
+(a)' = 0.000
+(b)' = -21.640 1 + 77282.501 a + 80.682 b + 161.332 a c + -38.132 b^2
+(c)' = 33095.813 1 + -89731883.361 a + -69904.004 b + -30.016 c + 18829743.436 a b + -64870.111 a c + 17866.831 b^2 + -10.043 b c
+
+Normalized mean_array = Ensemble SINDy
+(a)' = -3.777 1 + -157.582 a + -227.785 b + -69.193 c + 883.731 a^2 + 2788.147 a b + 1084.638 a c + 2199.563 b^2 + 1711.158 b c + 332.977 c^2
+(b)' = 3.705 1 + 158.457 a + 228.082 b + 69.609 c + -874.659 a^2 + -2777.743 a b + -1092.381 a c + -2205.319 b^2 + -1733.142 b c + -340.076 c^2
+(c)' = -3.400 1 + -155.161 a + -222.250 b + -68.409 c + 866.283 a^2 + 2764.622 a b + 1096.437 a c + 2204.688 b^2 + 1745.498 b c + 344.048 c^2

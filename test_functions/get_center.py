@@ -1,9 +1,9 @@
 import sys
 sys.path.append('/Users/Malachite/Documents/UW/ARA/ARA-Plumes/')
-from utils import ImagePointPicker
+from utils import VideoPointPicker
 
-img_path = input("Please input image path:")
+video_path = input("Please input image path:")
 
-image_to_click = ImagePointPicker(img_path)
-image_to_click.ask_user()
-print(image_to_click.clicked_point)
+vid_to_click = VideoPointPicker(video_path)
+vid_to_click.ask_user()
+print(vid_to_click.clicked_point)

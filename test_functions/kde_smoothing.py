@@ -32,14 +32,16 @@ def get_img_paths(directory: str,
 ############################
 ## Gaussian Blur in Space ##
 ############################
-blur_in_space = False
+blur_in_space = True
 
 if blur_in_space == True:
     # Apply Guassian blurring
-    kernel_size = (25,25)
-    sigma = 4
+    kernel_size = (251,251)
+    sigma = 105
     sigma_x = sigma
     sigma_y = sigma
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     blurred_img = cv2.GaussianBlur(img, kernel_size,sigma_x,sigma_y)
 
@@ -79,7 +81,13 @@ def gaussian_space_blur(directory,
 ###########################
 def average_weighted_images(imgs,
                             weights):
-    
+    """
+    Takes list of numpy arrays (imgs) and dots them with vector of weights 
+
+    Args:
+        imgs (list): List of numpy arrays of imgs
+        weights (np.ndarray): vector of weights summing to one
+    """
     a = np.array(imgs)
     b = np.array(weights)[:,np.newaxis,np.newaxis,np.newaxis] # Might need to change if working with gray images
     c = np.round(np.sum(a*b,axis=0)).astype(int)
@@ -153,7 +161,7 @@ save_directory = "/Users/Malachite/Documents/UW/ARA/ARA-Plumes/plume_videos/July
 window=5
 sigma=2
 # 11 and 5
-gaussian_time_blur(directory=directory, window=window,sigma=sigma,save_directory=save_directory)
+# gaussian_time_blur(directory=directory, window=window,sigma=sigma,save_directory=save_directory)
 
 #########################
 ## Apply path learning ##
@@ -194,6 +202,9 @@ gaussian_time_blur(directory=directory, window=window,sigma=sigma,save_directory
 # cv2.waitKey(0)
 # cv2.destroyAllWindows()
 
+# Testing if gaussian blur works on colored images or black and white images 
+
+# print(img.shape)
 
 
 

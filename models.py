@@ -306,8 +306,6 @@ class PLUME():
         for k in tqdm(range(fin_frame-init_frame)):
             ret, frame = video.read()
             # print(i)
-            i+=1
-            self.count = i
 
             # Check if video_capture was read in correctly
             if not ret:
