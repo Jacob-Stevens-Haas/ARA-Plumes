@@ -540,6 +540,10 @@ class PLUME():
         
         if bool(new_points_mean):
             points_mean = np.array(new_points_mean).reshape(-1,2)
+        
+        # We are going to learn two different polynomails that are paramertized in r -> (x(r),y(r))
+        # Also make sure orig center is still in there? might move where we add it to this line
+        # Create r line r_vals = [radii*i for i in range(len(points_mean))]
 
         poly_coef_mean = np.polyfit(points_mean[:,0], points_mean[:,1],deg=poly_deg)
 
