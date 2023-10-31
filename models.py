@@ -387,10 +387,71 @@ class PLUME():
                           mean_smoothing = True,
                           mean_smoothing_sigma =2):
         """
-        To be applied to a single image. 
+        Applies concentric cirlces to a single frame (gray or BGR) from video returning new image and learned poly coef for mean line and variance line.
 
-        Args:
-            img (np.ndarray): numpy array of read image
+        Parameters:
+        -----------
+        img: np.ndarray (gray or BGR)
+            image to apply concentric circle too.
+
+        contour_smoothing: bool, optional (default False)
+            smooth contours learned on plume detected. 
+        
+        contour_smoothing_eps: int, optional (default 50)
+            level of smoothing to be applied to plume detection contours. Only used when contour_smoothing = True.
+
+        radii: int, optional (default 50)
+            The radii used to step out in concentric circles method. 
+
+        num_of_circles: int, optional (default 22)
+            number of circles and radii steps to take in concentric circles method. 
+
+        fit_poly: bool, optional (default True) 
+            For plotting and image return. Specifiy whether or not to include learned polynomials in returned image.
+        
+        interior_ring, boundary_ring: bools, optional (default False)
+            For plotting and image return. Specify whether or not to include the concentric circle rings (boundary_ring) 
+            and/or the focusing rings (interior_ring) in returned image.
+        
+        interior_scale: float, optional (default 3/5)
+            Used to scale down the radii used on the focusing rings. Called in find_next_center
+
+        rtol, atol: float, optional (default 1e-2, 1e-6)
+            Relative and absolute tolerances. Used in np.isclose function in find_max_on_boundary and find_next_center functions.
+            Checks if points are close to selected radii.
+        
+        poly_deg: int, optional (default 2)
+            Specifying degree of polynomail to learn on points selected from concentric circle method.
+        
+        x_less, x_plus: int, optional (default 600, 0)
+            For plotting and image return. Specifically to delegate more points to plot learned polynomial on returned image.
+        
+        mean_smoothing: bool, optional (default True)
+            Applying additional gaussian filter to learned concentric cirlce points. Only in y direction 
+        
+        mean_smoothing_sigma: int, optional (default 2)
+            Sigma parameter to be passed into gaussian_filter function when mean_smoothing = True.
+
+        
+        Returns:
+        --------
+        contour_img: np.ndarray
+            Image with concentric circle method applied and plotting applied. 
+        
+        poly_coef_mean: list of floats
+            Returns the list of learnd coefficents regressed on concentric circle method for mean points. e.g., For degree 2 polynomail regression, 
+            return list will be of form [a,b,c] where ax^2+bx+c was learned.
+        
+        poly_coef_var1: list of floats
+            Returns the list of learnd coefficents regressed on concentric circle method for var1 points---points above mean line. e.g., For degree 2 polynomail regression, 
+            return list will be of form [a,b,c] where ax^2+bx+c was learned.
+            
+        poly_coef_var2: list of floats
+            Returns the list of learnd coefficents regressed on concentric circle method for var2 points---points below mean line. e.g., For degree 2 polynomail regression, 
+            return list will be of form [a,b,c] where ax^2+bx+c was learned.
+
+                
+
         """
         # Check that original center has been declared
         if not isinstance(self.orig_center, tuple):
@@ -489,7 +550,6 @@ class PLUME():
             # Get center of next point
             error_occured = False
             try:
-                # print(self.orig_center,center,radius,interior_scale,rtol,atol)
                 _, center = self.find_next_center(array=img_gray,
                                                   orig_center=self.orig_center,
                                                   neig_center=center,
