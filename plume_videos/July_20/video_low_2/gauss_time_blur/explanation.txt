@@ -1,0 +1,14 @@
+Parameters:
+- save_path = gauss_time_blur/gauss_time_blur.mp4
+- gauss_space_blur = True
+    - gauss_kernel_size = 251
+    - gauss_sigma = 105
+- gauss_time_blur = True
+    - gauss_time_window = 5
+    - gauss_time_sigma = 0.5
+- mean_smoothing = True
+    - mean_smoothing_sigma = 3
+
+
+SINDy Results:
+...
