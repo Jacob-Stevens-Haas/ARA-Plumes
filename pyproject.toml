@@ -1,0 +1,78 @@
+[build-system]
+requires = ["setuptools>=62", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ara-plumes"
+dynamic = ["version"]
+description = "Utilties for tracking smoke plumes"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE"}
+keywords = ["Machine Learning", "Science", "Mathematics", "Experiments"]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Programming Language :: Python",
+  "Framework :: Jupyter",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Natural Language :: English",
+  "Operating System :: POSIX :: Linux",
+]
+# Since the point of the package is reproducibility, incl. all dev
+# dependencies
+dependencies = [
+  "ipython",
+  "tqdm",
+  "cv2",
+  "numpy",
+  "moviepy",
+  "imageio",
+  "scipy",
+  "matplotlib",
+]
+
+[project.urls]
+homepage = "https://github.com/Jake-Stevens-Haas/gen-experiments"
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "build",
+    "coverage",
+    "pytest>=6.2.4",
+    "ipython",
+    "pre-commit",
+    "pytest-cov",
+    "pytest-lazy-fixture",
+    "flake8-builtins-unleashed",
+]
+
+[tool.setuptools_scm]
+write_to = "ara_plumes/version.py"
+
+[tool.setuptools]
+packages = ["ara_plumes"]
+
+[tool.black]
+line-length = 88
+extend-exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.venv
+  | .vscode
+  | version.py
+  | build
+  | dist
+  | env
+)/
+'''
+preview = 1
+
+[tool.pytest.ini_options]
+filterwarnings = [
+  "ignore::RuntimeWarning",
+  "ignore::UserWarning",]
+addopts = '-m "not slow"'
+markers = ["slow"]

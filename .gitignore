@@ -6,3 +6,6 @@
 *.mov
 *.zip
 *.DS_Store
+env/
+todo
+commit-msg
