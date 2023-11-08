@@ -46,6 +46,7 @@ dev = [
     "pytest-cov",
     "pytest-lazy-fixture",
     "flake8-builtins-unleashed",
+    "setuptools_scm",
 ]
 
 [tool.setuptools_scm]

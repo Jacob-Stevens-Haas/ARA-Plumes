@@ -9,3 +9,6 @@
 env/
 todo
 commit-msg
+*version.py
+*.egg-info
+*__pycache__
