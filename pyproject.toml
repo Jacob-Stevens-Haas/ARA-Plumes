@@ -24,7 +24,7 @@ classifiers = [
 dependencies = [
   "ipython",
   "tqdm",
-  "cv2",
+  "opencv-python",
   "numpy",
   "moviepy",
   "imageio",
