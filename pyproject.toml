@@ -39,6 +39,7 @@ homepage = "https://github.com/Jake-Stevens-Haas/gen-experiments"
 dev = [
     "black",
     "build",
+    "codespell",
     "coverage",
     "pytest>=6.2.4",
     "ipython",
