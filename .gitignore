@@ -8,6 +8,10 @@
 *.DS_Store
 env/
 todo
+.pytest_cache
+.coverage
+coverage.xml
+htmlcov
 commit-msg
 *version.py
 *.egg-info

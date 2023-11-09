@@ -40,7 +40,7 @@ dev = [
     "black",
     "build",
     "codespell",
-    "coverage",
+    "coverage[toml]",
     "pytest>=6.2.4",
     "ipython",
     "pre-commit",
@@ -78,3 +78,7 @@ filterwarnings = [
   "ignore::UserWarning",]
 addopts = '-m "not slow"'
 markers = ["slow"]
+
+[tool.coverage.run]
+omit = ["ara_plumes/tests/*"]
+source = ["ara_plumes"]

@@ -40,7 +40,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install --upgrade pip
-        pip install .
+        pip install .[dev]
     - name: Test with pytest
       run: |
-        coverage run --source=pysindy -m pytest test -m "not slow"  && coverage xml
+        coverage run -m pytest ara_plumes/tests  && coverage xml
