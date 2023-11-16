@@ -41,23 +41,24 @@ class PLUME:
 
     def background_subtract(
         self,
-        img_range: list,
+        fixed_range: int,
         subtraction_method: str = "fixed",
-        fixed_range: int = None,
-        save: bool = False,
+        img_range=None,
         save_path: str = "subtraction",
         extension: str = "mp4",
         display_vid: bool = True,
     ):
 
-        #####################
-        # Fixed Subtraction #
-        #####################
+        #######################
+        # Fixed Subtraction ##
+        #######################
 
         # Create background image
-        if subtraction_method == "fixed" and isinstance(fixed_range, int):
+        if subtraction_method == "fixed" and (
+            isinstance(fixed_range, int) or isinstance(fixed_range, list)
+        ):
             print("Creating background image...")
-            background_img_np = self.create_background_img(img_count=fixed_range)
+            background_img_np = self.create_background_img(img_range=fixed_range)
             # print("back shape:", background_img_np.shape)
             print("done.")
         else:
@@ -69,28 +70,50 @@ class PLUME:
 
         video = self.video_capture
 
-        # grab vieo info for saving new file
+        # grab video info for saving new file
         frame_width = int(video.get(3))
         frame_height = int(video.get(4))
         frame_rate = int(video.get(5))
         fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
         # Possibly resave video
-        if save:
+        if isinstance(save_path, str):
             clip_title = save_path + "." + extension
+            color_true = 1
             out = cv2.VideoWriter(
-                clip_title, fourcc, frame_rate, (frame_width, frame_height), 1
+                clip_title, fourcc, frame_rate, (frame_width, frame_height), color_true
             )
 
-        if display_vid:
+        if display_vid is True:
             display_handle = IPython.display.display(None, display_id=True)
 
-        # Loop over frames and apply tracking to img_range
-        init_frame, fin_frame = img_range
+        # Get image range to apply background subtraction
+        if isinstance(img_range, list) and len(img_range) == 2:
+            if img_range[-1] >= self.tot_frames:
+                print("img_range exceeds total number of frames...")
+                print(f"Using max frame count: {self.tot_frames}")
+                init_frame = img_range[0]
+                fin_frame = self.tot_frames - 1
+            else:
+                init_frame, fin_frame = img_range
+        elif isinstance(img_range, int):
+            init_frame = img_range
+            fin_frame = self.tot_frames - 1
+        elif img_range is None:
+            if isinstance(fixed_range, int):
+                init_frame = fixed_range
+                fin_frame = self.tot_frames - 1
+            elif isinstance(fixed_range, list) and len(fixed_range) == 2:
+                init_frame = fixed_range[-1]
+                fin_frame = self.tot_frames - 1
+        else:
+            raise TypeError(f"img_range does not support type {type(img_range)}.")
 
+        # Frames to ignore
         for _ in range(init_frame):
             _ = video.read()
 
+        # Frames to apply background subtraction too
         for k in tqdm(range(init_frame, fin_frame)):
             ret, frame = video.read()
 
@@ -102,21 +125,24 @@ class PLUME:
             frame = cv2.subtract(frame, background_img_np)
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
 
+            if isinstance(save_path, str):
+                out.write(frame)
+
             _, frame = cv2.imencode(".jpeg", frame)
 
-            if display_vid:
+            if display_vid is True:
                 display_handle.update(IPython.display.Image(data=frame.tobytes()))
 
-        video.release()
-        if save:
+        if isinstance(save_path, str):
+            video.release()
             out.release()
 
-        # if display_vid:
+        # if display_vid is True:
         #     display_handle.update(None)
 
-        ###########################
-        # Moving Average Subtract #
-        ###########################
+        #############################
+        # Moving Average Subtract ##
+        #############################
         if subtraction_method == "moving_avg":
             print()
 
@@ -124,14 +150,15 @@ class PLUME:
 
     def get_center(self, frame=None):
         """
-        QUITE BROKEN RIGHT NOW.
+        QUITE BROKEN RIGHT NOW - Doesn't seem to want to work with
+        Jupyternotebook.
         Allows users to easily get coordinate point values from image.
         Args:
             frame (int): Which frame to select from. Default is None type which
             gives middle frame of video.
         Returns:
             orig_center (tuple): Assigns tuple of selected coordinate to
-            ``self.orig_center``
+            self.orig_center
         """
         video_capture = self.video_capture
         tot_frames = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -142,29 +169,6 @@ class PLUME:
 
         video = self.video_capture
         ret, frame = video.read()
-
-        # cid = None
-
-        # if ret:
-        #     plt.figure()
-        #     plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        #     plt.axis('off')
-        #     plt.title('Click image to select point')
-
-        #     def on_image_click(event):
-        #         x = int(event.xdata)
-        #         y = int(event.ydata)
-        #         print(f"Selected point: ({x}, {y})")
-        #         plt.disconnected(cid)
-        #         plt.close()
-
-        #     cid = plt.gcf().canvas.mpl_connect('button_press_event', on_image_click)
-
-        #     # Display the plot
-        #     IPython.display.display(plt.gcf())
-        #     IPython.display.clear_output(wait=True)
-
-        # video_capture.release()
 
         if ret:
             plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
@@ -182,6 +186,9 @@ class PLUME:
         else:
             print("No point selected.")
         return
+
+    # def extract_frames(self, extension: str = "jpg"):
+    #     video_path = self.video_path
 
     def train(
         self,
@@ -227,7 +234,7 @@ class PLUME:
         # Create background image
         if subtraction_method == "fixed" and isinstance(fixed_range, int):
             print("Creating background image...")
-            background_img_np = self.create_background_img(img_count=fixed_range)
+            background_img_np = self.create_background_img(img_range=fixed_range)
             # print("back shape:", background_img_np.shape)
             print("done.")
         else:
@@ -256,12 +263,12 @@ class PLUME:
                 clip_title, fourcc, frame_rate, (frame_width, frame_height), color_true
             )
 
-        if display_vid:
+        if display_vid is True:
             display_handle = IPython.display.display(None, display_id=True)
 
         # Select desired video range
         if isinstance(img_range, list) and len(img_range) == 2:
-            if img_range[1] > self.tot_frames:
+            if img_range[1] >= self.tot_frames:
                 print("Img_range exceeds total number of frames...")
                 print(f"Using max frame count {self.tot_frames}")
                 init_frame = img_range[0]
@@ -281,7 +288,7 @@ class PLUME:
         var2_array = np.zeros((fin_frame - init_frame, 3))
 
         # Check for Gaussian Time Blur
-        if gauss_time_blur:
+        if gauss_time_blur is True:
             if not isinstance(gauss_time_window, int):
                 raise Exception("window must be a positive odd int.")
             if not gauss_time_window % 2 == 1:
@@ -303,7 +310,7 @@ class PLUME:
             # print(i)
             ret, frame = video.read()
             _, frame = cv2.imencode(".jpeg", frame)
-            if display_vid:
+            if display_vid is True:
                 display_handle.update(IPython.display.Image(data=frame.tobytes()))
 
         i = 0
@@ -335,7 +342,7 @@ class PLUME:
             # Convert to BGR
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
 
-            if gauss_time_blur:
+            if gauss_time_blur is True:
                 frames_to_average[i] = frame
                 # Apply gaussian filter over windows
                 frame = self.BGRframes_dot_weights(
@@ -345,7 +352,7 @@ class PLUME:
                 frames_to_average[:-1] = frames_to_average[1:]
                 i = -1
 
-            if gauss_space_blur:
+            if gauss_space_blur is True:
                 kernel_size = (gauss_kernel_size, gauss_kernel_size)
                 sigma = gauss_space_sigma
 
@@ -367,7 +374,7 @@ class PLUME:
                 # print("frames saved..")
             _, frame = cv2.imencode(".jpeg", frame)
 
-            if display_vid:
+            if display_vid is True:
                 display_handle.update(IPython.display.Image(data=frame.tobytes()))
 
         # video.release()
@@ -376,7 +383,7 @@ class PLUME:
             video.release()
             out.release()
 
-        if display_vid:
+        if display_vid is True:
             display_handle.update(None)
 
         self.mean_poly = mean_array
@@ -403,6 +410,7 @@ class PLUME:
         x_plus=0,
         mean_smoothing=True,
         mean_smoothing_sigma=2,
+        quiet=True,
     ):
         """
         Applies concentric cirlces to a single frame (gray or BGR) from video
@@ -484,9 +492,6 @@ class PLUME:
             circle method for var2 points---points below mean line. e.g., For
             degree 2 polynomail regression,
             return list will be of form [a,b,c] where ax^2+bx+c was learned.
-
-
-
         """
         # Check that original center has been declared
         if not isinstance(self.orig_center, tuple):
@@ -499,18 +504,18 @@ class PLUME:
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        ######################
-        # Apply Thresholding #
-        ######################
+        ########################
+        # Apply Thresholding ##
+        ########################
 
         # OTSU thresholding (automatically choose params)
         _, threshold = cv2.threshold(
             img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
 
-        #################
-        # Find Contours #
-        #################
+        ###################
+        # Find Contours ##
+        ###################
         contours, _ = cv2.findContours(
             threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
@@ -520,12 +525,12 @@ class PLUME:
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
         selected_contours = contours[:n]
 
-        ###########################
-        # Apply Contour Smoothing #
-        ###########################
+        #############################
+        # Apply Contour Smoothing ##
+        #############################
 
         # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
-        if contour_smoothing:
+        if contour_smoothing is True:
             smoothed_contours = []
 
             for contour in selected_contours:
@@ -535,9 +540,9 @@ class PLUME:
 
             selected_contours = smoothed_contours
 
-        ############################
-        # Create Distance Array(s) #
-        ############################
+        ##############################
+        # Create Distance Array(s) ##
+        ##############################
         # array of distance of each point on contour to original center
         contour_dist_list = []
         for contour in selected_contours:
@@ -546,9 +551,9 @@ class PLUME:
             contour_dist = np.sqrt(np.sum((a - b) ** 2, axis=1))
             contour_dist_list.append(contour_dist)
 
-        ##########################
-        # Draw contours on image #
-        ##########################
+        ############################
+        # Draw contours on image ##
+        ############################
         green_color = (0, 255, 0)
         red_color = (0, 0, 255)
         blue_color = (255, 0, 0)
@@ -557,9 +562,9 @@ class PLUME:
         cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
         cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
 
-        ############################
-        # Apply Concentric Circles #
-        ############################
+        ##############################
+        # Apply Concentric Circles ##
+        ##############################
 
         # Initialize numpy array to store center
         points_mean = np.zeros(shape=(num_of_circs + 1, 2))
@@ -573,7 +578,7 @@ class PLUME:
         points_mean[1] = center
 
         # draw rings if True
-        if boundary_ring:
+        if boundary_ring is True:
             # print("boundary_ring:", boundary_ring)
             cv2.circle(
                 contour_img, self.orig_center, radii, red_color, 1, lineType=cv2.LINE_AA
@@ -582,8 +587,8 @@ class PLUME:
         for step in range(2, num_of_circs + 1):
             radius = radii * step
 
-            # Draw interior_ring:
-            if interior_ring:
+            # Draw interior_ring is True:
+            if interior_ring is True:
                 cv2.circle(
                     contour_img,
                     center=center,
@@ -605,18 +610,19 @@ class PLUME:
                     rtol=rtol,
                     atol=atol,
                 )
-                # print(f"center_{step}:", center)
-            except Exception:
-                # print("empty search")
+
+            except Exception as e:
+                if quiet is True:
+                    print(f"Error occurred: {e}")
                 error_occured = True
 
-            if error_occured:
+            if error_occured is True:
                 break
 
             points_mean[step] = center
 
             # Draw boundary ring
-            if boundary_ring:
+            if boundary_ring is True:
                 cv2.circle(
                     contour_img,
                     center=self.orig_center,
@@ -626,19 +632,19 @@ class PLUME:
                     lineType=cv2.LINE_AA,
                 )
 
-        ##########################
-        # Apply poly fit to mean #
-        ##########################
+        ############################
+        # Apply poly fit to mean ##
+        ############################
 
         # Apply gaussian filtering to points in y direction
-        if mean_smoothing:
+        if mean_smoothing is True:
             smooth_x = points_mean[:, 0]
             smooth_y = gaussian_filter(points_mean[:, 1], sigma=mean_smoothing_sigma)
             points_mean = np.column_stack((smooth_x, smooth_y))
 
-        #########################################
-        # Check if points fall within a contour #
-        #########################################
+        ###########################################
+        # Check if points fall within a contour ##
+        ###########################################
 
         new_points_mean = []
         for center in points_mean:
@@ -676,12 +682,12 @@ class PLUME:
         cv2.polylines(
             curve_img, [curve_points], isClosed=False, color=red_color, thickness=5
         )
-        if fit_poly:
+        if fit_poly is True:
             contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
 
-        ############################
-        # Checking Variance points #
-        ############################
+        ##############################
+        # Checking Variance points ##
+        ##############################
 
         # NEED TO COMPARE AGAINST SCRIPT GOING FORAWRD
 
@@ -736,9 +742,9 @@ class PLUME:
         for point in points_var2:
             cv2.circle(contour_img, point, 7, blue_color, -1)
 
-        ########################
-        # Apply polyfit to var #
-        ########################
+        ##########################
+        # Apply polyfit to var ##
+        ##########################
 
         # Add additional check for potentially underdetermined systems?
         # Possibly modify function
@@ -757,7 +763,8 @@ class PLUME:
         cv2.polylines(
             curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
         )
-        if fit_poly:
+
+        if fit_poly is True:
             contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
 
         # Plotting var 2
@@ -771,7 +778,7 @@ class PLUME:
         cv2.polylines(
             curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
         )
-        if fit_poly:
+        if fit_poly is True:
             contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
 
         return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
@@ -805,7 +812,7 @@ class PLUME:
 
         search_mask = boundary_mask & interior_mask
 
-        # print(np.argwhere(search_mask))
+        # print(np.argwhere(search_mask is True))
 
         search_subset = array[search_mask]
         # print(search_subset)
@@ -853,19 +860,32 @@ class PLUME:
 
         return max_value, max_indices
 
-    def create_background_img(self, img_count):
+    def create_background_img(self, img_range):
         """
         Create background image for fixed subtraction method.
         Args:
-            img_count (int): number of initial frames to create average image to
-                subtract from frames.
+            img_range (list,int): Range of frames to create average image (list).
+            Or number of initial frames to create average image to subtract from
+            frames (int).
         Returns:
             background_img_np (np.ndarray): Numpy array of average image (in
             grayscale).
         """
-        ret, frame = self.video_capture.read()
-        # print("ret:", ret)
-        background_img_np = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(float)
+
+        # Check if img_range is list of two int or singular int
+        if isinstance(img_range, list) and len(img_range) == 2:
+            ret, frame = self.video_capture.read()
+            for k in range(img_range[0]):
+                ret, frame = self.video_capture.read()
+            background_img_np = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(float)
+            img_count = img_range[-1] - img_range[0]
+        elif isinstance(img_range, int):
+            ret, frame = self.video_capture.read()
+            # print("ret:", ret)
+            background_img_np = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(float)
+            img_count = img_range
+        else:
+            raise TypeError("img_range can either be int or 2-list or ints for range.")
 
         k = 0
         try:
@@ -926,7 +946,7 @@ class PLUME:
             clip_title, fourcc, frame_rate, (frame_width, frame_height), 0
         )
 
-        if display_vid:
+        if display_vid is True:
             print("display_handle defined.")
             display_handle = IPython.display.display(None, display_id=True)
 
@@ -939,7 +959,7 @@ class PLUME:
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                     out.write(frame)
                     _, frame = cv2.imencode(".jpeg", frame)  # why is this jpeg?
-                    if display_vid:
+                    if display_vid is True:
                         # print("update display")
                         display_handle.update(
                             IPython.display.Image(data=frame.tobytes())
@@ -953,7 +973,7 @@ class PLUME:
             print("finished")
             # video.release()
             out.release()
-            if display_vid:
+            if display_vid is True:
                 display_handle.update(None)
 
         return
