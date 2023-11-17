@@ -1,5 +1,6 @@
 import glob
 import os
+import re
 
 import cv2
 import imageio
@@ -8,6 +9,51 @@ from moviepy.editor import VideoFileClip
 from PIL import Image
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
+
+
+#############################
+# General Purpose functions #
+#############################
+
+
+def get_func_from_SINDy(model, precision=10):
+    """
+    Takes in learned SINDy model and returns list of learned ode equations (str)
+    in correct format to be converted into lambda functions.
+
+    Parameters:
+    -----------
+    model: Trained pySINDy model
+    precision: int, optional (default 10)
+            Number of decimcal points to include for each coefficient
+            in displayed ode equations
+
+    Returns:
+    --------
+    funcs: list of strings
+        List of string itt of RHS of learned ODE system in format to
+        be formed into lambda functions
+
+
+    """
+    eqns = model.equations(precision=precision)
+    funcs = []
+    for eqn in eqns:
+        # print(eqn)
+        # Replace each feature with multiplication "a"-> "*a"
+        for feature in model.feature_names:
+            eqn = eqn.replace(feature, "*" + feature)
+
+        # Get rid of 1 coefficient for constant term
+        eqn = eqn.replace(" 1 ", "")
+        eqn = eqn.replace("^", "**")
+
+        # Get rid of all white space
+        eqn = re.sub(r"\s+", "", eqn)
+
+        # Return string in correct formatting
+        funcs.append(eqn)
+    return funcs
 
 
 # General Purpose functions
