@@ -504,18 +504,18 @@ class PLUME:
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        ########################
-        # Apply Thresholding ##
-        ########################
+        ######################
+        # Apply Thresholding #
+        ######################
 
         # OTSU thresholding (automatically choose params)
         _, threshold = cv2.threshold(
             img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
 
-        ###################
-        # Find Contours ##
-        ###################
+        #################
+        # Find Contours #
+        #################
         contours, _ = cv2.findContours(
             threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
@@ -525,9 +525,9 @@ class PLUME:
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
         selected_contours = contours[:n]
 
-        #############################
-        # Apply Contour Smoothing ##
-        #############################
+        ###########################
+        # Apply Contour Smoothing #
+        ###########################
 
         # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
         if contour_smoothing is True:
@@ -540,9 +540,9 @@ class PLUME:
 
             selected_contours = smoothed_contours
 
-        ##############################
-        # Create Distance Array(s) ##
-        ##############################
+        ############################
+        # Create Distance Array(s) #
+        ############################
         # array of distance of each point on contour to original center
         contour_dist_list = []
         for contour in selected_contours:
@@ -551,9 +551,9 @@ class PLUME:
             contour_dist = np.sqrt(np.sum((a - b) ** 2, axis=1))
             contour_dist_list.append(contour_dist)
 
-        ############################
-        # Draw contours on image ##
-        ############################
+        ##########################
+        # Draw contours on image #
+        ##########################
         green_color = (0, 255, 0)
         red_color = (0, 0, 255)
         blue_color = (255, 0, 0)
@@ -562,9 +562,9 @@ class PLUME:
         cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
         cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
 
-        ##############################
-        # Apply Concentric Circles ##
-        ##############################
+        ############################
+        # Apply Concentric Circles #
+        ############################
 
         # Initialize numpy array to store center
         points_mean = np.zeros(shape=(num_of_circs + 1, 2))
@@ -632,9 +632,9 @@ class PLUME:
                     lineType=cv2.LINE_AA,
                 )
 
-        ############################
-        # Apply poly fit to mean ##
-        ############################
+        ##########################
+        # Apply poly fit to mean #
+        ##########################
 
         # Apply gaussian filtering to points in y direction
         if mean_smoothing is True:
@@ -642,9 +642,9 @@ class PLUME:
             smooth_y = gaussian_filter(points_mean[:, 1], sigma=mean_smoothing_sigma)
             points_mean = np.column_stack((smooth_x, smooth_y))
 
-        ###########################################
-        # Check if points fall within a contour ##
-        ###########################################
+        #########################################
+        # Check if points fall within a contour #
+        #########################################
 
         new_points_mean = []
         for center in points_mean:
@@ -685,9 +685,9 @@ class PLUME:
         if fit_poly is True:
             contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
 
-        ##############################
-        # Checking Variance points ##
-        ##############################
+        ############################
+        # Checking Variance points #
+        ############################
 
         # NEED TO COMPARE AGAINST SCRIPT GOING FORAWRD
 
@@ -742,9 +742,9 @@ class PLUME:
         for point in points_var2:
             cv2.circle(contour_img, point, 7, blue_color, -1)
 
-        ##########################
-        # Apply polyfit to var ##
-        ##########################
+        ########################
+        # Apply polyfit to var #
+        ########################
 
         # Add additional check for potentially underdetermined systems?
         # Possibly modify function
