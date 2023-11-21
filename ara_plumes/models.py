@@ -49,9 +49,9 @@ class PLUME:
         display_vid: bool = True,
     ):
 
-        #######################
-        # Fixed Subtraction ##
-        #######################
+        #####################
+        # Fixed Subtraction #
+        #####################
 
         # Create background image
         if subtraction_method == "fixed" and (
@@ -140,9 +140,9 @@ class PLUME:
         # if display_vid is True:
         #     display_handle.update(None)
 
-        #############################
-        # Moving Average Subtract ##
-        #############################
+        ###########################
+        # Moving Average Subtract #
+        ###########################
         if subtraction_method == "moving_avg":
             print()
 
