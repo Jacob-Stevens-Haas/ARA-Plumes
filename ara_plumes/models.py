@@ -206,6 +206,8 @@ class PLUME:
         display_vid=True,
         mean_smoothing=True,
         mean_smoothing_sigma=2,
+        regression_method="poly",
+        regression_kws={},
     ):
         """
         Apply connetric circles to frames range
@@ -358,16 +360,32 @@ class PLUME:
 
                 frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
+            # Apply concentric circles to frame
             out_data = self.concentric_circle(
                 frame,
                 mean_smoothing=mean_smoothing,
                 mean_smoothing_sigma=mean_smoothing_sigma,
             )
 
-            frame = out_data[0]
-            mean_array[k] = out_data[1]
-            var1_array[k] = out_data[2]
-            var2_array[k] = out_data[3]
+            mean_points_k = out_data[0]
+            var1_points_k = out_data[1]
+            var2_points_k = out_data[2]
+            frame = out_data[3]
+
+            # Apply regression method to selected points
+            out_data = self.regression(
+                points_mean=mean_points_k,
+                points_var1=var1_points_k,
+                points_var2=var2_points_k,
+                img=frame,
+                regression_method=regression_method,
+                regression_kws=regression_kws,
+            )
+
+            mean_array[k] = out_data[0]
+            var1_array[k] = out_data[1]
+            var2_array[k] = out_data[2]
+            frame = out_data[3]
 
             if isinstance(save_path, str):
                 out.write(frame)
@@ -508,7 +526,7 @@ class PLUME:
         # Apply Thresholding #
         ######################
 
-        # OTSU thresholding (automatically choose params)
+        # OTSU thresholding -- automatically choose params for selecting contours
         _, threshold = cv2.threshold(
             img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
@@ -663,6 +681,8 @@ class PLUME:
         # might move where we add it to this line
         # Create r line r_vals = [radii*i for i in range(len(points_mean))]
 
+        # Move this part of code? at least the plotting
+
         poly_coef_mean = np.polyfit(points_mean[:, 0], points_mean[:, 1], deg=poly_deg)
 
         f_mean = (
@@ -671,19 +691,29 @@ class PLUME:
             + poly_coef_mean[2]
         )
 
-        x = np.linspace(
-            np.min(points_mean[:, 0]) - x_less, np.max(points_mean[:, 0]) + x_plus, 100
-        )
-        y = f_mean(x)
+        # x = np.linspace(
+        #     np.min(
+        #         points_mean[:, 0]) - x_less, np.max(points_mean[:, 0]
+        #     ) + x_plus, 100
+        # )
 
-        curve_img = np.zeros_like(contour_img)
-        curve_points = np.column_stack((x, y)).astype(np.int32)
+        # Used to separate variances point into points_var1 and points_var2,
+        # respectively.
 
-        cv2.polylines(
-            curve_img, [curve_points], isClosed=False, color=red_color, thickness=5
-        )
-        if fit_poly is True:
-            contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
+        # y = f_mean(x)
+
+        # CAN PROBABLY COMMENT OUT THIS ENTIRE SECTION
+
+        # curve_img = np.zeros_like(contour_img)
+        # curve_points = np.column_stack((x, y)).astype(np.int32)
+
+        # cv2.polylines(
+        #     curve_img, [curve_points], isClosed=False, color=red_color, thickness=5
+        # )
+        # if fit_poly is True:
+        #     contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
+
+        # CAN COMMENT UP TO HERE
 
         ############################
         # Checking Variance points #
@@ -742,46 +772,179 @@ class PLUME:
         for point in points_var2:
             cv2.circle(contour_img, point, 7, blue_color, -1)
 
-        ########################
-        # Apply polyfit to var #
-        ########################
+        # APPLY SEPARATION HERE -- ADD NEW RETURN STATEMENT
+        return (points_mean, points_var1, points_var2, contour_img)
 
-        # Add additional check for potentially underdetermined systems?
-        # Possibly modify function
-        poly_coef_var1 = np.polyfit(points_var1[:, 0], points_var1[:, 1], deg=poly_deg)
+        # ##   COMMENT EVERYTHING BELOW THIS
+        # ########################
+        # # Apply polyfit to var #
+        # ########################
 
-        poly_coef_var2 = np.polyfit(points_var2[:, 0], points_var2[:, 1], deg=poly_deg)
+        # # Add additional check for potentially underdetermined systems?
+        # # Possibly modify function
+        # poly_coef_var1 = np.polyfit(
+        #     points_var1[:, 0], points_var1[:, 1], deg=poly_deg
+        # )
 
-        # Plotting var 1
-        x = np.linspace(
-            np.min(points_var1[:, 0]) - x_less, np.max(points_var1[:, 0]) + x_plus, 100
-        )
-        y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
+        # poly_coef_var2 = np.polyfit(
+        #     points_var2[:, 0], points_var2[:, 1], deg=poly_deg
+        # )
 
-        curve_points = np.column_stack((x, y)).astype(np.int32)
+        # # Plotting var 1
+        # x = np.linspace(
+        #     np.min(
+        #         points_var1[:, 0]) - x_less, np.max(points_var1[:, 0]
+        #     ) + x_plus, 100
+        # )
+        # y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
 
-        cv2.polylines(
-            curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
-        )
+        # curve_points = np.column_stack((x, y)).astype(np.int32)
 
-        if fit_poly is True:
-            contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
+        # cv2.polylines(
+        #     curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
+        # )
 
-        # Plotting var 2
-        x = np.linspace(
-            np.min(points_var2[:, 0]) - x_less, np.max(points_var2[:, 0]) + x_plus, 100
-        )
-        y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
+        # if fit_poly is True:
+        #     contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
 
-        curve_points = np.column_stack((x, y)).astype(np.int32)
+        # # Plotting var 2
+        # x = np.linspace(
+        #     np.min(
+        #         points_var2[:, 0]) - x_less, np.max(points_var2[:, 0]
+        #     ) + x_plus, 100
+        # )
+        # y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
 
-        cv2.polylines(
-            curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
-        )
-        if fit_poly is True:
-            contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
+        # curve_points = np.column_stack((x, y)).astype(np.int32)
 
-        return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
+        # cv2.polylines(
+        #     curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
+        # )
+        # if fit_poly is True:
+        #     contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
+
+        # return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
+
+        # UP UNTIL HERE
+
+    def regression(
+        self,
+        points_mean,
+        points_var1,
+        points_var2,
+        img,
+        regression_method="poly",
+        regression_kws={},
+    ):
+        """
+        Apply
+
+        """
+
+        if regression_method == "poly":
+            if "poly_deg" in regression_kws:
+                poly_deg = regression_kws["poly_deg"]
+            else:
+                poly_deg = 2
+            if "x_less" in regression_kws:
+                x_less = regression_kws["x_less"]
+            else:
+                x_less = 600
+            if "x_pluss" in regression_kws:
+                x_plus = regression_kws["x_plus"]
+            else:
+                x_less = 0
+            if "BGR_color" in regression_kws:
+                BGR_color = regression_kws["BGR_color"]
+            else:
+                BGR_color = (0, 0, 255)
+            if "line_thickness" in regression_kws:
+                line_thickness = regression_kws["line_thickness"]
+            else:
+                line_thickness = 5
+
+            # Applying mean poly regression
+            poly_coef_mean = np.polyfit(
+                points_mean[:, 0], points_mean[:, 1], deg=poly_deg
+            )
+
+            # Plotting mean poly
+            f_mean = (
+                lambda x: poly_coef_mean[0] * x**2
+                + poly_coef_mean[1] * x
+                + poly_coef_mean[2]
+            )
+
+            x = np.linspace(
+                np.min(points_mean[:, 0]) - x_less,
+                np.max(points_mean[:, 0]) + x_plus,
+                100,
+            )
+
+            y = f_mean(x)
+            curve_img = np.zeros_like(img)
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=BGR_color,
+                thickness=line_thickness,
+            )
+
+            # img = cv2.addWeighted(img,1,curve_img,1,0)
+
+            # Variance 1 poly regression
+            poly_coef_var1 = np.polyfit(
+                points_var1[:, 0], points_var1[:, 1], deg=poly_deg
+            )
+
+            x = np.linspace(
+                np.min(points_var1[:, 0]) - x_less,
+                np.max(points_var1[:, 0]) + x_plus,
+                100,
+            )
+
+            y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
+
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=(255, 0, 0),
+                thickness=line_thickness,
+            )
+
+            # img = cv2.addWeighted(img, 1, curve_img,1,0)
+
+            # Variance 2 poly regression
+            poly_coef_var2 = np.polyfit(
+                points_var2[:, 0], points_var2[:, 1], deg=poly_deg
+            )
+
+            x = np.linspace(
+                np.min(points_var2[:, 0]) - x_less,
+                np.max(points_var2[:, 0]) + x_plus,
+                100,
+            )
+            y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
+
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=(255, 0, 0),
+                thickness=line_thickness,
+            )
+
+            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
+
+        return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
 
     def find_next_center(
         self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
