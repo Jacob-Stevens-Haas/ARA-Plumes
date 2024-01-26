@@ -389,7 +389,6 @@ class PLUME:
 
             if isinstance(save_path, str):
                 out.write(frame)
-                # print("frames saved..")
             _, frame = cv2.imencode(".jpeg", frame)
 
             if display_vid is True:
@@ -397,7 +396,6 @@ class PLUME:
 
         # video.release()
         if isinstance(save_path, str):
-            # print("we got eem")
             video.release()
             out.release()
 
@@ -417,15 +415,12 @@ class PLUME:
         contour_smoothing_eps=50,
         radii=50,
         num_of_circs=22,
-        fit_poly=True,
         boundary_ring=False,
         interior_ring=False,
         interior_scale=3 / 5,
         rtol=1e-2,
         atol=1e-6,
         poly_deg=2,
-        x_less=600,
-        x_plus=0,
         mean_smoothing=True,
         mean_smoothing_sigma=2,
         quiet=True,
@@ -691,35 +686,9 @@ class PLUME:
             + poly_coef_mean[2]
         )
 
-        # x = np.linspace(
-        #     np.min(
-        #         points_mean[:, 0]) - x_less, np.max(points_mean[:, 0]
-        #     ) + x_plus, 100
-        # )
-
-        # Used to separate variances point into points_var1 and points_var2,
-        # respectively.
-
-        # y = f_mean(x)
-
-        # CAN PROBABLY COMMENT OUT THIS ENTIRE SECTION
-
-        # curve_img = np.zeros_like(contour_img)
-        # curve_points = np.column_stack((x, y)).astype(np.int32)
-
-        # cv2.polylines(
-        #     curve_img, [curve_points], isClosed=False, color=red_color, thickness=5
-        # )
-        # if fit_poly is True:
-        #     contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
-
-        # CAN COMMENT UP TO HERE
-
         ############################
         # Checking Variance points #
         ############################
-
-        # NEED TO COMPARE AGAINST SCRIPT GOING FORAWRD
 
         # Initialize variance list to store points
         var1_points = []
@@ -774,58 +743,6 @@ class PLUME:
 
         # APPLY SEPARATION HERE -- ADD NEW RETURN STATEMENT
         return (points_mean, points_var1, points_var2, contour_img)
-
-        # ##   COMMENT EVERYTHING BELOW THIS
-        # ########################
-        # # Apply polyfit to var #
-        # ########################
-
-        # # Add additional check for potentially underdetermined systems?
-        # # Possibly modify function
-        # poly_coef_var1 = np.polyfit(
-        #     points_var1[:, 0], points_var1[:, 1], deg=poly_deg
-        # )
-
-        # poly_coef_var2 = np.polyfit(
-        #     points_var2[:, 0], points_var2[:, 1], deg=poly_deg
-        # )
-
-        # # Plotting var 1
-        # x = np.linspace(
-        #     np.min(
-        #         points_var1[:, 0]) - x_less, np.max(points_var1[:, 0]
-        #     ) + x_plus, 100
-        # )
-        # y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
-
-        # curve_points = np.column_stack((x, y)).astype(np.int32)
-
-        # cv2.polylines(
-        #     curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
-        # )
-
-        # if fit_poly is True:
-        #     contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
-
-        # # Plotting var 2
-        # x = np.linspace(
-        #     np.min(
-        #         points_var2[:, 0]) - x_less, np.max(points_var2[:, 0]
-        #     ) + x_plus, 100
-        # )
-        # y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
-
-        # curve_points = np.column_stack((x, y)).astype(np.int32)
-
-        # cv2.polylines(
-        #     curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
-        # )
-        # if fit_poly is True:
-        #     contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
-
-        # return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
-
-        # UP UNTIL HERE
 
     def regression(
         self,
@@ -960,7 +877,6 @@ class PLUME:
         distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
 
         # Create mask for points on boundary (distances == r)
-        # print(rtol, atol)
         boundary_mask = np.isclose(distances, r, rtol=rtol, atol=atol)
 
         # Appply to neighboring point
@@ -971,20 +887,11 @@ class PLUME:
 
         interior_mask = distances <= r * scale
 
-        # print(np.argwhere(interior_mask==True))
-
         search_mask = boundary_mask & interior_mask
 
-        # print(np.argwhere(search_mask is True))
-
         search_subset = array[search_mask]
-        # print(search_subset)
-
-        # print("made it here")
 
         max_value = np.max(search_subset)
-        # print("made it here??")
-        # print("max_value:", max_value)
 
         # find indices of max element
         max_indices = np.argwhere(np.isclose(array, max_value) & search_mask)
