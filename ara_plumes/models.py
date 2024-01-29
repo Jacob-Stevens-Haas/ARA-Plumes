@@ -405,9 +405,14 @@ class PLUME:
 
                 frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
+            # Apply contour detection
+            contour_img, selected_contours = self.get_contour(frame)
+
             # Apply concentric circles to frame
             out_data = self.concentric_circle(
                 frame,
+                contour_img=contour_img,
+                selected_contours=selected_contours,
                 mean_smoothing=mean_smoothing,
                 mean_smoothing_sigma=mean_smoothing_sigma,
             )
@@ -453,11 +458,91 @@ class PLUME:
 
         return mean_array, var1_array, var2_array
 
+    def get_contour(
+        self,
+        img,
+        threshold_method="OTSU",
+        num_of_contours=1,
+        contour_smoothing=False,
+        contour_smoothing_eps=50,
+    ):
+        """
+        Contour detection applied to single frame of background subtracted
+        video.
+
+        Parameters:
+        -----------
+        img: np.ndarray (gray or BGR)
+            image to apply contour detection too.
+
+        threshold_method: str (default "OTSU")
+            Opencv method used for applying thresholding.
+
+        num_of_contours: int (default 1)
+            Number of contours selected to be used (largest to smallest).
+
+        contour_smoothing: bool (default False)
+            Used cv2.approxPolyDP to apply additional smoothing to contours
+            selected contours.
+
+        contour_smoothing_eps: positive int (default 50)
+            hyperparater for tuning cv2.approxPolyDP in contour_smoothing.
+            Level of smoothing to be applied to plume detection contours.
+            Only used when contour_smoothing = True.
+
+        Returns:
+        --------
+        contour_img: np.ndarray
+            img with contours drawn on
+
+        selected_contours: list
+            Returns list of num_of_contours largest contours detected in image.
+        """
+        # convert image to gray
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Apply thresholding
+        if threshold_method == "OTSU":
+            _, threshold = cv2.threshold(
+                img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+            )
+
+        # Find contours
+        contours, _ = cv2.findContours(
+            threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        # Select n largest contours
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        selected_contours = contours[:num_of_contours]
+
+        # Apply contour smoothing
+        if contour_smoothing is True:
+            smoothed_contours = []
+
+            for contour in selected_contours:
+                smoothed_contours.append(
+                    cv2.approxPolyDP(contour, contour_smoothing_eps, True)
+                )
+
+            selected_contours = smoothed_contours
+
+        # Draw contours on image
+        green_color = (0, 255, 0)
+        red_color = (0, 0, 255)
+        # blue_color = (255, 0, 0)
+
+        contour_img = img.copy()
+        cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
+        cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
+
+        return (contour_img, selected_contours)
+
     def concentric_circle(
         self,
         img,
-        contour_smoothing=False,
-        contour_smoothing_eps=50,
+        contour_img,
+        selected_contours,
         radii=50,
         num_of_circs=22,
         boundary_ring=False,
@@ -480,12 +565,11 @@ class PLUME:
         img: np.ndarray (gray or BGR)
             image to apply concentric circle too.
 
-        contour_smoothing: bool, optional (default False)
-            smooth contours learned on plume detected.
+        contour_img: np.ndarray
+            frame with detected plume contours added.
 
-        contour_smoothing_eps: int, optional (default 50)
-            level of smoothing to be applied to plume detection contours. Only
-            used when contour_smoothing = True.
+        selected_contours: list
+            List of contours learned from get_contour
 
         radii: int, optional (default 50)
             The radii used to step out in concentric circles method.
@@ -558,49 +642,68 @@ class PLUME:
                 " use find_center function."
             )
 
-        # print(img.shape)
+        # # print(img.shape)
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        ######################
-        # Apply Thresholding #
-        ######################
+        # ######################
+        # # Apply Thresholding #
+        # ######################
 
-        # OTSU thresholding -- automatically choose params for selecting contours
-        _, threshold = cv2.threshold(
-            img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        # # OTSU thresholding -- automatically choose params for selecting contours
+        # _, threshold = cv2.threshold(
+        #     img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        # )
 
-        #################
-        # Find Contours #
-        #################
-        contours, _ = cv2.findContours(
-            threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        # #################
+        # # Find Contours #
+        # #################
+        # contours, _ = cv2.findContours(
+        #     threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        # )
 
-        # Select n largest contours
-        n = 1
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        selected_contours = contours[:n]
+        # # Select n largest contours
+        # n = 1
+        # contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        # selected_contours = contours[:n]
 
-        ###########################
-        # Apply Contour Smoothing #
-        ###########################
+        # ###########################
+        # # Apply Contour Smoothing #
+        # ###########################
 
-        # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
-        if contour_smoothing is True:
-            smoothed_contours = []
+        # # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
+        # if contour_smoothing is True:
+        #     smoothed_contours = []
 
-            for contour in selected_contours:
-                smoothed_contours.append(
-                    cv2.approxPolyDP(contour, contour_smoothing_eps, True)
-                )
+        #     for contour in selected_contours:
+        #         smoothed_contours.append(
+        #             cv2.approxPolyDP(contour, contour_smoothing_eps, True)
+        #         )
 
-            selected_contours = smoothed_contours
+        #     selected_contours = smoothed_contours
+
+        # ##########################
+        # # Draw contours on image #
+        # ##########################
+        # green_color = (0, 255, 0)
+        red_color = (0, 0, 255)
+        blue_color = (255, 0, 0)
+
+        # contour_img = img.copy()
+        # cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
+        # cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
+
+        # Make break here for contour.
 
         ############################
-        # Create Distance Array(s) #
+        # Apply Concentric Circles #
         ############################
+
+        # # get contours
+        # contour_img, img_gray, selected_contours = self.get_contour(
+        #     img
+        # )
+
         # array of distance of each point on contour to original center
         contour_dist_list = []
         for contour in selected_contours:
@@ -608,21 +711,6 @@ class PLUME:
             b = np.array(self.orig_center)
             contour_dist = np.sqrt(np.sum((a - b) ** 2, axis=1))
             contour_dist_list.append(contour_dist)
-
-        ##########################
-        # Draw contours on image #
-        ##########################
-        green_color = (0, 255, 0)
-        red_color = (0, 0, 255)
-        blue_color = (255, 0, 0)
-
-        contour_img = img.copy()
-        cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
-        cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
-
-        ############################
-        # Apply Concentric Circles #
-        ############################
 
         # Initialize numpy array to store center
         points_mean = np.zeros(shape=(num_of_circs + 1, 2))
