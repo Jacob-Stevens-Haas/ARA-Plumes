@@ -213,25 +213,70 @@ class PLUME:
         Apply connetric circles to frames range
 
         Provides timeseries of learned polynomials.
-        Args:
-            img_range (list): Range of images to apply subtraction and
-                concentric circles too.
-            subtraction_method (str): Method used to apply subtraction.
-            fixed_range (int): Range of images to use as background image for
-                subtraction.
-            gauss_space_blur (bool): Apply GaussianBlur in space
-            gauss_kernel_size (odd int): size of kernel for GaussianBlur
-                (must be odd)
-            gauss_space_sigma (int?): standard variation of kernel size.
-            extension (str): file format video is saved as.
-            save_path (str): Path/name of video. Default None will not save
-                video.
-            display_vid (bool): Display concentric circles in jupyter notebook
-                window
-            mean_smoothing (bool): Additional gaussian smoothing for leaning
-                concentric circle points
-            mean_smoothing_sigma (int): standard variation for gaussian kernel
-                smoother of mean_smoothing
+
+        Parameters:
+        -----------
+        img_range: list
+            Range of images to apply background subtraction method and
+            concentric circles too.
+        subtraction_method: str
+            Method used to apply background subtraction.
+
+        fixed_range: int
+            Range of images to use as background image for subtraction
+            method.
+
+        gauss_space_blur: bool (default True)
+            Apply GaussianBlur in space.
+
+        gauss_kernel_size: odd int (default 81)
+            Size of kernel for GaussianBlur. Must be odd int.
+
+        gauss_space_sigma: int (default 15)
+
+        gauss_time_blur: bool (default True)
+
+        gauss_time_window: int (default 5)
+
+        gauss_time_sigma: int (default 1)
+
+        extension: str (default mp4)
+            file format video is saved as.
+
+        save_path: str (default None)
+            Path/name of video. Default None will not save video.
+
+        display_vid: bool (default True)
+            Display concentric_circles in jupyter notebook window.
+
+        mean_smoothing: bool (default True)
+            Additional gaussian smoothing for leaning concentric
+            circle points
+        mean_smoothing_sigma: int (default 2)
+            Standard variation for gaussian kernel smoother
+            or mean_smoothing
+
+        regression_method: str (default "poly")
+            Regression method to be applied to selected points in
+            concentric circle pipeline.
+
+        regression_kws: dict
+            Additional arguments for selected regression_method.
+
+        Returns:
+        --------
+        mean_array: np.ndarray
+            Numpy array containing time series of learned regression coefficients
+            along mean path of plume.
+
+        var1_array: np.ndarray
+            Numpy array containing time series of learned regression coefficvients
+            along top path of plume.
+
+        var2_array: np.ndarray
+            Numpy array containing time series of learned regression coefficvients
+            along bottom path of plume.
+
         """
         # Create background image
         if subtraction_method == "fixed" and isinstance(fixed_range, int):
