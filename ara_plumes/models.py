@@ -889,8 +889,45 @@ class PLUME:
         regression_kws={},
     ):
         """
-        Apply
+        Apply selected regression method to learned points from concentric_circle.
 
+        Parameters:
+        -----------
+        points_mean: np.ndarray
+            nx2 numpy array with cartesian coordinates (x,y) of scatter points of
+            mean path of plume.
+
+        poitns_var1: np.ndarray
+            nx2 numpy array with cartesian coordinates (x,y) of scatter points of
+            'above' edge of plume. Points that are above the mean scatter points.
+
+        poitns_var2: np.ndarray
+            nx2 numpy array with cartesian coordinates (x,y) of scatter points of
+            'below' edge of plume. Points that are above the mean scatter points.
+
+        img: np.ndarary
+            nxd numpy array of single frame of plume. Used to plot learned regression
+            paths.
+
+        regression_method: str (default "poly")
+            Regression method used to predict path of plume.
+
+        regression_kws: dict (default {})
+            additional arguments used for selected regression_method.
+
+        Returns:
+        --------
+        poly_coef_mean: np.ndarray
+            learned coefficients for mean regression.
+
+        poly_coef_var1: np.ndarray
+            learned coefficients for var1 regression.
+
+        poly_coef_var2: np.ndarray
+            learned coefficients for var2 regression.
+
+        img: np.ndarray
+            plume frame with plotting regression paths.
         """
 
         if regression_method == "poly":
