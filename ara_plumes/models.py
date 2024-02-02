@@ -216,9 +216,11 @@ class PLUME:
 
         Parameters:
         -----------
-        img_range: list
+        img_range: list (default None)
             Range of images to apply background subtraction method and
-            concentric circles too.
+            concentric circles too. Default None uses remaining frames
+            after declared fixed_range used to generated background
+            image.
         subtraction_method: str
             Method used to apply background subtraction.
 
