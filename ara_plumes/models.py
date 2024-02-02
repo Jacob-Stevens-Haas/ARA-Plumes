@@ -902,10 +902,10 @@ class PLUME:
                 x_less = regression_kws["x_less"]
             else:
                 x_less = 600
-            if "x_pluss" in regression_kws:
+            if "x_plus" in regression_kws:
                 x_plus = regression_kws["x_plus"]
             else:
-                x_less = 0
+                x_plus = 0
             if "BGR_color" in regression_kws:
                 BGR_color = regression_kws["BGR_color"]
             else:
