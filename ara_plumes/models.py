@@ -327,7 +327,7 @@ class PLUME:
         elif isinstance(img_range, int):
             init_frame = img_range
             fin_frame = self.tot_frames - 1
-        elif isinstance(img_range, None):
+        elif img_range is None:
             init_frame = fixed_range
             fin_frame = self.tot_frames - 1
 
