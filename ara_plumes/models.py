@@ -418,10 +418,10 @@ class PLUME:
                 mean_smoothing=mean_smoothing,
                 mean_smoothing_sigma=mean_smoothing_sigma,
             )
-
-            mean_points_k = out_data[0]
-            var1_points_k = out_data[1]
-            var2_points_k = out_data[2]
+            # FIX THIS: OUT_DATA[I][1:]
+            mean_points_k = out_data[0][1:]
+            var1_points_k = out_data[1][1:]
+            var2_points_k = out_data[2][1:]
             frame = out_data[3]
 
             # Apply regression method to selected points
@@ -715,15 +715,21 @@ class PLUME:
             contour_dist_list.append(contour_dist)
 
         # Initialize numpy array to store center
-        points_mean = np.zeros(shape=(num_of_circs + 1, 2))
-        points_mean[0] = self.orig_center
+        points_mean = np.zeros(
+            shape=(num_of_circs + 1, 3)
+        )  # DONE FIX THIS: 2 BECOMES 3
+        points_mean[0] = np.insert(
+            0, 0, self.orig_center
+        )  # DONE: FIX THIS: NP.INSERT(0,0,SELF.ORIG_CENTER)
 
         # Plot first point on path
         _, center = self.find_max_on_boundary(
             img_gray, self.orig_center, r=radii, rtol=rtol, atol=atol
         )
         # print("center_1:", center)
-        points_mean[1] = center
+        points_mean[1] = np.insert(
+            radii, 0, center
+        )  # DONE: FIX THIS: NP.INSERT(RADII,0,CENTER)
 
         # draw rings if True
         if boundary_ring is True:
@@ -767,7 +773,9 @@ class PLUME:
             if error_occured is True:
                 break
 
-            points_mean[step] = center
+            points_mean[step] = np.insert(
+                radius, 0, center
+            )  # DONE: FIX THIS: NP.INSERT(RADIUS,0,CENTER)
 
             # Draw boundary ring
             if boundary_ring is True:
@@ -784,26 +792,31 @@ class PLUME:
         # Apply poly fit to mean #
         ##########################
 
+        # DONE: FIX THIS: SMOOTHING POINTS_MEAN[:,2], POINTS_MEAN[1:]=
+
         # Apply gaussian filtering to points in y direction
         if mean_smoothing is True:
-            smooth_x = points_mean[:, 0]
-            smooth_y = gaussian_filter(points_mean[:, 1], sigma=mean_smoothing_sigma)
-            points_mean = np.column_stack((smooth_x, smooth_y))
+            smooth_x = points_mean[:, 1]
+            smooth_y = gaussian_filter(points_mean[:, 2], sigma=mean_smoothing_sigma)
+            points_mean[1:] = np.column_stack((smooth_x, smooth_y))
 
         #########################################
         # Check if points fall within a contour #
         #########################################
 
+        # DONE: FIX THIS:
         new_points_mean = []
         for center in points_mean:
             for contour in selected_contours:
-                if cv2.pointPolygonTest(contour, center, False) == 1:
+                if cv2.pointPolygonTest(contour, center[1:], False) == 1:
                     new_points_mean.append(center)
-                    center = center.round().astype(int)
-                    cv2.circle(contour_img, center, 7, red_color, -1)
+                    center[1:] = center[1:].round().astype(int)
+                    cv2.circle(contour_img, center[1:], 7, red_color, -1)
 
         if bool(new_points_mean):
-            points_mean = np.array(new_points_mean).reshape(-1, 2)
+            points_mean = np.array(new_points_mean).reshape(
+                -1, 3
+            )  # DONE: FIX THIS: CHANGE THIS 2 TO A 3??
 
         # We are going to learn two different polynomails that are paramertized in
         # r -> (x(r),y(r))
@@ -813,7 +826,9 @@ class PLUME:
 
         # Move this part of code? at least the plotting
 
-        poly_coef_mean = np.polyfit(points_mean[:, 0], points_mean[:, 1], deg=poly_deg)
+        poly_coef_mean = np.polyfit(
+            points_mean[:, 1], points_mean[:, 2], deg=poly_deg
+        )  # DONE: FIX THIS:
 
         f_mean = (
             lambda x: poly_coef_mean[0] * x**2
@@ -849,34 +864,41 @@ class PLUME:
                     var_below.append(point)
 
             if bool(var_above):
-                var1_points.append(
-                    list(np.array(var_above).mean(axis=0).round().astype(int))
-                )
+                # Average the selected variance points (if multiple selected)
+                avg_var1_i = np.array(var_above).mean(axis=0).round().astype(int)
+                # Insert associated radii
+                avg_var1_i = np.insert(radius, 0, avg_var1_i)
+                var1_points.append(list(avg_var1_i))
 
             if bool(var_below):
-                var2_points.append(
-                    list(np.array(var_below).mean(axis=0).round().astype(int))
-                )
+                # Average the selected variance points (if multiple selected)
+                avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
+                # Insert associated radii
+                avg_var2_i = np.insert(radius, 0, avg_var2_i)
+                var2_points.append(list(avg_var2_i))
 
         # Concatenate original center to both lists
         if bool(var1_points):
-            points_var1 = np.vstack((np.array(var1_points), list(self.orig_center)))
+            points_var1 = np.vstack(
+                (np.array(var1_points), list(np.insert(0, 0, self.orig_center)))
+            )
         else:
-            points_var1 = np.array([self.orig_center])
+            points_var1 = np.insert(0, 0, self.orig_center)
 
         if bool(var2_points):
-            points_var2 = np.vstack((np.array(var2_points), list(self.orig_center)))
+            points_var2 = np.vstack(
+                (np.array(var2_points), list(np.insert(0, 0, self.orig_center)))
+            )
         else:
-            points_var2 = np.array([self.orig_center])
+            points_var2 = np.insert(0, 0, self.orig_center)
 
         # Plotting points
         for point in points_var1:
-            cv2.circle(contour_img, point, 7, blue_color, -1)
+            cv2.circle(contour_img, point[1:], 7, blue_color, -1)
 
         for point in points_var2:
-            cv2.circle(contour_img, point, 7, blue_color, -1)
+            cv2.circle(contour_img, point[1:], 7, blue_color, -1)
 
-        # APPLY SEPARATION HERE -- ADD NEW RETURN STATEMENT
         return (points_mean, points_var1, points_var2, contour_img)
 
     def regression(
@@ -1032,6 +1054,17 @@ class PLUME:
             )
 
             img = cv2.addWeighted(img, 1, curve_img, 1, 0)
+
+        if regression_method == "sinusoid":
+            # Use poly regression for mean path
+            poly_coef_mean = np.polyfit(
+                points_mean[:, 0], points_mean[:, 1], deg=poly_deg
+            )
+            f_mean = (
+                lambda x: poly_coef_mean[0] * x**2
+                + poly_coef_mean[1] * x
+                + poly_coef_mean[2]
+            )
 
         return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
 
