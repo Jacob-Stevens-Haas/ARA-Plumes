@@ -419,9 +419,9 @@ class PLUME:
                 mean_smoothing_sigma=mean_smoothing_sigma,
             )
             # DONE: FIX THIS: OUT_DATA[I][1:]
-            mean_points_k = out_data[0][1:]
-            var1_points_k = out_data[1][1:]
-            var2_points_k = out_data[2][1:]
+            mean_points_k = out_data[0][:, 1:]
+            var1_points_k = out_data[1][:, 1:]
+            var2_points_k = out_data[2][:, 1:]
             frame = out_data[3]
 
             # Apply regression method to selected points
