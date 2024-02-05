@@ -798,7 +798,7 @@ class PLUME:
         if mean_smoothing is True:
             smooth_x = points_mean[:, 1]
             smooth_y = gaussian_filter(points_mean[:, 2], sigma=mean_smoothing_sigma)
-            points_mean[1:] = np.column_stack((smooth_x, smooth_y))
+            points_mean[:, 1:] = np.column_stack((smooth_x, smooth_y))
 
         #########################################
         # Check if points fall within a contour #
