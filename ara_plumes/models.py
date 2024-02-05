@@ -719,7 +719,7 @@ class PLUME:
             shape=(num_of_circs + 1, 3)
         )  # DONE FIX THIS: 2 BECOMES 3
         points_mean[0] = np.insert(
-            0, 0, self.orig_center
+            self.orig_center, 0, 0
         )  # DONE: FIX THIS: NP.INSERT(0,0,SELF.ORIG_CENTER)
 
         # Plot first point on path
@@ -728,7 +728,7 @@ class PLUME:
         )
         # print("center_1:", center)
         points_mean[1] = np.insert(
-            radii, 0, center
+            center, 0, radii
         )  # DONE: FIX THIS: NP.INSERT(RADII,0,CENTER)
 
         # draw rings if True
@@ -774,7 +774,7 @@ class PLUME:
                 break
 
             points_mean[step] = np.insert(
-                radius, 0, center
+                center, 0, radius
             )  # DONE: FIX THIS: NP.INSERT(RADIUS,0,CENTER)
 
             # Draw boundary ring
@@ -867,30 +867,30 @@ class PLUME:
                 # Average the selected variance points (if multiple selected)
                 avg_var1_i = np.array(var_above).mean(axis=0).round().astype(int)
                 # Insert associated radii
-                avg_var1_i = np.insert(radius, 0, avg_var1_i)
+                avg_var1_i = np.insert(avg_var1_i, 0, radius)
                 var1_points.append(list(avg_var1_i))
 
             if bool(var_below):
                 # Average the selected variance points (if multiple selected)
                 avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
                 # Insert associated radii
-                avg_var2_i = np.insert(radius, 0, avg_var2_i)
+                avg_var2_i = np.insert(avg_var2_i, 0, radius)
                 var2_points.append(list(avg_var2_i))
 
         # Concatenate original center to both lists
         if bool(var1_points):
             points_var1 = np.vstack(
-                (np.array(var1_points), list(np.insert(0, 0, self.orig_center)))
+                (np.array(var1_points), list(np.insert(self.orig_center, 0, 0)))
             )
         else:
-            points_var1 = np.insert(0, 0, self.orig_center)
+            points_var1 = np.insert(self.orig_center, 0, 0)
 
         if bool(var2_points):
             points_var2 = np.vstack(
-                (np.array(var2_points), list(np.insert(0, 0, self.orig_center)))
+                (np.array(var2_points), list(np.insert(self.orig_center, 0, 0)))
             )
         else:
-            points_var2 = np.insert(0, 0, self.orig_center)
+            points_var2 = np.insert(self.orig_center, 0, 0)
 
         # Plotting points
         for point in points_var1:
