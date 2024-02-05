@@ -704,7 +704,7 @@ class PLUME:
         # # get contours
         # contour_img, img_gray, selected_contours = self.get_contour(
         #     img
-        # )
+        # )gi
 
         # array of distance of each point on contour to original center
         contour_dist_list = []
@@ -883,14 +883,14 @@ class PLUME:
                 (np.array(var1_points), list(np.insert(self.orig_center, 0, 0)))
             )
         else:
-            points_var1 = np.insert(self.orig_center, 0, 0)
+            points_var1 = np.insert(self.orig_center, 0, 0).reshape(1, -1)
 
         if bool(var2_points):
             points_var2 = np.vstack(
                 (np.array(var2_points), list(np.insert(self.orig_center, 0, 0)))
             )
         else:
-            points_var2 = np.insert(self.orig_center, 0, 0)
+            points_var2 = np.insert(self.orig_center, 0, 0).reshape(1, -1)
 
         # Plotting points
         for point in points_var1:
