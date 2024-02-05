@@ -811,7 +811,7 @@ class PLUME:
                 if cv2.pointPolygonTest(contour, center[1:], False) == 1:
                     new_points_mean.append(center)
                     center[1:] = center[1:].round().astype(int)
-                    cv2.circle(contour_img, center[1:], 7, red_color, -1)
+                    cv2.circle(contour_img, center[1:].astype(int), 7, red_color, -1)
 
         if bool(new_points_mean):
             points_mean = np.array(new_points_mean).reshape(
