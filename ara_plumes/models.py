@@ -418,7 +418,7 @@ class PLUME:
                 mean_smoothing=mean_smoothing,
                 mean_smoothing_sigma=mean_smoothing_sigma,
             )
-            # FIX THIS: OUT_DATA[I][1:]
+            # DONE: FIX THIS: OUT_DATA[I][1:]
             mean_points_k = out_data[0][1:]
             var1_points_k = out_data[1][1:]
             var2_points_k = out_data[2][1:]
