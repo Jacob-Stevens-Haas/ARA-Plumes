@@ -419,9 +419,9 @@ class PLUME:
                 mean_smoothing_sigma=mean_smoothing_sigma,
             )
             # DONE: FIX THIS: OUT_DATA[I][1:]
-            mean_points_k = out_data[0][:, 1:]
-            var1_points_k = out_data[1][:, 1:]
-            var2_points_k = out_data[2][:, 1:]
+            mean_points_k = out_data[0]
+            var1_points_k = out_data[1]
+            var2_points_k = out_data[2]
             frame = out_data[3]
 
             # Apply regression method to selected points
@@ -916,16 +916,18 @@ class PLUME:
         Parameters:
         -----------
         points_mean: np.ndarray
-            nx2 numpy array with cartesian coordinates (x,y) of scatter points of
-            mean path of plume.
+            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
+            and radii of concentric circle associated with point on mean path of plume.
 
         poitns_var1: np.ndarray
-            nx2 numpy array with cartesian coordinates (x,y) of scatter points of
-            'above' edge of plume. Points that are above the mean scatter points.
+            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
+            and radii of concentric circle associated with 'above' edge of plume.
+            Points that are above the mean scatter points.
 
         poitns_var2: np.ndarray
-            nx2 numpy array with cartesian coordinates (x,y) of scatter points of
-            'below' edge of plume. Points that are above the mean scatter points.
+            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
+            and raddi of concentric circle associated with 'below' edge of plume.
+            Points that are above the mean scatter points.
 
         img: np.ndarary
             nxd numpy array of single frame of plume. Used to plot learned regression
@@ -976,7 +978,7 @@ class PLUME:
 
             # Applying mean poly regression
             poly_coef_mean = np.polyfit(
-                points_mean[:, 0], points_mean[:, 1], deg=poly_deg
+                points_mean[:, 1], points_mean[:, 2], deg=poly_deg
             )
 
             # Plotting mean poly
@@ -987,8 +989,8 @@ class PLUME:
             )
 
             x = np.linspace(
-                np.min(points_mean[:, 0]) - x_less,
-                np.max(points_mean[:, 0]) + x_plus,
+                np.min(points_mean[:, 1]) - x_less,
+                np.max(points_mean[:, 1]) + x_plus,
                 100,
             )
 
@@ -1008,12 +1010,12 @@ class PLUME:
 
             # Variance 1 poly regression
             poly_coef_var1 = np.polyfit(
-                points_var1[:, 0], points_var1[:, 1], deg=poly_deg
+                points_var1[:, 1], points_var1[:, 2], deg=poly_deg
             )
 
             x = np.linspace(
-                np.min(points_var1[:, 0]) - x_less,
-                np.max(points_var1[:, 0]) + x_plus,
+                np.min(points_var1[:, 1]) - x_less,
+                np.max(points_var1[:, 1]) + x_plus,
                 100,
             )
 
@@ -1033,12 +1035,12 @@ class PLUME:
 
             # Variance 2 poly regression
             poly_coef_var2 = np.polyfit(
-                points_var2[:, 0], points_var2[:, 1], deg=poly_deg
+                points_var2[:, 1], points_var2[:, 2], deg=poly_deg
             )
 
             x = np.linspace(
-                np.min(points_var2[:, 0]) - x_less,
-                np.max(points_var2[:, 0]) + x_plus,
+                np.min(points_var2[:, 1]) - x_less,
+                np.max(points_var2[:, 1]) + x_plus,
                 100,
             )
             y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
@@ -1058,7 +1060,7 @@ class PLUME:
         if regression_method == "sinusoid":
             # Use poly regression for mean path
             poly_coef_mean = np.polyfit(
-                points_mean[:, 0], points_mean[:, 1], deg=poly_deg
+                points_mean[:, 1], points_mean[:, 2], deg=poly_deg
             )
             f_mean = (
                 lambda x: poly_coef_mean[0] * x**2
