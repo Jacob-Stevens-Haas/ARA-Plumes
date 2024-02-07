@@ -1107,8 +1107,8 @@ class PLUME:
 
                 sol = self.circle_poly_intersection(
                     r=r,
-                    x0=row,
-                    y0=col,
+                    x0=col,
+                    y0=row,
                     a=poly_coef_mean[0],
                     b=poly_coef_mean[1],
                     c=poly_coef_mean[2],
