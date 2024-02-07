@@ -547,7 +547,7 @@ class PLUME:
         selected_contours,
         radii=50,
         num_of_circs=22,
-        boundary_ring=False,
+        boundary_ring=True,
         interior_ring=False,
         interior_scale=3 / 5,
         rtol=1e-2,
@@ -1058,6 +1058,35 @@ class PLUME:
             img = cv2.addWeighted(img, 1, curve_img, 1, 0)
 
         if regression_method == "sinusoid":
+            # if "rtol" in regression_kws:
+            #     rtol = regression_kws["rtol"]
+            # else:
+            #     rtol = 1e-2
+            # if "atol" in regression_kws:
+            #     atol = regression_kws["atol"]
+            # else:
+            #     atol = 1e-6
+            if "poly_deg" in regression_kws:
+                poly_deg = regression_kws["poly_deg"]
+            else:
+                poly_deg = 2
+            if "x_less" in regression_kws:
+                x_less = regression_kws["x_less"]
+            else:
+                x_less = 600
+            if "x_plus" in regression_kws:
+                x_plus = regression_kws["x_plus"]
+            else:
+                x_plus = 0
+            if "BGR_color" in regression_kws:
+                BGR_color = regression_kws["BGR_color"]
+            else:
+                BGR_color = (0, 0, 255)
+            if "line_thickness" in regression_kws:
+                line_thickness = regression_kws["line_thickness"]
+            else:
+                line_thickness = 5
+
             # Use poly regression for mean path
             poly_coef_mean = np.polyfit(
                 points_mean[:, 1], points_mean[:, 2], deg=poly_deg
@@ -1068,7 +1097,88 @@ class PLUME:
                 + poly_coef_mean[2]
             )
 
+            print("poly_coef_mean:", poly_coef_mean)
+            # get original center
+            col, row = self.orig_center
+
+            for point in points_var1:
+                r = point[0]
+                print("r:", r)
+
+                sol = self.circle_poly_intersection(
+                    r=r,
+                    x0=row,
+                    y0=col,
+                    a=poly_coef_mean[0],
+                    b=poly_coef_mean[1],
+                    c=poly_coef_mean[2],
+                )
+
+                for point in sol:
+                    cv2.circle(img, point.astype(int), 8, (255, 255, 0), -1)
+
+                # print("roots:", roots)
+            # Plotting polynomial on plot
+            x = np.linspace(
+                np.min(points_mean[:, 1]) - x_less,
+                np.max(points_mean[:, 1]) + x_plus,
+                100,
+            )
+
+            y = f_mean(x)
+            curve_img = np.zeros_like(img)
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=BGR_color,
+                thickness=line_thickness,
+            )
+
+            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
+
+            poly_coef_var1 = (0, 0, 0)
+            poly_coef_var2 = (0, 0, 0)
+
         return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
+
+    def circle_poly_intersection(self, r, x0, y0, a, b, c, real=True):
+        """
+        Find the intersection point(s) of a circle centered at (x0,y0) with radius
+        r and a polynomial of the form y=ax^2+bx+c.
+
+        Find roots of the poly g(x) = x^2 + (ax^2+bx+c)^2-r^2
+        """
+
+        coeff = [
+            c**2 - 2 * c * y0 + y0**2 + x0**2 - r**2,
+            2 * b * c - 2 * b * y0 - 2 * x0,
+            1 + b**2 + 2 * a * c - 2 * a * y0,
+            2 * a * b,
+            a**2,
+        ]
+        roots = np.polynomial.polynomial.polyroots(coeff)
+
+        if real is True:
+            roots = np.real(roots[np.isreal(roots)])
+
+        # f_poly = lambda x: a * x**2 + b * x + c
+        def f_poly(x):
+            return a * x**2 + b * x + c
+
+        y = f_poly(roots)
+
+        sol = np.zeros((len(roots), 2))
+        sol[:, 0] = roots
+        sol[:, 1] = y
+
+        # print("roots:", roots)
+        # print("y:", y)
+        # print("sol:", sol)
+
+        return sol
 
     def find_next_center(
         self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
