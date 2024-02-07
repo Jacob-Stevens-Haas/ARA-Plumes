@@ -546,7 +546,7 @@ class PLUME:
         contour_img,
         selected_contours,
         radii=50,
-        num_of_circs=22,
+        num_of_circs=30,
         boundary_ring=True,
         interior_ring=False,
         interior_scale=3 / 5,
