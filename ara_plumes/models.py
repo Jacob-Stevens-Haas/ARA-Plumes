@@ -430,6 +430,7 @@ class PLUME:
                 points_var1=var1_points_k,
                 points_var2=var2_points_k,
                 img=frame,
+                selected_contours=selected_contours,
                 regression_method=regression_method,
                 regression_kws=regression_kws,
             )
@@ -907,6 +908,7 @@ class PLUME:
         points_var1,
         points_var2,
         img,
+        selected_contours=None,
         regression_method="poly",
         regression_kws={},
     ):
@@ -1115,8 +1117,9 @@ class PLUME:
                 )
 
                 for point in sol:
-                    cv2.circle(img, point.astype(int), 8, (255, 255, 0), -1)
-
+                    for contour in selected_contours:
+                        if cv2.pointPolygonTest(contour, point, False) == 1:
+                            cv2.circle(img, point.astype(int), 8, (255, 255, 0), -1)
                 # print("roots:", roots)
             # Plotting polynomial on plot
             x = np.linspace(
