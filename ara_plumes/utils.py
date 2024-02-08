@@ -3,6 +3,7 @@ import os
 
 import cv2
 import imageio
+import matplotlib.pyplot as plt
 import numpy as np
 from moviepy.editor import VideoFileClip
 from PIL import Image
@@ -13,6 +14,21 @@ from tqdm import tqdm
 ##################
 # For Regression #
 ##################
+
+
+def plot_sinusoid(X_i, Y_i, t_i):
+    A, w, gamma, B = sinusoid_regression(X_i, Y_i, t_i)
+    plt.figure(figsize=(8, 6))
+    plt.scatter(X_i, Y_i, color="blue")
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.title("Sinusoid")  # Title of the plot
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    return
+
+
 def sinusoid_regression(X, Y, t):
 
     # Define the function
