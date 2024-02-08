@@ -3,9 +3,28 @@ import os
 
 import cv2
 import imageio
+import numpy as np
 from moviepy.editor import VideoFileClip
 from PIL import Image
+from scipy.optimize import curve_fit
 from tqdm import tqdm
+
+
+##################
+# For Regression #
+##################
+
+
+def sinusoid_regression(X, Y, t):
+
+    # Define the function
+    def sinusoid(x, A, w, gamma, B):
+        return A * np.sin(w * x - gamma * t) + B * x
+
+    initial_guess = (1, 1, 1, 1)
+    params, covariance = curve_fit(sinusoid, X, Y, initial_guess)
+    A_opt, w_opt, gamma_opt, B_opt = params
+    return (A_opt, w_opt, gamma_opt, B_opt)
 
 
 #############################
