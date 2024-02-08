@@ -28,6 +28,7 @@ class PLUME:
         self.var2_poly = None
         self.orig_center = None
         self.count = None
+        self.var1_dist = []
 
     def display_frame(self, frame: int):
         cap = self.video_capture
@@ -439,6 +440,11 @@ class PLUME:
             var1_array[k] = out_data[1]
             var2_array[k] = out_data[2]
             frame = out_data[3]
+
+            if regression_method == "sinusoid":
+                var1_dist_k = out_data[4]
+
+                self.var1_dist.append((k, var1_dist_k))
 
             if isinstance(save_path, str):
                 out.write(frame)
@@ -1059,6 +1065,8 @@ class PLUME:
 
             img = cv2.addWeighted(img, 1, curve_img, 1, 0)
 
+            return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
+
         if regression_method == "sinusoid":
             # if "rtol" in regression_kws:
             #     rtol = regression_kws["rtol"]
@@ -1153,7 +1161,7 @@ class PLUME:
             poly_coef_var1 = (0, 0, 0)
             poly_coef_var2 = (0, 0, 0)
 
-        return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
+            return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img, var1_dist)
 
     def circle_poly_intersection(self, r, x0, y0, a, b, c, real=True):
         """
