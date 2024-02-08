@@ -17,16 +17,24 @@ from tqdm import tqdm
 
 
 def plot_sinusoid(X_i, Y_i, t_i):
-    A, w, gamma, B = sinusoid_regression(X_i, Y_i, t_i)
-    plt.figure(figsize=(8, 6))
-    plt.scatter(X_i, Y_i, color="blue")
+    # A, w, gamma, B = sinusoid_regression(X_i, Y_i, t_i)
+
+    fig = plt.figure(figsize=(8, 6))
+
+    # x = np.linspace(0,X_i[-1])
+    # sinusoid_func = lambda x: A*np.sin(w*x-gamma*t_i)+B*x
+    # y = sinusoid_func(x)
+
+    # plt.plot(x,y,color='red',label="sinusoid")
+
+    plt.scatter(X_i, Y_i, color="blue", label="var points")
     plt.xlabel("X")
     plt.ylabel("Y")
-    plt.title("Sinusoid")  # Title of the plot
+    plt.title("Sinusoid, t=" + str(t_i))
     plt.legend()
-    plt.grid(True)
-    plt.show()
-    return
+    # plt.grid(True)
+    # plt.show(block=False)
+    return fig
 
 
 def sinusoid_regression(X, Y, t):
