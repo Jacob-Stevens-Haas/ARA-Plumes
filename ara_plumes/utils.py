@@ -16,20 +16,21 @@ from tqdm import tqdm
 ##################
 
 
-def plot_sinusoid(X_i, Y_i, t_i):
+def plot_sinusoid(X_i, Y_i, t_i, regress=True):
     fig = plt.figure(figsize=(8, 6))
-    try:
-        A, w, gamma, B = sinusoid_regression(X_i, Y_i, t_i)
-        x = np.linspace(0, X_i[-1])
+    if regress is True:
+        try:
+            A, w, gamma, B = sinusoid_regression(X_i, Y_i, t_i)
+            x = np.linspace(0, X_i[-1])
 
-        def sinusoid_func(x):
-            return A * np.sin(w * x - gamma * t_i) + B * x
+            def sinusoid_func(x):
+                return A * np.sin(w * x - gamma * t_i) + B * x
 
-        y = sinusoid_func(x)
+            y = sinusoid_func(x)
 
-        plt.plot(x, y, color="red", label="sinusoid")
-    except Exception as e:
-        print(f"Sinusoid could not fit. Error {e}")
+            plt.plot(x, y, color="red", label="sinusoid")
+        except Exception as e:
+            print(f"Sinusoid could not fit. Error {e}")
 
     plt.scatter(X_i, Y_i, color="blue", label="var points")
     plt.xlabel("X")
