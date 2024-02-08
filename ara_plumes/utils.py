@@ -13,8 +13,6 @@ from tqdm import tqdm
 ##################
 # For Regression #
 ##################
-
-
 def sinusoid_regression(X, Y, t):
 
     # Define the function
