@@ -1099,15 +1099,16 @@ class PLUME:
                 + poly_coef_mean[2]
             )
 
-            print("poly_coef_mean:", poly_coef_mean)
+            # print("poly_coef_mean:", poly_coef_mean)
             # get original center
             col, row = self.orig_center
 
+            var1_dist = []
             for point in points_var1:
                 r = point[0]
-                print("r:", r)
+                # print("r:", r)
 
-                sol = self.circle_poly_intersection(
+                sols = self.circle_poly_intersection(
                     r=r,
                     x0=col,
                     y0=row,
@@ -1116,11 +1117,17 @@ class PLUME:
                     c=poly_coef_mean[2],
                 )
 
-                for point in sol:
+                # Check if point falls in contour
+                for sol in sols:
                     for contour in selected_contours:
-                        if cv2.pointPolygonTest(contour, point, False) == 1:
-                            cv2.circle(img, point.astype(int), 8, (255, 255, 0), -1)
+                        if cv2.pointPolygonTest(contour, sol, False) == 1:
+                            dist_i = np.linalg.norm(point[1:] - sol)
+                            var1_dist.append([r, dist_i])
+                            cv2.circle(img, sol.astype(int), 8, (255, 255, 0), -1)
                 # print("roots:", roots)
+
+            var1_dist = np.array(var1_dist)
+
             # Plotting polynomial on plot
             x = np.linspace(
                 np.min(points_mean[:, 1]) - x_less,
@@ -1142,6 +1149,7 @@ class PLUME:
 
             img = cv2.addWeighted(img, 1, curve_img, 1, 0)
 
+            # Get regressions parameters Asin(wx-gamma t) + Bx
             poly_coef_var1 = (0, 0, 0)
             poly_coef_var2 = (0, 0, 0)
 
