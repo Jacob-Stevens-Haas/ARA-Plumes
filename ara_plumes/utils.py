@@ -29,8 +29,10 @@ def plot_sinusoid(X_i, Y_i, t_i, regress=True, initial_guess=(1, 1, 1, 1)):
             y = sinusoid_func(x)
 
             plt.plot(x, y, color="red", label="sinusoid")
+            new_guess = (A, w, gamma, B)
         except Exception as e:
             print(f"Sinusoid could not fit. Error {e}")
+            new_guess = initial_guess
 
     plt.scatter(X_i, Y_i, color="blue", label="var points")
     plt.xlabel("X")
@@ -39,7 +41,7 @@ def plot_sinusoid(X_i, Y_i, t_i, regress=True, initial_guess=(1, 1, 1, 1)):
     plt.legend()
     # plt.grid(True)
     # plt.show(block=False)
-    return fig, (A, w, gamma, B)
+    return fig, new_guess
 
 
 def sinusoid_regression(X, Y, t, initial_guess):
