@@ -16,11 +16,11 @@ from tqdm import tqdm
 ##################
 
 
-def plot_sinusoid(X_i, Y_i, t_i, regress=True):
+def plot_sinusoid(X_i, Y_i, t_i, regress=True, initial_guess=(1, 1, 1, 1)):
     fig = plt.figure(figsize=(8, 6))
     if regress is True:
         try:
-            A, w, gamma, B = sinusoid_regression(X_i, Y_i, t_i)
+            A, w, gamma, B = sinusoid_regression(X_i, Y_i, t_i, initial_guess)
             x = np.linspace(0, X_i[-1])
 
             def sinusoid_func(x):
@@ -39,16 +39,16 @@ def plot_sinusoid(X_i, Y_i, t_i, regress=True):
     plt.legend()
     # plt.grid(True)
     # plt.show(block=False)
-    return fig
+    return fig, (A, w, gamma, B)
 
 
-def sinusoid_regression(X, Y, t):
+def sinusoid_regression(X, Y, t, initial_guess):
 
     # Define the function
     def sinusoid(x, A, w, gamma, B):
         return A * np.sin(w * x - gamma * t) + B * x
 
-    initial_guess = (1, 1, 1, 1)
+    # initial_guess = (1, 1, 1, 1)
     params, covariance = curve_fit(sinusoid, X, Y, initial_guess)
     A_opt, w_opt, gamma_opt, B_opt = params
     return (A_opt, w_opt, gamma_opt, B_opt)
