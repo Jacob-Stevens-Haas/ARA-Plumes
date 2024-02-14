@@ -31,7 +31,7 @@ def plot_sinusoid(X_i, Y_i, t_i, regress=True, initial_guess=(1, 1, 1, 1)):
             plt.plot(x, y, color="red", label="sinusoid")
             new_guess = (A, w, gamma, B)
         except Exception as e:
-            print(f"Sinusoid could not fit. Error {e}")
+            print(f"Sinusoid could not fit. Error: {e}")
             new_guess = initial_guess
 
     plt.scatter(X_i, Y_i, color="blue", label="var points")
