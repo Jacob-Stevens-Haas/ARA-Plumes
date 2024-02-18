@@ -1,5 +1,3 @@
-import time
-
 import cv2
 import IPython
 import matplotlib.pyplot as plt
@@ -9,10 +7,6 @@ from tqdm import tqdm
 
 # For displaying clips in Jupyter notebooks
 # from IPython.display import Image, display
-
-
-class plume_results:
-    pass
 
 
 class PLUME:
@@ -1383,30 +1377,3 @@ class PLUME:
                 display_handle.update(None)
 
         return
-
-
-def main():
-    video_path = "plume_videos/July_20/video_high_1/high_1.MP4"
-    test_num = 15
-
-    t0 = time.time()
-    frames = list(np.arange(test_num) * 100 + 100)
-    t1 = time.time()
-    print("time:", t1 - t0, "\n")
-
-    # We are going to use the cv2 method (faster)
-    video_capture = cv2.VideoCapture(video_path)
-    t0 = time.time()
-
-    frames = list(np.arange(test_num) * 100 + 100)
-    for frame in tqdm(frames):
-        video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame)
-
-    t1 = time.time()
-    print("time:", t1 - t0)
-
-    print("new test")
-
-
-if __name__ == "__main__":
-    main()
