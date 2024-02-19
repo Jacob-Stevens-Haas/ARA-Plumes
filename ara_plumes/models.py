@@ -1178,15 +1178,21 @@ class PLUME:
         if real is True:
             roots = np.real(roots[np.isreal(roots)])
 
-        # f_poly = lambda x: a * x**2 + b * x + c
         def f_poly(x):
             return a * x**2 + b * x + c
 
-        y = f_poly(roots)
+        # y = f_poly(roots)
 
-        sol = np.zeros((len(roots), 2))
-        sol[:, 0] = roots
-        sol[:, 1] = y
+        sol = []
+        for x in roots:
+            y = f_poly(x)
+            sol.append([x, y])
+
+        sol = np.array(sol)
+
+        # sol = np.zeros((len(roots), 2))
+        # sol[:, 0] = roots
+        # sol[:, 1] = y
 
         return sol
 
