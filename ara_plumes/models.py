@@ -422,6 +422,7 @@ class PLUME:
                 points_var1=var1_points_k,
                 points_var2=var2_points_k,
                 img=frame,
+                orig_center=self.orig_center,
                 selected_contours=selected_contours,
                 regression_method=regression_method,
                 regression_kws=regression_kws,
@@ -899,12 +900,13 @@ class PLUME:
 
         return (points_mean, points_var1, points_var2, contour_img)
 
+    @staticmethod
     def regression(
-        self,
         points_mean,
         points_var1,
         points_var2,
         img,
+        orig_center=None,
         selected_contours=None,
         regression_method="poly",
         regression_kws={},
@@ -1086,13 +1088,13 @@ class PLUME:
                 + poly_coef_mean[2]
             )
 
-            col, row = self.orig_center
+            col, row = orig_center
 
             var1_dist = []
             for point in points_var1:
                 r = point[0]
 
-                sols = self.circle_poly_intersection(
+                sols = PLUME.circle_poly_intersection(
                     r=r,
                     x0=col,
                     y0=row,
