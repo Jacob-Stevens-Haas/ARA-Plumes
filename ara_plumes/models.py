@@ -182,9 +182,6 @@ class PLUME:
             print("No point selected.")
         return
 
-    # def extract_frames(self, extension: str = "jpg"):
-    #     video_path = self.video_path
-
     def train(
         self,
         img_range: list = None,
