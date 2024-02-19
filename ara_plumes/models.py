@@ -1005,8 +1005,6 @@ class PLUME:
                 thickness=line_thickness,
             )
 
-            # img = cv2.addWeighted(img,1,curve_img,1,0)
-
             # Variance 1 poly regression
             poly_coef_var1 = np.polyfit(
                 points_var1[:, 1], points_var1[:, 2], deg=poly_deg
@@ -1029,8 +1027,6 @@ class PLUME:
                 color=(255, 0, 0),
                 thickness=line_thickness,
             )
-
-            # img = cv2.addWeighted(img, 1, curve_img,1,0)
 
             # Variance 2 poly regression
             poly_coef_var2 = np.polyfit(
@@ -1059,14 +1055,6 @@ class PLUME:
             return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
 
         if regression_method == "sinusoid":
-            # if "rtol" in regression_kws:
-            #     rtol = regression_kws["rtol"]
-            # else:
-            #     rtol = 1e-2
-            # if "atol" in regression_kws:
-            #     atol = regression_kws["atol"]
-            # else:
-            #     atol = 1e-6
             if "poly_deg" in regression_kws:
                 poly_deg = regression_kws["poly_deg"]
             else:
@@ -1098,14 +1086,11 @@ class PLUME:
                 + poly_coef_mean[2]
             )
 
-            # print("poly_coef_mean:", poly_coef_mean)
-            # get original center
             col, row = self.orig_center
 
             var1_dist = []
             for point in points_var1:
                 r = point[0]
-                # print("r:", r)
 
                 sols = self.circle_poly_intersection(
                     r=r,
@@ -1123,7 +1108,6 @@ class PLUME:
                             dist_i = np.linalg.norm(point[1:] - sol)
                             var1_dist.append([r, dist_i])
                             cv2.circle(img, sol.astype(int), 8, (255, 255, 0), -1)
-                # print("roots:", roots)
 
             var1_dist = np.array(var1_dist)
 
