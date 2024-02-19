@@ -1157,7 +1157,8 @@ class PLUME:
 
             return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img, var1_dist)
 
-    def circle_poly_intersection(self, r, x0, y0, a, b, c, real=True):
+    @staticmethod
+    def circle_poly_intersection(r, x0, y0, a, b, c, real=True):
         """
         Find the intersection point(s) of a circle centered at (x0,y0) with radius
         r and a polynomial of the form y=ax^2+bx+c.
@@ -1186,10 +1187,6 @@ class PLUME:
         sol = np.zeros((len(roots), 2))
         sol[:, 0] = roots
         sol[:, 1] = y
-
-        # print("roots:", roots)
-        # print("y:", y)
-        # print("sol:", sol)
 
         return sol
 
