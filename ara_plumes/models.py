@@ -23,6 +23,7 @@ class PLUME:
         self.orig_center = None
         self.count = None
         self.var1_dist = []
+        self.var2_dist = []
 
     def display_frame(self, frame: int):
         cap = self.video_capture
@@ -435,8 +436,10 @@ class PLUME:
 
             if regression_method == "sinusoid":
                 var1_dist_k = out_data[4]
+                var2_dist_k = out_data[5]
 
                 self.var1_dist.append((k, var1_dist_k))
+                self.var2_dist.append((k, var2_dist_k))
 
             if isinstance(save_path, str):
                 out.write(frame)
@@ -1090,6 +1093,7 @@ class PLUME:
 
             col, row = orig_center
 
+            # convert (x,y) to (r,d) for var 1
             var1_dist = []
             for point in points_var1:
                 r = point[0]
@@ -1112,6 +1116,29 @@ class PLUME:
                             cv2.circle(img, sol.astype(int), 8, (255, 255, 0), -1)
 
             var1_dist = np.array(var1_dist)
+
+            # var2: convert (x,y) to (r,d) for var 2
+            var2_dist = []
+            for point in points_var2:
+                r = point[0]
+
+                sols = PLUME.circle_poly_intersection(
+                    r=0,
+                    x0=col,
+                    y0=row,
+                    a=poly_coef_mean[0],
+                    b=poly_coef_mean[1],
+                    c=poly_coef_mean[2],
+                )
+
+                # check if points fall in contour
+                for sol in sols:
+                    for contour in selected_contours:
+                        if cv2.pointPolygonTest(contour, sol, False) == 1:
+                            dist_i = np.linalg.norm(point[1:] - sol)
+                            var2_dist.append([r, dist_i])
+                            cv2.circle(img, sol.astype(int), 8, (255, 255, 0), -1)
+            var2_dist = np.array(var2_dist)
 
             # Plotting polynomial on plot
             x = np.linspace(
@@ -1138,7 +1165,14 @@ class PLUME:
             poly_coef_var1 = (0, 0, 0)
             poly_coef_var2 = (0, 0, 0)
 
-            return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img, var1_dist)
+            return (
+                poly_coef_mean,
+                poly_coef_var1,
+                poly_coef_var2,
+                img,
+                var1_dist,
+                var2_dist,
+            )
 
     @staticmethod
     def circle_poly_intersection(r, x0, y0, a, b, c, real=True):
