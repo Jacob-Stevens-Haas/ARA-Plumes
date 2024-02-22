@@ -16,6 +16,22 @@ from tqdm import tqdm
 ##################
 
 
+def flatten_vari_dist(vari_dist):
+    t_x_y = []
+    for vari in vari_dist:
+        nt = len(vari[1])
+        ti = vari[0]
+        if nt == 0:
+            continue
+        t_x_y_i = np.array([ti for _ in range(nt)]).reshape(nt, -1)
+        t_x_y_i = np.hstack((t_x_y_i, vari[1]))
+        if len(t_x_y) == 0:
+            t_x_y = t_x_y_i
+        else:
+            t_x_y = np.vstack((t_x_y, t_x_y_i))
+    return t_x_y
+
+
 def plot_sinusoid(X_i, Y_i, t_i, regress=True, initial_guess=(1, 1, 1, 1)):
     fig = plt.figure(figsize=(8, 6))
     if regress is True:
