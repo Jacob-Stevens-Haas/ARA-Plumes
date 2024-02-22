@@ -17,6 +17,10 @@ from tqdm import tqdm
 
 
 def flatten_vari_dist(vari_dist):
+    """
+    Convert vari_dist list [(t0,[[x0,y0],...[xn,yn]]),...]
+    to flattned array ->[[t0,x0,y0], [t0,x1,y1],...[t0,xn,yn],[t1,...],...]
+    """
     t_x_y = []
     for vari in vari_dist:
         nt = len(vari[1])
