@@ -401,7 +401,7 @@ class PLUME:
                 frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
             # Apply contour detection
-            contour_img, selected_contours = self.get_contour(frame, num_of_contours=2)
+            contour_img, selected_contours = self.get_contour(frame, num_of_contours=1)
 
             # Apply concentric circles to frame
             out_data = self.concentric_circle(
@@ -416,7 +416,8 @@ class PLUME:
             var1_points_k = out_data[1]
             var2_points_k = out_data[2]
             frame = out_data[3]
-
+            if len(var2_points_k) == 0:
+                print("mistake")
             # Apply regression method to selected points
             out_data = self.regression(
                 points_mean=mean_points_k,
@@ -1136,7 +1137,7 @@ class PLUME:
                 r = point[0]
 
                 sols = PLUME.circle_poly_intersection(
-                    r=0,
+                    r=r,
                     x0=col,
                     y0=row,
                     a=poly_coef_mean[0],
