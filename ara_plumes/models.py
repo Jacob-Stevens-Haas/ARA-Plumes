@@ -401,7 +401,7 @@ class PLUME:
                 frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
             # Apply contour detection
-            contour_img, selected_contours = self.get_contour(frame, num_of_contours=1)
+            contour_img, selected_contours = self.get_contour(frame, num_of_contours=2)
 
             # Apply concentric circles to frame
             out_data = self.concentric_circle(
@@ -846,19 +846,37 @@ class PLUME:
             var_above = []
             var_below = []
 
+            intersection_points = []
             for i in range(len(selected_contours)):
                 contour_dist = contour_dist_list[i]
                 contour = selected_contours[i]
 
                 # ISSUE PROBABLY IS HERE
                 dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
-                intersection_points = contour.reshape(-1, 2)[dist_mask]
+                intersection_points_i = contour.reshape(-1, 2)[dist_mask]
+                intersection_points.append(intersection_points_i)
+                # if len(intersection_points_i) != 0:
+                #     intersection_points.append(intersection_points_i)
 
-            for point in intersection_points:
-                if f_mean(point[0]) <= point[1]:
-                    var_above.append(point)
-                else:
-                    var_below.append(point)
+            # # Reshape array
+            # try:
+            #     intersection_points = np.array(
+            #         intersection_points
+            #     ).reshape(-1,2)
+            # except Exception as e:
+            #     for arr in intersection_points:
+            #         print("arr:", arr)
+            #         print("arr type:", type(arr))
+            #         print(intersection_points)
+            # print("intersection_point:", intersection_points)
+
+            # ip_i is intersection_points_i
+            for ip_i in intersection_points:
+                for point in ip_i:
+                    if f_mean(point[0]) <= point[1]:
+                        var_above.append(point)
+                    else:
+                        var_below.append(point)
 
             if bool(var_above):
                 # Average the selected variance points (if multiple selected)
