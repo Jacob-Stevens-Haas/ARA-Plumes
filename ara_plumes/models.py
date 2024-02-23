@@ -401,7 +401,7 @@ class PLUME:
                 frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
             # Apply contour detection
-            contour_img, selected_contours = self.get_contour(frame)
+            contour_img, selected_contours = self.get_contour(frame, num_of_contours=1)
 
             # Apply concentric circles to frame
             out_data = self.concentric_circle(
@@ -794,8 +794,6 @@ class PLUME:
         # Apply poly fit to mean #
         ##########################
 
-        # DONE: FIX THIS: SMOOTHING POINTS_MEAN[:,2], POINTS_MEAN[1:]=
-
         # Apply gaussian filtering to points in y direction
         if mean_smoothing is True:
             smooth_x = points_mean[:, 1]
@@ -806,19 +804,17 @@ class PLUME:
         # Check if points fall within a contour #
         #########################################
 
-        # DONE: FIX THIS:
         new_points_mean = []
         for center in points_mean:
             for contour in selected_contours:
+                # check if point lies within contour
                 if cv2.pointPolygonTest(contour, center[1:], False) == 1:
                     new_points_mean.append(center)
                     center[1:] = center[1:].round().astype(int)
                     cv2.circle(contour_img, center[1:].astype(int), 7, red_color, -1)
 
         if bool(new_points_mean):
-            points_mean = np.array(new_points_mean).reshape(
-                -1, 3
-            )  # DONE: FIX THIS: CHANGE THIS 2 TO A 3??
+            points_mean = np.array(new_points_mean).reshape(-1, 3)
 
         # We are going to learn two different polynomails that are paramertized in
         # r -> (x(r),y(r))
@@ -828,9 +824,7 @@ class PLUME:
 
         # Move this part of code? at least the plotting
 
-        poly_coef_mean = np.polyfit(
-            points_mean[:, 1], points_mean[:, 2], deg=poly_deg
-        )  # DONE: FIX THIS:
+        poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
 
         f_mean = (
             lambda x: poly_coef_mean[0] * x**2
@@ -856,6 +850,7 @@ class PLUME:
                 contour_dist = contour_dist_list[i]
                 contour = selected_contours[i]
 
+                # ISSUE PROBABLY IS HERE
                 dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
                 intersection_points = contour.reshape(-1, 2)[dist_mask]
 
