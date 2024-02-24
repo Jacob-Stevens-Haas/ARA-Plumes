@@ -5,6 +5,7 @@ import cv2
 import imageio
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.animation import FuncAnimation
 from moviepy.editor import VideoFileClip
 from PIL import Image
 from scipy.optimize import curve_fit
@@ -408,3 +409,37 @@ def create_gif(
         save_all=True,
         loop=0,
     )
+
+
+def create_vari_dist_movie(vari_dist, save_path=None):
+
+    # find max r and d
+    max_r = 0
+    max_d = 0
+    for vari in vari_dist:
+        if len(vari[1]) != 0:
+            max_r_i = np.max(vari[1][:, 0])
+            if max_r_i >= max_r:
+                max_r = max_r_i
+            max_d_i = np.max(vari[1][:, 1])
+            if max_d_i >= max_d:
+                max_d = max_d_i
+
+    # function to generate plots
+    def generate_plot(frame):
+        plt.clf()
+        t, r_d_arr = vari_dist[frame]
+        plt.title(f"Var (r,d), t={t}")
+        if len(r_d_arr) != 0:
+            plt.scatter(r_d_arr[:, 0], r_d_arr[:, 1], c="blue")
+        plt.xlim(0, max_r)
+        plt.ylim(0, max_d)
+        plt.xlabel("r (flattened p_mean)")
+        plt.ylabel("d")
+
+    # Create movie
+    fig = plt.figure()
+    ani = FuncAnimation(fig, generate_plot, frames=len(vari_dist), interval=100)
+    if isinstance(save_path, str):
+        ani.save(save_path, writer="ffmpeg", fps=10)
+        plt.show()
