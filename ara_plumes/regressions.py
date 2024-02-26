@@ -1,13 +1,56 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 
-def var_learn(X, Y, n_samples, trails, replace=False):
+def var_train(X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False):
+    param_opt, param_hist = var_learn(
+        X=X_train, Y=Y_train, n_samples=n_samples, trials=trials, replace=replace
+    )
+
+    A_opt, w_opt, g_opt, B_opt = param_opt
+
+    def learned_sinusoid_func(t, x):
+        return A_opt * np.sin(w_opt * x - g_opt * t) + B_opt * x
+
+    # get train accuracy
+    Y_train_learn = learned_sinusoid_func(X_train[:, 0], X_train[:, 1])
+    err = np.linalg.norm(Y_train_learn - Y_train) / np.linalg.norm(Y_train)
+    train_acc = 1 - err
+
+    print("train accuracy:", train_acc)
+
+    # get test accuracy
+    Y_test_learn = learned_sinusoid_func(X_test[:, 0], X_test[:, 1])
+    err = np.linalg.norm(Y_test - Y_test_learn) / np.linalg.norm(Y_test)
+    test_acc = 1 - err
+
+    print("test accuracy:", test_acc)
+
+    # plot histograms
+    num_cols = param_hist.shape[1]
+    fig, axs = plt.subplots(1, num_cols, figsize=(15, 3))
+
+    titles = ["A_opt", "w_opt", "g_opt", "B_opt"]
+
+    for i in range(num_cols):
+        axs[i].hist(param_hist[:, i], bins=50)
+        axs[i].set_title(titles[i])
+        axs[i].set_xlabel("val")
+        axs[i].set_ylabel("Frequency")
+
+    plt.tight_layout()
+    plt.show()
+
+    return param_opt, param_hist
+
+
+def var_learn(X, Y, n_samples, trials, replace=False):
     """ """
     initial_guess = (1, 1, 1, 1)
-    AwgB = np.zeros(shape=(trails, 4))
-    for i in tqdm(range(trails)):
+    AwgB = np.zeros(shape=(trials, 4))
+    for i in tqdm(range(trials)):
         indices = np.random.choice(a=len(X), size=n_samples, replace=replace)
 
         Xi = X[indices]
