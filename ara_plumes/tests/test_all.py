@@ -55,3 +55,15 @@ def test_regression_poly():
     expected = (1, 0, 0)
     result = regression_func(X=x, Y=y, regression_method="poly")
     np.testing.assert_almost_equal(expected, result)
+
+
+def test_circle_intersection():
+    x0 = 0
+    y0 = 0
+    r0 = np.sqrt(2)
+    x1 = 1
+    y1 = 0
+    r1 = 1
+    expected = np.array([[1, 1], [1, -1]])
+    result = utils.circle_intersection(x0=x0, y0=y0, r0=r0, x1=x1, y1=y1, r1=r1)
+    np.testing.assert_almost_equal(expected, result)

@@ -14,6 +14,27 @@ from tqdm import tqdm
 ##################
 # Math Functions #
 ##################
+def circle_intersection(x0, y0, r0, x1, y1, r1):
+    """
+    Find the intersections of a circle centered at (x0,y0) with radii
+    r0 with a circle centered at (x1,y1) with radii r1.
+
+    source:
+    https://math.stackexchange.com/questions/256100/how-can-i-find-the-points-at-which-two-circles-intersect
+    """
+    d = np.sqrt((x0 - x1) ** 2 + (y0 - y1) ** 2)
+    L = (r0**2 - r1**2 + d**2) / (2 * d)
+    h = np.sqrt(r0**2 - L**2)
+
+    x3 = L / d * (x1 - x0) - h / d * (y1 - y0) + x0
+    y3 = L / d * (y1 - y0) + h / d * (x1 - x0) + y0
+
+    x4 = L / d * (x1 - x0) + h / d * (y1 - y0) + x0
+    y4 = L / d * (y1 - y0) - h / d * (x1 - x0) + y0
+
+    sol = np.array([[x3, y3], [x4, y4]])
+
+    return sol
 
 
 def circle_poly_intersection(r, x0, y0, a, b, c, real=True):
