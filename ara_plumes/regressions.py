@@ -1,5 +1,29 @@
 import numpy as np
 from scipy.optimize import curve_fit
+from tqdm import tqdm
+
+
+def var_learn(X, Y, n_samples, trails, replace=False):
+    """ """
+    initial_guess = (1, 1, 1, 1)
+    AwgB = np.zeros(shape=(trails, 4))
+    for i in tqdm(range(trails)):
+        indices = np.random.choice(a=len(X), size=n_samples, replace=replace)
+
+        Xi = X[indices]
+        Yi = Y[indices]
+
+        A_i, w_i, g_i, B_i = regression(
+            X=Xi, Y=Yi, regression_method="sinusoid", initial_guess=initial_guess
+        )
+
+        AwgB[i] = [A_i, w_i, g_i, B_i]
+        # initial_guess = AwgB[i]
+
+    param_opt = AwgB.mean(axis=0)
+    param_history = AwgB
+
+    return param_opt, param_history
 
 
 def regression(
