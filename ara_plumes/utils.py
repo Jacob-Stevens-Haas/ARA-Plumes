@@ -8,73 +8,46 @@ import numpy as np
 from matplotlib.animation import FuncAnimation
 from moviepy.editor import VideoFileClip
 from PIL import Image
-from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 
 ##################
-# For Regression #
+# Math Functions #
 ##################
 
 
-def flatten_vari_dist(vari_dist):
+def circle_poly_intersection(r, x0, y0, a, b, c, real=True):
     """
-    Convert vari_dist list [(t0,[[x0,y0],...[xn,yn]]),...]
-    to flattned array ->[[t0,x0,y0], [t0,x1,y1],...[t0,xn,yn],[t1,...],...]
+    Find the intersection point(s) of a circle centered at (x0,y0) with radius
+    r and a polynomial of the form y=ax^2+bx+c.
+
+    Find roots of the poly g(x) = x^2 + (ax^2+bx+c)^2-r^2
     """
-    t_x_y = []
-    for vari in vari_dist:
-        nt = len(vari[1])
-        ti = vari[0]
-        if nt == 0:
-            continue
-        t_x_y_i = np.array([ti for _ in range(nt)]).reshape(nt, -1)
-        t_x_y_i = np.hstack((t_x_y_i, vari[1]))
-        if len(t_x_y) == 0:
-            t_x_y = t_x_y_i
-        else:
-            t_x_y = np.vstack((t_x_y, t_x_y_i))
-    return t_x_y
 
+    coeff = [
+        c**2 - 2 * c * y0 + y0**2 + x0**2 - r**2,
+        2 * b * c - 2 * b * y0 - 2 * x0,
+        1 + b**2 + 2 * a * c - 2 * a * y0,
+        2 * a * b,
+        a**2,
+    ]
+    roots = np.polynomial.polynomial.polyroots(coeff)
 
-def plot_sinusoid(X_i, Y_i, t_i, regress=True, initial_guess=(1, 1, 1, 1)):
-    fig = plt.figure(figsize=(8, 6))
-    if regress is True:
-        try:
-            A, w, gamma, B = sinusoid_regression(X_i, Y_i, t_i, initial_guess)
-            x = np.linspace(0, X_i[-1])
+    if real is True:
+        roots = np.real(roots[np.isreal(roots)])
 
-            def sinusoid_func(x):
-                return A * np.sin(w * x - gamma * t_i) + B * x
+    def f_poly(x):
+        return a * x**2 + b * x + c
 
-            y = sinusoid_func(x)
+    # y = f_poly(roots)
 
-            plt.plot(x, y, color="red", label="sinusoid")
-            new_guess = (A, w, gamma, B)
-        except Exception as e:
-            print(f"Sinusoid could not fit. Error: {e}")
-            new_guess = initial_guess
+    sol = []
+    for x in roots:
+        y = f_poly(x)
+        sol.append([x, y])
 
-    plt.scatter(X_i, Y_i, color="blue", label="var points")
-    plt.xlabel("X")
-    plt.ylabel("Y")
-    plt.title("Sinusoid, t=" + str(t_i))
-    plt.legend()
-    # plt.grid(True)
-    # plt.show(block=False)
-    return fig, new_guess
-
-
-def sinusoid_regression(X, Y, t, initial_guess):
-
-    # Define the function
-    def sinusoid(x, A, w, gamma, B):
-        return A * np.sin(w * x - gamma * t) + B * x
-
-    # initial_guess = (1, 1, 1, 1)
-    params, covariance = curve_fit(sinusoid, X, Y, initial_guess)
-    A_opt, w_opt, gamma_opt, B_opt = params
-    return (A_opt, w_opt, gamma_opt, B_opt)
+    sol = np.array(sol)
+    return sol
 
 
 #############################

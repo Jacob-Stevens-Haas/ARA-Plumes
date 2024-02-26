@@ -5,6 +5,8 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 
+from ara_plumes import utils
+
 # For displaying clips in Jupyter notebooks
 # from IPython.display import Image, display
 
@@ -1112,7 +1114,7 @@ class PLUME:
             for point in points_var1:
                 r = point[0]
 
-                sols = PLUME.circle_poly_intersection(
+                sols = utils.circle_poly_intersection(
                     r=r,
                     x0=col,
                     y0=row,
@@ -1136,7 +1138,7 @@ class PLUME:
             for point in points_var2:
                 r = point[0]
 
-                sols = PLUME.circle_poly_intersection(
+                sols = utils.circle_poly_intersection(
                     r=r,
                     x0=col,
                     y0=row,
@@ -1187,45 +1189,6 @@ class PLUME:
                 var1_dist,
                 var2_dist,
             )
-
-    @staticmethod
-    def circle_poly_intersection(r, x0, y0, a, b, c, real=True):
-        """
-        Find the intersection point(s) of a circle centered at (x0,y0) with radius
-        r and a polynomial of the form y=ax^2+bx+c.
-
-        Find roots of the poly g(x) = x^2 + (ax^2+bx+c)^2-r^2
-        """
-
-        coeff = [
-            c**2 - 2 * c * y0 + y0**2 + x0**2 - r**2,
-            2 * b * c - 2 * b * y0 - 2 * x0,
-            1 + b**2 + 2 * a * c - 2 * a * y0,
-            2 * a * b,
-            a**2,
-        ]
-        roots = np.polynomial.polynomial.polyroots(coeff)
-
-        if real is True:
-            roots = np.real(roots[np.isreal(roots)])
-
-        def f_poly(x):
-            return a * x**2 + b * x + c
-
-        # y = f_poly(roots)
-
-        sol = []
-        for x in roots:
-            y = f_poly(x)
-            sol.append([x, y])
-
-        sol = np.array(sol)
-
-        # sol = np.zeros((len(roots), 2))
-        # sol[:, 0] = roots
-        # sol[:, 1] = y
-
-        return sol
 
     def find_next_center(
         self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
