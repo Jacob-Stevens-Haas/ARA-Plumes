@@ -58,19 +58,31 @@ def var_ensemble_train(X, Y, n_samples, trials, replace=False):
     """
     initial_guess = (1, 1, 1, 1)
     AwgB = np.zeros(shape=(trials, 4))
+    AwgB = []
+    fits_failed_count = 0
+    error = None
     for i in tqdm(range(trials)):
         indices = np.random.choice(a=len(X), size=n_samples, replace=replace)
 
         Xi = X[indices]
         Yi = Y[indices]
+        try:
+            A_i, w_i, g_i, B_i = regression(
+                X=Xi, Y=Yi, regression_method="sinusoid", initial_guess=initial_guess
+            )
 
-        A_i, w_i, g_i, B_i = regression(
-            X=Xi, Y=Yi, regression_method="sinusoid", initial_guess=initial_guess
-        )
+            AwgB.append([A_i, w_i, g_i, B_i])
+            # initial_guess = AwgB[i]
+        except Exception as e:
+            fits_failed_count += 1
+            error = e
+            continue
 
-        AwgB[i] = [A_i, w_i, g_i, B_i]
-        # initial_guess = AwgB[i]
+    if fits_failed_count > 0:
+        print("fits failed:", fits_failed_count)
+        print(error)
 
+    AwgB = np.array(AwgB)
     param_opt = AwgB.mean(axis=0)
     param_history = AwgB
 
