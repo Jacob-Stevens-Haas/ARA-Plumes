@@ -5,6 +5,10 @@ from tqdm import tqdm
 
 
 def var_train(X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False):
+    """
+    Apply ensembling to training data via sinusoid regression and provide training
+    and test accuracy. Produce histogram of learned params.
+    """
     param_opt, param_hist = var_learn(
         X=X_train, Y=Y_train, n_samples=n_samples, trials=trials, replace=replace
     )
@@ -47,7 +51,9 @@ def var_train(X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False
 
 
 def var_learn(X, Y, n_samples, trials, replace=False):
-    """ """
+    """
+    Ensemble sinusoid regression fit to data
+    """
     initial_guess = (1, 1, 1, 1)
     AwgB = np.zeros(shape=(trials, 4))
     for i in tqdm(range(trials)):
@@ -192,6 +198,7 @@ def plot_sinusoid(X_i, Y_i, t_i, regress=True, initial_guess=(1, 1, 1, 1)):
     return fig, new_guess
 
 
+# Might not need this function anymore
 def sinusoid_regression(X, Y, t, initial_guess):
 
     # Define the function
