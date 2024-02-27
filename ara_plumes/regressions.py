@@ -4,12 +4,14 @@ from scipy.optimize import curve_fit
 from tqdm import tqdm
 
 
-def var_train(X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False):
+def var_ensemble_learn(
+    X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False
+):
     """
     Apply ensembling to training data via sinusoid regression and provide training
     and test accuracy. Produce histogram of learned params.
     """
-    param_opt, param_hist = var_learn(
+    param_opt, param_hist = var_ensemble_train(
         X=X_train, Y=Y_train, n_samples=n_samples, trials=trials, replace=replace
     )
 
@@ -50,7 +52,7 @@ def var_train(X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False
     return param_opt, param_hist
 
 
-def var_learn(X, Y, n_samples, trials, replace=False):
+def var_ensemble_train(X, Y, n_samples, trials, replace=False):
     """
     Ensemble sinusoid regression fit to data
     """
