@@ -406,6 +406,10 @@ def create_gif(
 
 
 def create_vari_dist_movie(vari_dist, save_path=None):
+    """
+    Create movie directly form vari_dist data attained from
+    PLUME.train().
+    """
 
     # find max r and d
     max_r = 0
