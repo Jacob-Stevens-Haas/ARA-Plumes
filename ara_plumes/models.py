@@ -5,6 +5,7 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 
+from ara_plumes import regressions
 from ara_plumes import utils
 
 # For displaying clips in Jupyter notebooks
@@ -26,6 +27,8 @@ class PLUME:
         self.count = None
         self.var1_dist = []
         self.var2_dist = []
+        self.var1_params_opt = None
+        self.var2_params_opt = None
 
     def display_frame(self, frame: int):
         cap = self.video_capture
@@ -1373,6 +1376,81 @@ class PLUME:
             if display_vid is True:
                 display_handle.update(None)
 
+        return
+
+    def train_variance(self):
+        """
+        Learned sinusoid coefficients (A_opt, w_opt, g_opt, B_opt) for variance data
+        on flattened p_mean, vari_dist, attained from PLUME.train().
+        """
+
+        #############
+        # Var1_dist #
+        #############
+
+        # preprocess data
+        var1_dist = self.var1_dist
+
+        # flatten var1_dist
+        var1_txy = regressions.flatten_vari_dist(var1_dist)
+
+        # split into training and test data (no normalization)
+        train_index = int(len(var1_dist) * 0.8)
+
+        X = var1_txy[:, :2]
+        Y = var1_txy[:, 2]
+
+        X_train = X[:train_index]
+        X_test = X[train_index:]
+        Y_train = Y[:train_index]
+        Y_test = Y[train_index:]
+
+        # apply ensemble learning
+        var1_param_opt, var1_param_hist = regressions.var_ensemble_learn(
+            X_train=X_train,
+            Y_train=Y_train,
+            X_test=X_test,
+            Y_test=Y_test,
+            n_samples=int(len(X_train) * 0.8),
+            trials=2000,
+        )
+
+        self.var1_opt_params = var1_param_opt
+
+        #############
+        # Var2_dist #
+        #############
+
+        # preprocess data
+        var2_dist = self.var2_dist
+
+        # flatten var1_dist
+        var2_txy = regressions.flatten_vari_dist(var2_dist)
+
+        # split into training and test data (no normalization)
+        train_index = int(len(var2_dist) * 0.8)
+
+        X = var2_txy[:, :2]
+        Y = var2_txy[:, 2]
+
+        X_train = X[:train_index]
+        X_test = X[train_index:]
+        Y_train = Y[:train_index]
+        Y_test = Y[train_index:]
+
+        # apply ensemble learning
+        var2_param_opt, var2_param_hist = regressions.var_ensemble_learn(
+            X_train=X_train,
+            Y_train=Y_train,
+            X_test=X_test,
+            Y_test=Y_test,
+            n_samples=int(len(X_train) * 0.8),
+            trials=2000,
+        )
+
+        self.var2_params_opt = var2_param_opt
+
+    def plot_ROM_plume():
         return
 
 
