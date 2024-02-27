@@ -1469,7 +1469,7 @@ class PLUME:
 
         self.var2_func = var2_func
 
-    def plot_ROM_plume(self, t):
+    def plot_ROM_plume(self, t, show_plot=True):
         """
         Plot a single frame, at time t, of the ROM plume
         """
@@ -1496,21 +1496,19 @@ class PLUME:
         var2_to_plot = np.array([x for x in var2_to_plot if x is not None])
 
         # generate plot
-        fig, ax = plt.subplots()
-
-        ax.scatter(self.orig_center[0], self.orig_center[1], c="red")
-        ax.plot(x, y_poly, label="mean poly", c="red")
-        ax.plot(var1_to_plot[:, 0], var1_to_plot[:, 1], label="var1", c="blue")
-        ax.plot(var2_to_plot[:, 0], var2_to_plot[:, 1], label="var2", c="blue")
-        ax.set_title(f"ROM Plume, t={t}")
-        ax.legend()
+        plt.clf()
+        plt.scatter(self.orig_center[0], self.orig_center[1], c="red")
+        plt.plot(x, y_poly, label="mean poly", c="red")
+        plt.plot(var1_to_plot[:, 0], var1_to_plot[:, 1], label="var1", c="blue")
+        plt.plot(var2_to_plot[:, 0], var2_to_plot[:, 1], label="var2", c="blue")
+        plt.title(f"ROM Plume, t={t}")
+        plt.legend(loc="upper right")
 
         # fix frame
-        ax.set_xlim(0, x_range)
-        ax.set_ylim(y_range, 0)
-        plt.show()
-
-        return fig
+        plt.xlim(0, x_range)
+        plt.ylim(y_range, 0)
+        if show_plot is True:
+            plt.show()
 
 
 class var_func_on_poly:

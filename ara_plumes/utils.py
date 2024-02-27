@@ -441,3 +441,21 @@ def create_vari_dist_movie(vari_dist, save_path=None):
     if isinstance(save_path, str):
         ani.save(save_path, writer="ffmpeg", fps=10)
         plt.show()
+
+
+def create_ROM_plume_movie(PLUME_object, save_path=None):
+    """
+    Create the ROM plume movie using the trained PLUME model
+    """
+
+    num_frames = len(PLUME_object.mean_poly)
+
+    def generate_plot(frame):
+        PLUME_object.plot_ROM_plume(frame, show_plot=False)
+
+    fig = plt.figure()
+    ani = FuncAnimation(fig, generate_plot, frames=num_frames)
+
+    if isinstance(save_path, str):
+        ani.save(save_path, writer="ffmpeg", fps=15)
+        plt.show()
