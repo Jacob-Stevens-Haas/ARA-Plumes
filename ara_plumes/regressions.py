@@ -149,9 +149,6 @@ def regression(
         return regression_coeff
 
 
-##################
-# For Regression #
-##################
 def flatten_vari_dist(vari_dist):
     """
     Convert vari_dist list [(t0,[[x0,y0],...[xn,yn]]),...]
@@ -172,6 +169,7 @@ def flatten_vari_dist(vari_dist):
     return t_x_y
 
 
+# Old Functions
 def plot_sinusoid(X_i, Y_i, t_i, regress=True, initial_guess=(1, 1, 1, 1)):
     fig = plt.figure(figsize=(8, 6))
     if regress is True:
