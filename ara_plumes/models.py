@@ -29,6 +29,8 @@ class PLUME:
         self.var2_dist = []
         self.var1_params_opt = None
         self.var2_params_opt = None
+        self.var1_func = None
+        self.var2_func = None
 
     def display_frame(self, frame: int):
         cap = self.video_capture
@@ -1414,8 +1416,16 @@ class PLUME:
             n_samples=int(len(X_train) * 0.8),
             trials=2000,
         )
+        print("var1 opt params:", var1_param_opt)
+        self.var1_params_opt = var1_param_opt
 
-        self.var1_opt_params = var1_param_opt
+        # Create var1_func
+        var1_func = var_func_on_poly()
+        var1_func.var_on_flattened_poly_params = var1_param_opt
+        var1_func.orig_center = self.orig_center
+        var1_func.poly_func_params = self.mean_poly
+
+        self.var1_func = var1_func
 
         #############
         # Var2_dist #
@@ -1449,9 +1459,58 @@ class PLUME:
         )
 
         self.var2_params_opt = var2_param_opt
+        print("var2 opt params:", var2_param_opt)
 
-    def plot_ROM_plume():
-        return
+        var2_func = var_func_on_poly()
+        var2_func.var_on_flattened_poly_params = var2_param_opt
+        var2_func.orig_center = self.orig_center
+        var2_func.poly_func_params = self.mean_poly
+        var2_func.upper_lower_envelope = "lower"
+
+        self.var2_func = var2_func
+
+    def plot_ROM_plume(self, t):
+        """
+        Plot a single frame, at time t, of the ROM plume
+        """
+        var1_func = self.var1_func
+        var2_func = self.var2_func
+        a, b, c = self.mean_poly[t]
+
+        def poly_func(x):
+            return a * x**2 + b * x + c
+
+        x_range = self.frame_width
+        y_range = self.frame_height
+
+        # Polynomial
+        x = np.linspace(0, self.orig_center[0], 200)
+        y_poly = poly_func(x)
+
+        # var
+        var1_to_plot = [var1_func.eval_x(t, i) for i in x]
+        var2_to_plot = [var2_func.eval_x(t, i) for i in x]
+
+        # remove none type for plotting
+        var1_to_plot = np.array([x for x in var1_to_plot if x is not None])
+        var2_to_plot = np.array([x for x in var2_to_plot if x is not None])
+
+        # generate plot
+        fig, ax = plt.subplots()
+
+        ax.scatter(self.orig_center[0], self.orig_center[1], c="red")
+        ax.plot(x, y_poly, label="mean poly", c="red")
+        ax.plot(var1_to_plot[:, 0], var1_to_plot[:, 1], label="var1", c="blue")
+        ax.plot(var2_to_plot[:, 0], var2_to_plot[:, 1], label="var2", c="blue")
+        ax.set_title(f"ROM Plume, t={t}")
+        ax.legend()
+
+        # fix frame
+        ax.set_xlim(0, x_range)
+        ax.set_ylim(y_range, 0)
+        plt.show()
+
+        return fig
 
 
 class var_func_on_poly:
