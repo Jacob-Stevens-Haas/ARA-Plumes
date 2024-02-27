@@ -1374,3 +1374,66 @@ class PLUME:
                 display_handle.update(None)
 
         return
+
+
+class var_func_on_poly:
+    """
+    Function class to translated learned variances on flattened p_mean to
+    an unflattened p_mean. i.e., the regular cartesian grid.
+
+    Parameters:
+    -----------
+    var_on_flattened_poly_params: tuple
+        Learned parameters for training varaince on flattened p_mean.
+        (A_opt, w_opt, g_opt, B_opt).
+
+    poly_func_params: np.ndarray
+        Numpy array contained the learned coefficients of mean polynomial for
+        each time frame
+
+    orig_center: tuple
+        The original plume leak source (x,y)
+
+    upper_lower_envelope: str (default "upper")
+        declares whether to plot unflattened varaince above p_mean ("upper")
+        or below p_mean ("lower")
+    """
+
+    def __init__(self) -> None:
+        self.var_on_flattened_poly_params = None
+        self.poly_func_params = None
+        self.orig_center = None
+        self.upper_lower_envelope = "upper"
+
+    def poly_func(self, t, x):
+        a, b, c = self.poly_func_params[t]
+        y = a * x**2 + b * x + c
+        return y
+
+    def sinusoid_func(self, t, r):
+        A_opt, w_opt, g_opt, B_opt = self.var_on_flattened_poly_params
+        d = A_opt * np.sin(w_opt * r - g_opt * t) + B_opt * r
+        return d
+
+    def eval_x(self, t, x):
+        # get r on flattened p_mean plane
+        x1 = x
+        x0, y0 = self.orig_center
+        y1 = self.poly_func(t, x1)
+
+        r = np.sqrt((x0 - x1) ** 2 + (y0 - y1) ** 2)
+
+        # get d on flattened p_mean plane
+        d = self.sinusoid_func(t, r)
+
+        # get y on regular cartesian plane
+        sols = utils.circle_intersection(x0=x0, y0=y0, r0=r, x1=x1, y1=y1, r1=d)
+
+        if self.upper_lower_envelope == "upper":
+            for sol in sols:
+                if sol[1] >= self.poly_func(t, sol[0]):
+                    return sol
+        elif self.upper_lower_envelope == "lower":
+            for sol in sols:
+                if sol[1] <= self.poly_func(t, sol[0]):
+                    return sol
