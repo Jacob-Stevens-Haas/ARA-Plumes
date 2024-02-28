@@ -49,6 +49,11 @@ def var_ensemble_learn(
     plt.tight_layout()
     plt.show()
 
+    # To do:
+    # - check if there is bimodal behaior
+    # - try all possible combinations on a validation set?
+    # - Plot red line to indicate selection
+
     return param_opt, param_hist
 
 
