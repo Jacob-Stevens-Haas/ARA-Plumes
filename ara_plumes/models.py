@@ -626,28 +626,26 @@ class PLUME:
 
         Returns:
         --------
+        points_mean: np.ndarray
+            Returns nx3 array containing observed points along mean path.
+            Where the kth entry is of the form [r(k), x(k), y(k)], i.e the
+            coordinate (x,y) of the highest value point along the concetric circle
+            with radii r(k).
+
+        points_var1: np.ndarray
+            Returns nx3 array containing observed points along upper envolope path,
+            i.e., above the mean path. The kth entry is of the form [r(k), x(k), y(k)],
+            i.e the coordinate (x,y) of the intersection with the plume contour along
+            the concentric circle with raddi r(k).
+
+        points_var2: list of floats
+            Returns nx3 array containing observed points along lower envolope path,
+            i.e., below the mean path. The kth entry is of the form [r(k), x(k), y(k)],
+            i.e the coordinate (x,y) of the intersection with the plume contour along
+            the concentric circle with raddi r(k).
+
         contour_img: np.ndarray
             Image with concentric circle method applied and plotting applied.
-
-        # TO DO: Update this, actually returns points from mean path and var path.
-                not regression coeff
-        poly_coef_mean: list of floats
-            Returns the list of learnd coefficients regressed on concentric
-            circle method for mean points. e.g., For degree 2 polynomial
-            regression,
-            return list will be of form [a,b,c] where ax^2+bx+c was learned.
-
-        poly_coef_var1: list of floats
-            Returns the list of learnd coefficients regressed on concentric
-            circle method for var1 points---points above mean line. e.g., For
-            degree 2 polynomail regression,
-            return list will be of form [a,b,c] where ax^2+bx+c was learned.
-
-        poly_coef_var2: list of floats
-            Returns the list of learnd coefficients regressed on concentric
-            circle method for var2 points---points below mean line. e.g., For
-            degree 2 polynomail regression,
-            return list will be of form [a,b,c] where ax^2+bx+c was learned.
         """
         # Check that original center has been declared
         if not isinstance(self.orig_center, tuple):
