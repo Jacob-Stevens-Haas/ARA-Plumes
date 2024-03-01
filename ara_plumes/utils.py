@@ -457,5 +457,7 @@ def create_ROM_plume_movie(PLUME_object, save_path=None):
     ani = FuncAnimation(fig, generate_plot, frames=num_frames)
 
     if isinstance(save_path, str):
+        if save_path.endswith(".mp4") is False:
+            save_path += ".mp4"
         ani.save(save_path, writer="ffmpeg", fps=15)
         plt.show()
