@@ -3,9 +3,72 @@ import os
 
 import cv2
 import imageio
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.animation import FuncAnimation
 from moviepy.editor import VideoFileClip
 from PIL import Image
 from tqdm import tqdm
+
+
+##################
+# Math Functions #
+##################
+def circle_intersection(x0, y0, r0, x1, y1, r1):
+    """
+    Find the intersections of a circle centered at (x0,y0) with radii
+    r0 with a circle centered at (x1,y1) with radii r1.
+
+    source:
+    https://math.stackexchange.com/questions/256100/how-can-i-find-the-points-at-which-two-circles-intersect
+    """
+    d = np.sqrt((x0 - x1) ** 2 + (y0 - y1) ** 2)
+    L = (r0**2 - r1**2 + d**2) / (2 * d)
+    h = np.sqrt(r0**2 - L**2)
+
+    x3 = L / d * (x1 - x0) - h / d * (y1 - y0) + x0
+    y3 = L / d * (y1 - y0) + h / d * (x1 - x0) + y0
+
+    x4 = L / d * (x1 - x0) + h / d * (y1 - y0) + x0
+    y4 = L / d * (y1 - y0) - h / d * (x1 - x0) + y0
+
+    sol = np.array([[x3, y3], [x4, y4]])
+
+    return sol
+
+
+def circle_poly_intersection(r, x0, y0, a, b, c, real=True):
+    """
+    Find the intersection point(s) of a circle centered at (x0,y0) with radius
+    r and a polynomial of the form y=ax^2+bx+c.
+
+    Find roots of the poly g(x) = x^2 + (ax^2+bx+c)^2-r^2
+    """
+
+    coeff = [
+        c**2 - 2 * c * y0 + y0**2 + x0**2 - r**2,
+        2 * b * c - 2 * b * y0 - 2 * x0,
+        1 + b**2 + 2 * a * c - 2 * a * y0,
+        2 * a * b,
+        a**2,
+    ]
+    roots = np.polynomial.polynomial.polyroots(coeff)
+
+    if real is True:
+        roots = np.real(roots[np.isreal(roots)])
+
+    def f_poly(x):
+        return a * x**2 + b * x + c
+
+    # y = f_poly(roots)
+
+    sol = []
+    for x in roots:
+        y = f_poly(x)
+        sol.append([x, y])
+
+    sol = np.array(sol)
+    return sol
 
 
 #############################
@@ -340,3 +403,59 @@ def create_gif(
         save_all=True,
         loop=0,
     )
+
+
+def create_vari_dist_movie(vari_dist, save_path=None):
+    """
+    Create movie directly form vari_dist data attained from
+    PLUME.train().
+    """
+
+    # find max r and d
+    max_r = 0
+    max_d = 0
+    for vari in vari_dist:
+        if len(vari[1]) != 0:
+            max_r_i = np.max(vari[1][:, 0])
+            if max_r_i >= max_r:
+                max_r = max_r_i
+            max_d_i = np.max(vari[1][:, 1])
+            if max_d_i >= max_d:
+                max_d = max_d_i
+
+    # function to generate plots
+    def generate_plot(frame):
+        plt.clf()
+        t, r_d_arr = vari_dist[frame]
+        plt.title(f"Var (r,d), t={t}")
+        if len(r_d_arr) != 0:
+            plt.scatter(r_d_arr[:, 0], r_d_arr[:, 1], c="blue")
+        plt.xlim(0, max_r)
+        plt.ylim(0, max_d)
+        plt.xlabel("r (flattened p_mean)")
+        plt.ylabel("d")
+
+    # Create movie
+    fig = plt.figure()
+    ani = FuncAnimation(fig, generate_plot, frames=len(vari_dist), interval=100)
+    if isinstance(save_path, str):
+        ani.save(save_path, writer="ffmpeg", fps=10)
+        plt.show()
+
+
+def create_ROM_plume_movie(PLUME_object, save_path=None):
+    """
+    Create the ROM plume movie using the trained PLUME model
+    """
+
+    num_frames = len(PLUME_object.mean_poly)
+
+    def generate_plot(frame):
+        PLUME_object.plot_ROM_plume(frame, show_plot=False)
+
+    fig = plt.figure()
+    ani = FuncAnimation(fig, generate_plot, frames=num_frames)
+
+    if isinstance(save_path, str):
+        ani.save(save_path, writer="ffmpeg", fps=15)
+        plt.show()

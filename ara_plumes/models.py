@@ -1,5 +1,3 @@
-import time
-
 import cv2
 import IPython
 import matplotlib.pyplot as plt
@@ -7,12 +5,11 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 
+from ara_plumes import regressions
+from ara_plumes import utils
+
 # For displaying clips in Jupyter notebooks
 # from IPython.display import Image, display
-
-
-class plume_results:
-    pass
 
 
 class PLUME:
@@ -28,6 +25,12 @@ class PLUME:
         self.var2_poly = None
         self.orig_center = None
         self.count = None
+        self.var1_dist = []
+        self.var2_dist = []
+        self.var1_params_opt = None
+        self.var2_params_opt = None
+        self.var1_func = None
+        self.var2_func = None
 
     def display_frame(self, frame: int):
         cap = self.video_capture
@@ -187,9 +190,6 @@ class PLUME:
             print("No point selected.")
         return
 
-    # def extract_frames(self, extension: str = "jpg"):
-    #     video_path = self.video_path
-
     def train(
         self,
         img_range: list = None,
@@ -206,30 +206,79 @@ class PLUME:
         display_vid=True,
         mean_smoothing=True,
         mean_smoothing_sigma=2,
+        regression_method="poly",
+        regression_kws={},
     ):
         """
         Apply connetric circles to frames range
 
         Provides timeseries of learned polynomials.
-        Args:
-            img_range (list): Range of images to apply subtraction and
-                concentric circles too.
-            subtraction_method (str): Method used to apply subtraction.
-            fixed_range (int): Range of images to use as background image for
-                subtraction.
-            gauss_space_blur (bool): Apply GaussianBlur in space
-            gauss_kernel_size (odd int): size of kernel for GaussianBlur
-                (must be odd)
-            gauss_space_sigma (int?): standard variation of kernel size.
-            extension (str): file format video is saved as.
-            save_path (str): Path/name of video. Default None will not save
-                video.
-            display_vid (bool): Display concentric circles in jupyter notebook
-                window
-            mean_smoothing (bool): Additional gaussian smoothing for leaning
-                concentric circle points
-            mean_smoothing_sigma (int): standard variation for gaussian kernel
-                smoother of mean_smoothing
+
+        Parameters:
+        -----------
+        img_range: list (default None)
+            Range of images to apply background subtraction method and
+            concentric circles too. Default None uses remaining frames
+            after declared fixed_range used to generated background
+            image.
+        subtraction_method: str
+            Method used to apply background subtraction.
+
+        fixed_range: int
+            Range of images to use as background image for subtraction
+            method.
+
+        gauss_space_blur: bool (default True)
+            Apply GaussianBlur in space.
+
+        gauss_kernel_size: odd int (default 81)
+            Size of kernel for GaussianBlur. Must be odd int.
+
+        gauss_space_sigma: int (default 15)
+
+        gauss_time_blur: bool (default True)
+
+        gauss_time_window: int (default 5)
+
+        gauss_time_sigma: int (default 1)
+
+        extension: str (default mp4)
+            file format video is saved as.
+
+        save_path: str (default None)
+            Path/name of video. Default None will not save video.
+
+        display_vid: bool (default True)
+            Display concentric_circles in jupyter notebook window.
+
+        mean_smoothing: bool (default True)
+            Additional gaussian smoothing for leaning concentric
+            circle points
+        mean_smoothing_sigma: int (default 2)
+            Standard variation for gaussian kernel smoother
+            or mean_smoothing
+
+        regression_method: str (default "poly")
+            Regression method to be applied to selected points in
+            concentric circle pipeline.
+
+        regression_kws: dict
+            Additional arguments for selected regression_method.
+
+        Returns:
+        --------
+        mean_array: np.ndarray
+            Numpy array containing time series of learned regression coefficients
+            along mean path of plume.
+
+        var1_array: np.ndarray
+            Numpy array containing time series of learned regression coefficvients
+            along top path of plume.
+
+        var2_array: np.ndarray
+            Numpy array containing time series of learned regression coefficvients
+            along bottom path of plume.
+
         """
         # Create background image
         if subtraction_method == "fixed" and isinstance(fixed_range, int):
@@ -278,7 +327,7 @@ class PLUME:
         elif isinstance(img_range, int):
             init_frame = img_range
             fin_frame = self.tot_frames - 1
-        elif isinstance(img_range, None):
+        elif img_range is None:
             init_frame = fixed_range
             fin_frame = self.tot_frames - 1
 
@@ -358,20 +407,50 @@ class PLUME:
 
                 frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
+            # Apply contour detection
+            contour_img, selected_contours = self.get_contour(frame, num_of_contours=1)
+
+            # Apply concentric circles to frame
             out_data = self.concentric_circle(
                 frame,
+                contour_img=contour_img,
+                selected_contours=selected_contours,
                 mean_smoothing=mean_smoothing,
                 mean_smoothing_sigma=mean_smoothing_sigma,
             )
+            # DONE: FIX THIS: OUT_DATA[I][1:]
+            mean_points_k = out_data[0]
+            var1_points_k = out_data[1]
+            var2_points_k = out_data[2]
+            frame = out_data[3]
+            if len(var2_points_k) == 0:
+                print("mistake")
+            # Apply regression method to selected points
+            out_data = self.regression(
+                points_mean=mean_points_k,
+                points_var1=var1_points_k,
+                points_var2=var2_points_k,
+                img=frame,
+                orig_center=self.orig_center,
+                selected_contours=selected_contours,
+                regression_method=regression_method,
+                regression_kws=regression_kws,
+            )
 
-            frame = out_data[0]
-            mean_array[k] = out_data[1]
-            var1_array[k] = out_data[2]
-            var2_array[k] = out_data[3]
+            mean_array[k] = out_data[0]
+            var1_array[k] = out_data[1]
+            var2_array[k] = out_data[2]
+            frame = out_data[3]
+
+            if regression_method == "sinusoid":
+                var1_dist_k = out_data[4]
+                var2_dist_k = out_data[5]
+
+                self.var1_dist.append((k, var1_dist_k))
+                self.var2_dist.append((k, var2_dist_k))
 
             if isinstance(save_path, str):
                 out.write(frame)
-                # print("frames saved..")
             _, frame = cv2.imencode(".jpeg", frame)
 
             if display_vid is True:
@@ -379,7 +458,6 @@ class PLUME:
 
         # video.release()
         if isinstance(save_path, str):
-            # print("we got eem")
             video.release()
             out.release()
 
@@ -392,22 +470,99 @@ class PLUME:
 
         return mean_array, var1_array, var2_array
 
+    def get_contour(
+        self,
+        img,
+        threshold_method="OTSU",
+        num_of_contours=1,
+        contour_smoothing=False,
+        contour_smoothing_eps=50,
+    ):
+        """
+        Contour detection applied to single frame of background subtracted
+        video.
+
+        Parameters:
+        -----------
+        img: np.ndarray (gray or BGR)
+            image to apply contour detection too.
+
+        threshold_method: str (default "OTSU")
+            Opencv method used for applying thresholding.
+
+        num_of_contours: int (default 1)
+            Number of contours selected to be used (largest to smallest).
+
+        contour_smoothing: bool (default False)
+            Used cv2.approxPolyDP to apply additional smoothing to contours
+            selected contours.
+
+        contour_smoothing_eps: positive int (default 50)
+            hyperparater for tuning cv2.approxPolyDP in contour_smoothing.
+            Level of smoothing to be applied to plume detection contours.
+            Only used when contour_smoothing = True.
+
+        Returns:
+        --------
+        contour_img: np.ndarray
+            img with contours drawn on
+
+        selected_contours: list
+            Returns list of num_of_contours largest contours detected in image.
+        """
+        # convert image to gray
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        # Apply thresholding
+        if threshold_method == "OTSU":
+            _, threshold = cv2.threshold(
+                img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+            )
+
+        # Find contours
+        contours, _ = cv2.findContours(
+            threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+
+        # Select n largest contours
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        selected_contours = contours[:num_of_contours]
+
+        # Apply contour smoothing
+        if contour_smoothing is True:
+            smoothed_contours = []
+
+            for contour in selected_contours:
+                smoothed_contours.append(
+                    cv2.approxPolyDP(contour, contour_smoothing_eps, True)
+                )
+
+            selected_contours = smoothed_contours
+
+        # Draw contours on image
+        green_color = (0, 255, 0)
+        red_color = (0, 0, 255)
+        # blue_color = (255, 0, 0)
+
+        contour_img = img.copy()
+        cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
+        cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
+
+        return (contour_img, selected_contours)
+
     def concentric_circle(
         self,
         img,
-        contour_smoothing=False,
-        contour_smoothing_eps=50,
+        contour_img,
+        selected_contours,
         radii=50,
-        num_of_circs=22,
-        fit_poly=True,
-        boundary_ring=False,
+        num_of_circs=30,
+        boundary_ring=True,
         interior_ring=False,
         interior_scale=3 / 5,
         rtol=1e-2,
         atol=1e-6,
         poly_deg=2,
-        x_less=600,
-        x_plus=0,
         mean_smoothing=True,
         mean_smoothing_sigma=2,
         quiet=True,
@@ -422,12 +577,11 @@ class PLUME:
         img: np.ndarray (gray or BGR)
             image to apply concentric circle too.
 
-        contour_smoothing: bool, optional (default False)
-            smooth contours learned on plume detected.
+        contour_img: np.ndarray
+            frame with detected plume contours added.
 
-        contour_smoothing_eps: int, optional (default 50)
-            level of smoothing to be applied to plume detection contours. Only
-            used when contour_smoothing = True.
+        selected_contours: list
+            List of contours learned from get_contour
 
         radii: int, optional (default 50)
             The radii used to step out in concentric circles method.
@@ -500,49 +654,68 @@ class PLUME:
                 " use find_center function."
             )
 
-        # print(img.shape)
+        # # print(img.shape)
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        ######################
-        # Apply Thresholding #
-        ######################
+        # ######################
+        # # Apply Thresholding #
+        # ######################
 
-        # OTSU thresholding (automatically choose params)
-        _, threshold = cv2.threshold(
-            img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        )
+        # # OTSU thresholding -- automatically choose params for selecting contours
+        # _, threshold = cv2.threshold(
+        #     img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        # )
 
-        #################
-        # Find Contours #
-        #################
-        contours, _ = cv2.findContours(
-            threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
+        # #################
+        # # Find Contours #
+        # #################
+        # contours, _ = cv2.findContours(
+        #     threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        # )
 
-        # Select n largest contours
-        n = 1
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        selected_contours = contours[:n]
+        # # Select n largest contours
+        # n = 1
+        # contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        # selected_contours = contours[:n]
 
-        ###########################
-        # Apply Contour Smoothing #
-        ###########################
+        # ###########################
+        # # Apply Contour Smoothing #
+        # ###########################
 
-        # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
-        if contour_smoothing is True:
-            smoothed_contours = []
+        # # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
+        # if contour_smoothing is True:
+        #     smoothed_contours = []
 
-            for contour in selected_contours:
-                smoothed_contours.append(
-                    cv2.approxPolyDP(contour, contour_smoothing_eps, True)
-                )
+        #     for contour in selected_contours:
+        #         smoothed_contours.append(
+        #             cv2.approxPolyDP(contour, contour_smoothing_eps, True)
+        #         )
 
-            selected_contours = smoothed_contours
+        #     selected_contours = smoothed_contours
+
+        # ##########################
+        # # Draw contours on image #
+        # ##########################
+        # green_color = (0, 255, 0)
+        red_color = (0, 0, 255)
+        blue_color = (255, 0, 0)
+
+        # contour_img = img.copy()
+        # cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
+        # cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
+
+        # Make break here for contour.
 
         ############################
-        # Create Distance Array(s) #
+        # Apply Concentric Circles #
         ############################
+
+        # # get contours
+        # contour_img, img_gray, selected_contours = self.get_contour(
+        #     img
+        # )gi
+
         # array of distance of each point on contour to original center
         contour_dist_list = []
         for contour in selected_contours:
@@ -551,31 +724,22 @@ class PLUME:
             contour_dist = np.sqrt(np.sum((a - b) ** 2, axis=1))
             contour_dist_list.append(contour_dist)
 
-        ##########################
-        # Draw contours on image #
-        ##########################
-        green_color = (0, 255, 0)
-        red_color = (0, 0, 255)
-        blue_color = (255, 0, 0)
-
-        contour_img = img.copy()
-        cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
-        cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
-
-        ############################
-        # Apply Concentric Circles #
-        ############################
-
         # Initialize numpy array to store center
-        points_mean = np.zeros(shape=(num_of_circs + 1, 2))
-        points_mean[0] = self.orig_center
+        points_mean = np.zeros(
+            shape=(num_of_circs + 1, 3)
+        )  # DONE FIX THIS: 2 BECOMES 3
+        points_mean[0] = np.insert(
+            self.orig_center, 0, 0
+        )  # DONE: FIX THIS: NP.INSERT(0,0,SELF.ORIG_CENTER)
 
         # Plot first point on path
         _, center = self.find_max_on_boundary(
             img_gray, self.orig_center, r=radii, rtol=rtol, atol=atol
         )
         # print("center_1:", center)
-        points_mean[1] = center
+        points_mean[1] = np.insert(
+            center, 0, radii
+        )  # DONE: FIX THIS: NP.INSERT(RADII,0,CENTER)
 
         # draw rings if True
         if boundary_ring is True:
@@ -619,7 +783,9 @@ class PLUME:
             if error_occured is True:
                 break
 
-            points_mean[step] = center
+            points_mean[step] = np.insert(
+                center, 0, radius
+            )  # DONE: FIX THIS: NP.INSERT(RADIUS,0,CENTER)
 
             # Draw boundary ring
             if boundary_ring is True:
@@ -638,9 +804,9 @@ class PLUME:
 
         # Apply gaussian filtering to points in y direction
         if mean_smoothing is True:
-            smooth_x = points_mean[:, 0]
-            smooth_y = gaussian_filter(points_mean[:, 1], sigma=mean_smoothing_sigma)
-            points_mean = np.column_stack((smooth_x, smooth_y))
+            smooth_x = points_mean[:, 1]
+            smooth_y = gaussian_filter(points_mean[:, 2], sigma=mean_smoothing_sigma)
+            points_mean[:, 1:] = np.column_stack((smooth_x, smooth_y))
 
         #########################################
         # Check if points fall within a contour #
@@ -649,13 +815,14 @@ class PLUME:
         new_points_mean = []
         for center in points_mean:
             for contour in selected_contours:
-                if cv2.pointPolygonTest(contour, center, False) == 1:
+                # check if point lies within contour
+                if cv2.pointPolygonTest(contour, center[1:], False) == 1:
                     new_points_mean.append(center)
-                    center = center.round().astype(int)
-                    cv2.circle(contour_img, center, 7, red_color, -1)
+                    center[1:] = center[1:].round().astype(int)
+                    cv2.circle(contour_img, center[1:].astype(int), 7, red_color, -1)
 
         if bool(new_points_mean):
-            points_mean = np.array(new_points_mean).reshape(-1, 2)
+            points_mean = np.array(new_points_mean).reshape(-1, 3)
 
         # We are going to learn two different polynomails that are paramertized in
         # r -> (x(r),y(r))
@@ -663,7 +830,9 @@ class PLUME:
         # might move where we add it to this line
         # Create r line r_vals = [radii*i for i in range(len(points_mean))]
 
-        poly_coef_mean = np.polyfit(points_mean[:, 0], points_mean[:, 1], deg=poly_deg)
+        # Move this part of code? at least the plotting
+
+        poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
 
         f_mean = (
             lambda x: poly_coef_mean[0] * x**2
@@ -671,25 +840,9 @@ class PLUME:
             + poly_coef_mean[2]
         )
 
-        x = np.linspace(
-            np.min(points_mean[:, 0]) - x_less, np.max(points_mean[:, 0]) + x_plus, 100
-        )
-        y = f_mean(x)
-
-        curve_img = np.zeros_like(contour_img)
-        curve_points = np.column_stack((x, y)).astype(np.int32)
-
-        cv2.polylines(
-            curve_img, [curve_points], isClosed=False, color=red_color, thickness=5
-        )
-        if fit_poly is True:
-            contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
-
         ############################
         # Checking Variance points #
         ############################
-
-        # NEED TO COMPARE AGAINST SCRIPT GOING FORAWRD
 
         # Initialize variance list to store points
         var1_points = []
@@ -701,87 +854,346 @@ class PLUME:
             var_above = []
             var_below = []
 
+            intersection_points = []
             for i in range(len(selected_contours)):
                 contour_dist = contour_dist_list[i]
                 contour = selected_contours[i]
 
+                # ISSUE PROBABLY IS HERE
                 dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
-                intersection_points = contour.reshape(-1, 2)[dist_mask]
+                intersection_points_i = contour.reshape(-1, 2)[dist_mask]
+                intersection_points.append(intersection_points_i)
+                # if len(intersection_points_i) != 0:
+                #     intersection_points.append(intersection_points_i)
 
-            for point in intersection_points:
-                if f_mean(point[0]) <= point[1]:
-                    var_above.append(point)
-                else:
-                    var_below.append(point)
+            # # Reshape array
+            # try:
+            #     intersection_points = np.array(
+            #         intersection_points
+            #     ).reshape(-1,2)
+            # except Exception as e:
+            #     for arr in intersection_points:
+            #         print("arr:", arr)
+            #         print("arr type:", type(arr))
+            #         print(intersection_points)
+            # print("intersection_point:", intersection_points)
+
+            # ip_i is intersection_points_i
+            for ip_i in intersection_points:
+                for point in ip_i:
+                    if f_mean(point[0]) <= point[1]:
+                        var_above.append(point)
+                    else:
+                        var_below.append(point)
 
             if bool(var_above):
-                var1_points.append(
-                    list(np.array(var_above).mean(axis=0).round().astype(int))
-                )
+                # Average the selected variance points (if multiple selected)
+                avg_var1_i = np.array(var_above).mean(axis=0).round().astype(int)
+                # Insert associated radii
+                avg_var1_i = np.insert(avg_var1_i, 0, radius)
+                var1_points.append(list(avg_var1_i))
 
             if bool(var_below):
-                var2_points.append(
-                    list(np.array(var_below).mean(axis=0).round().astype(int))
-                )
+                # Average the selected variance points (if multiple selected)
+                avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
+                # Insert associated radii
+                avg_var2_i = np.insert(avg_var2_i, 0, radius)
+                var2_points.append(list(avg_var2_i))
 
         # Concatenate original center to both lists
         if bool(var1_points):
-            points_var1 = np.vstack((np.array(var1_points), list(self.orig_center)))
+            points_var1 = np.vstack(
+                (np.array(var1_points), list(np.insert(self.orig_center, 0, 0)))
+            )
         else:
-            points_var1 = np.array([self.orig_center])
+            points_var1 = np.insert(self.orig_center, 0, 0).reshape(1, -1)
 
         if bool(var2_points):
-            points_var2 = np.vstack((np.array(var2_points), list(self.orig_center)))
+            points_var2 = np.vstack(
+                (np.array(var2_points), list(np.insert(self.orig_center, 0, 0)))
+            )
         else:
-            points_var2 = np.array([self.orig_center])
+            points_var2 = np.insert(self.orig_center, 0, 0).reshape(1, -1)
 
         # Plotting points
         for point in points_var1:
-            cv2.circle(contour_img, point, 7, blue_color, -1)
+            cv2.circle(contour_img, point[1:], 7, blue_color, -1)
 
         for point in points_var2:
-            cv2.circle(contour_img, point, 7, blue_color, -1)
+            cv2.circle(contour_img, point[1:], 7, blue_color, -1)
 
-        ########################
-        # Apply polyfit to var #
-        ########################
+        return (points_mean, points_var1, points_var2, contour_img)
 
-        # Add additional check for potentially underdetermined systems?
-        # Possibly modify function
-        poly_coef_var1 = np.polyfit(points_var1[:, 0], points_var1[:, 1], deg=poly_deg)
+    @staticmethod
+    def regression(
+        points_mean,
+        points_var1,
+        points_var2,
+        img,
+        orig_center=None,
+        selected_contours=None,
+        regression_method="poly",
+        regression_kws={},
+    ):
+        """
+        Apply selected regression method to learned points from concentric_circle.
 
-        poly_coef_var2 = np.polyfit(points_var2[:, 0], points_var2[:, 1], deg=poly_deg)
+        Parameters:
+        -----------
+        points_mean: np.ndarray
+            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
+            and radii of concentric circle associated with point on mean path of plume.
 
-        # Plotting var 1
-        x = np.linspace(
-            np.min(points_var1[:, 0]) - x_less, np.max(points_var1[:, 0]) + x_plus, 100
-        )
-        y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
+        poitns_var1: np.ndarray
+            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
+            and radii of concentric circle associated with 'above' edge of plume.
+            Points that are above the mean scatter points.
 
-        curve_points = np.column_stack((x, y)).astype(np.int32)
+        poitns_var2: np.ndarray
+            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
+            and raddi of concentric circle associated with 'below' edge of plume.
+            Points that are above the mean scatter points.
 
-        cv2.polylines(
-            curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
-        )
+        img: np.ndarary
+            nxd numpy array of single frame of plume. Used to plot learned regression
+            paths.
 
-        if fit_poly is True:
-            contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
+        regression_method: str (default "poly")
+            Regression method used to predict path of plume.
 
-        # Plotting var 2
-        x = np.linspace(
-            np.min(points_var2[:, 0]) - x_less, np.max(points_var2[:, 0]) + x_plus, 100
-        )
-        y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
+        regression_kws: dict (default {})
+            additional arguments used for selected regression_method.
 
-        curve_points = np.column_stack((x, y)).astype(np.int32)
+        Returns:
+        --------
+        poly_coef_mean: np.ndarray
+            learned coefficients for mean regression.
 
-        cv2.polylines(
-            curve_img, [curve_points], isClosed=False, color=blue_color, thickness=5
-        )
-        if fit_poly is True:
-            contour_img = cv2.addWeighted(contour_img, 1, curve_img, 1, 0)
+        poly_coef_var1: np.ndarray
+            learned coefficients for var1 regression.
 
-        return contour_img, poly_coef_mean, poly_coef_var1, poly_coef_var2
+        poly_coef_var2: np.ndarray
+            learned coefficients for var2 regression.
+
+        img: np.ndarray
+            plume frame with plotting regression paths.
+        """
+
+        if regression_method == "poly":
+            if "poly_deg" in regression_kws:
+                poly_deg = regression_kws["poly_deg"]
+            else:
+                poly_deg = 2
+            if "x_less" in regression_kws:
+                x_less = regression_kws["x_less"]
+            else:
+                x_less = 600
+            if "x_plus" in regression_kws:
+                x_plus = regression_kws["x_plus"]
+            else:
+                x_plus = 0
+            if "BGR_color" in regression_kws:
+                BGR_color = regression_kws["BGR_color"]
+            else:
+                BGR_color = (0, 0, 255)
+            if "line_thickness" in regression_kws:
+                line_thickness = regression_kws["line_thickness"]
+            else:
+                line_thickness = 5
+
+            # Applying mean poly regression
+            poly_coef_mean = np.polyfit(
+                points_mean[:, 1], points_mean[:, 2], deg=poly_deg
+            )
+
+            # Plotting mean poly
+            f_mean = (
+                lambda x: poly_coef_mean[0] * x**2
+                + poly_coef_mean[1] * x
+                + poly_coef_mean[2]
+            )
+
+            x = np.linspace(
+                np.min(points_mean[:, 1]) - x_less,
+                np.max(points_mean[:, 1]) + x_plus,
+                100,
+            )
+
+            y = f_mean(x)
+            curve_img = np.zeros_like(img)
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=BGR_color,
+                thickness=line_thickness,
+            )
+
+            # Variance 1 poly regression
+            poly_coef_var1 = np.polyfit(
+                points_var1[:, 1], points_var1[:, 2], deg=poly_deg
+            )
+
+            x = np.linspace(
+                np.min(points_var1[:, 1]) - x_less,
+                np.max(points_var1[:, 1]) + x_plus,
+                100,
+            )
+
+            y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
+
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=(255, 0, 0),
+                thickness=line_thickness,
+            )
+
+            # Variance 2 poly regression
+            poly_coef_var2 = np.polyfit(
+                points_var2[:, 1], points_var2[:, 2], deg=poly_deg
+            )
+
+            x = np.linspace(
+                np.min(points_var2[:, 1]) - x_less,
+                np.max(points_var2[:, 1]) + x_plus,
+                100,
+            )
+            y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
+
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=(255, 0, 0),
+                thickness=line_thickness,
+            )
+
+            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
+
+            return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
+
+        if regression_method == "sinusoid":
+            if "poly_deg" in regression_kws:
+                poly_deg = regression_kws["poly_deg"]
+            else:
+                poly_deg = 2
+            if "x_less" in regression_kws:
+                x_less = regression_kws["x_less"]
+            else:
+                x_less = 600
+            if "x_plus" in regression_kws:
+                x_plus = regression_kws["x_plus"]
+            else:
+                x_plus = 0
+            if "BGR_color" in regression_kws:
+                BGR_color = regression_kws["BGR_color"]
+            else:
+                BGR_color = (0, 0, 255)
+            if "line_thickness" in regression_kws:
+                line_thickness = regression_kws["line_thickness"]
+            else:
+                line_thickness = 5
+
+            # Use poly regression for mean path
+            poly_coef_mean = np.polyfit(
+                points_mean[:, 1], points_mean[:, 2], deg=poly_deg
+            )
+            f_mean = (
+                lambda x: poly_coef_mean[0] * x**2
+                + poly_coef_mean[1] * x
+                + poly_coef_mean[2]
+            )
+
+            col, row = orig_center
+
+            # convert (x,y) to (r,d) for var 1
+            var1_dist = []
+            for point in points_var1:
+                r = point[0]
+
+                sols = utils.circle_poly_intersection(
+                    r=r,
+                    x0=col,
+                    y0=row,
+                    a=poly_coef_mean[0],
+                    b=poly_coef_mean[1],
+                    c=poly_coef_mean[2],
+                )
+
+                # Check if point falls in contour
+                for sol in sols:
+                    for contour in selected_contours:
+                        if cv2.pointPolygonTest(contour, sol, False) == 1:
+                            dist_i = np.linalg.norm(point[1:] - sol)
+                            var1_dist.append([r, dist_i])
+                            cv2.circle(img, sol.astype(int), 8, (255, 255, 0), -1)
+
+            var1_dist = np.array(var1_dist)
+
+            # var2: convert (x,y) to (r,d) for var 2
+            var2_dist = []
+            for point in points_var2:
+                r = point[0]
+
+                sols = utils.circle_poly_intersection(
+                    r=r,
+                    x0=col,
+                    y0=row,
+                    a=poly_coef_mean[0],
+                    b=poly_coef_mean[1],
+                    c=poly_coef_mean[2],
+                )
+
+                # check if points fall in contour
+                for sol in sols:
+                    for contour in selected_contours:
+                        if cv2.pointPolygonTest(contour, sol, False) == 1:
+                            dist_i = np.linalg.norm(point[1:] - sol)
+                            var2_dist.append([r, dist_i])
+                            cv2.circle(img, sol.astype(int), 8, (255, 255, 0), -1)
+            var2_dist = np.array(var2_dist)
+
+            # Plotting polynomial on plot
+            x = np.linspace(
+                np.min(points_mean[:, 1]) - x_less,
+                np.max(points_mean[:, 1]) + x_plus,
+                100,
+            )
+
+            y = f_mean(x)
+            curve_img = np.zeros_like(img)
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=BGR_color,
+                thickness=line_thickness,
+            )
+
+            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
+
+            # Get regressions parameters Asin(wx-gamma t) + Bx
+            poly_coef_var1 = (0, 0, 0)
+            poly_coef_var2 = (0, 0, 0)
+
+            return (
+                poly_coef_mean,
+                poly_coef_var1,
+                poly_coef_var2,
+                img,
+                var1_dist,
+                var2_dist,
+            )
 
     def find_next_center(
         self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
@@ -797,7 +1209,6 @@ class PLUME:
         distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
 
         # Create mask for points on boundary (distances == r)
-        # print(rtol, atol)
         boundary_mask = np.isclose(distances, r, rtol=rtol, atol=atol)
 
         # Appply to neighboring point
@@ -808,20 +1219,11 @@ class PLUME:
 
         interior_mask = distances <= r * scale
 
-        # print(np.argwhere(interior_mask==True))
-
         search_mask = boundary_mask & interior_mask
 
-        # print(np.argwhere(search_mask is True))
-
         search_subset = array[search_mask]
-        # print(search_subset)
-
-        # print("made it here")
 
         max_value = np.max(search_subset)
-        # print("made it here??")
-        # print("max_value:", max_value)
 
         # find indices of max element
         max_indices = np.argwhere(np.isclose(array, max_value) & search_mask)
@@ -978,29 +1380,195 @@ class PLUME:
 
         return
 
+    def train_variance(self):
+        """
+        Learned sinusoid coefficients (A_opt, w_opt, g_opt, B_opt) for variance data
+        on flattened p_mean, vari_dist, attained from PLUME.train().
+        """
 
-def main():
-    video_path = "plume_videos/July_20/video_high_1/high_1.MP4"
-    test_num = 15
+        #############
+        # Var1_dist #
+        #############
 
-    t0 = time.time()
-    frames = list(np.arange(test_num) * 100 + 100)
-    t1 = time.time()
-    print("time:", t1 - t0, "\n")
+        # preprocess data
+        var1_dist = self.var1_dist
 
-    # We are going to use the cv2 method (faster)
-    video_capture = cv2.VideoCapture(video_path)
-    t0 = time.time()
+        # flatten var1_dist
+        var1_txy = regressions.flatten_vari_dist(var1_dist)
 
-    frames = list(np.arange(test_num) * 100 + 100)
-    for frame in tqdm(frames):
-        video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame)
+        # split into training and test data (no normalization)
+        train_index = int(len(var1_dist) * 0.8)
 
-    t1 = time.time()
-    print("time:", t1 - t0)
+        X = var1_txy[:, :2]
+        Y = var1_txy[:, 2]
 
-    print("new test")
+        X_train = X[:train_index]
+        X_test = X[train_index:]
+        Y_train = Y[:train_index]
+        Y_test = Y[train_index:]
+
+        # apply ensemble learning
+        var1_param_opt, var1_param_hist = regressions.var_ensemble_learn(
+            X_train=X_train,
+            Y_train=Y_train,
+            X_test=X_test,
+            Y_test=Y_test,
+            n_samples=int(len(X_train) * 0.8),
+            trials=2000,
+        )
+        print("var1 opt params:", var1_param_opt)
+        self.var1_params_opt = var1_param_opt
+
+        # Create var1_func
+        var1_func = var_func_on_poly()
+        var1_func.var_on_flattened_poly_params = var1_param_opt
+        var1_func.orig_center = self.orig_center
+        var1_func.poly_func_params = self.mean_poly
+
+        self.var1_func = var1_func
+
+        #############
+        # Var2_dist #
+        #############
+
+        # preprocess data
+        var2_dist = self.var2_dist
+
+        # flatten var1_dist
+        var2_txy = regressions.flatten_vari_dist(var2_dist)
+
+        # split into training and test data (no normalization)
+        train_index = int(len(var2_dist) * 0.8)
+
+        X = var2_txy[:, :2]
+        Y = var2_txy[:, 2]
+
+        X_train = X[:train_index]
+        X_test = X[train_index:]
+        Y_train = Y[:train_index]
+        Y_test = Y[train_index:]
+
+        # apply ensemble learning
+        var2_param_opt, var2_param_hist = regressions.var_ensemble_learn(
+            X_train=X_train,
+            Y_train=Y_train,
+            X_test=X_test,
+            Y_test=Y_test,
+            n_samples=int(len(X_train) * 0.8),
+            trials=2000,
+        )
+
+        self.var2_params_opt = var2_param_opt
+        print("var2 opt params:", var2_param_opt)
+
+        var2_func = var_func_on_poly()
+        var2_func.var_on_flattened_poly_params = var2_param_opt
+        var2_func.orig_center = self.orig_center
+        var2_func.poly_func_params = self.mean_poly
+        var2_func.upper_lower_envelope = "lower"
+
+        self.var2_func = var2_func
+
+    def plot_ROM_plume(self, t, show_plot=True):
+        """
+        Plot a single frame, at time t, of the ROM plume
+        """
+        var1_func = self.var1_func
+        var2_func = self.var2_func
+        a, b, c = self.mean_poly[t]
+
+        def poly_func(x):
+            return a * x**2 + b * x + c
+
+        x_range = self.frame_width
+        y_range = self.frame_height
+
+        # Polynomial
+        x = np.linspace(0, self.orig_center[0], 200)
+        y_poly = poly_func(x)
+
+        # var
+        var1_to_plot = [var1_func.eval_x(t, i) for i in x]
+        var2_to_plot = [var2_func.eval_x(t, i) for i in x]
+
+        # remove none type for plotting
+        var1_to_plot = np.array([x for x in var1_to_plot if x is not None])
+        var2_to_plot = np.array([x for x in var2_to_plot if x is not None])
+
+        # generate plot
+        plt.clf()
+        plt.scatter(self.orig_center[0], self.orig_center[1], c="red")
+        plt.plot(x, y_poly, label="mean poly", c="red")
+        plt.plot(var1_to_plot[:, 0], var1_to_plot[:, 1], label="var1", c="blue")
+        plt.plot(var2_to_plot[:, 0], var2_to_plot[:, 1], label="var2", c="blue")
+        plt.title(f"ROM Plume, t={t}")
+        plt.legend(loc="upper right")
+
+        # fix frame
+        plt.xlim(0, x_range)
+        plt.ylim(y_range, 0)
+        if show_plot is True:
+            plt.show()
 
 
-if __name__ == "__main__":
-    main()
+class var_func_on_poly:
+    """
+    Function class to translated learned variances on flattened p_mean to
+    an unflattened p_mean. i.e., the regular cartesian grid.
+
+    Parameters:
+    -----------
+    var_on_flattened_poly_params: tuple
+        Learned parameters for training varaince on flattened p_mean.
+        (A_opt, w_opt, g_opt, B_opt).
+
+    poly_func_params: np.ndarray
+        Numpy array contained the learned coefficients of mean polynomial for
+        each time frame
+
+    orig_center: tuple
+        The original plume leak source (x,y)
+
+    upper_lower_envelope: str (default "upper")
+        declares whether to plot unflattened varaince above p_mean ("upper")
+        or below p_mean ("lower")
+    """
+
+    def __init__(self) -> None:
+        self.var_on_flattened_poly_params = None
+        self.poly_func_params = None
+        self.orig_center = None
+        self.upper_lower_envelope = "upper"
+
+    def poly_func(self, t, x):
+        a, b, c = self.poly_func_params[t]
+        y = a * x**2 + b * x + c
+        return y
+
+    def sinusoid_func(self, t, r):
+        A_opt, w_opt, g_opt, B_opt = self.var_on_flattened_poly_params
+        d = A_opt * np.sin(w_opt * r - g_opt * t) + B_opt * r
+        return d
+
+    def eval_x(self, t, x):
+        # get r on flattened p_mean plane
+        x1 = x
+        x0, y0 = self.orig_center
+        y1 = self.poly_func(t, x1)
+
+        r = np.sqrt((x0 - x1) ** 2 + (y0 - y1) ** 2)
+
+        # get d on flattened p_mean plane
+        d = self.sinusoid_func(t, r)
+
+        # get y on regular cartesian plane
+        sols = utils.circle_intersection(x0=x0, y0=y0, r0=r, x1=x1, y1=y1, r1=d)
+
+        if self.upper_lower_envelope == "upper":
+            for sol in sols:
+                if sol[1] >= self.poly_func(t, sol[0]):
+                    return sol
+        elif self.upper_lower_envelope == "lower":
+            for sol in sols:
+                if sol[1] <= self.poly_func(t, sol[0]):
+                    return sol
