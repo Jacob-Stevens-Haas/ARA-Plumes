@@ -1032,9 +1032,9 @@ class PLUME:
                 100,
             )
 
-            y = f_mean(x)
+            y = f_mean(x) + orig_center[1]
             curve_img = np.zeros_like(img)
-            curve_points = np.column_stack((x, y)).astype(np.int32)
+            curve_points = np.column_stack((x + orig_center[0], y)).astype(np.int32)
 
             cv2.polylines(
                 curve_img,
@@ -1057,7 +1057,9 @@ class PLUME:
 
             y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
 
-            curve_points = np.column_stack((x, y)).astype(np.int32)
+            curve_points = np.column_stack(
+                (x + orig_center[0], y + orig_center[1])
+            ).astype(np.int32)
 
             cv2.polylines(
                 curve_img,
@@ -1079,7 +1081,9 @@ class PLUME:
             )
             y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
 
-            curve_points = np.column_stack((x, y)).astype(np.int32)
+            curve_points = np.column_stack(
+                (x + orig_center[0], y + orig_center[1])
+            ).astype(np.int32)
 
             cv2.polylines(
                 curve_img,
