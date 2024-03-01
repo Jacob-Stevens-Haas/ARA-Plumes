@@ -51,6 +51,7 @@ def var_ensemble_learn(
 
     # To do:
     # - check if there is bimodal behaior
+    #   - Kernel density approx, find local max
     # - try all possible combinations on a validation set?
     # - Plot red line to indicate selection
 

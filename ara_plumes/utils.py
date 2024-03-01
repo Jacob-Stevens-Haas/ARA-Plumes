@@ -408,7 +408,7 @@ def create_gif(
 def create_vari_dist_movie(vari_dist, save_path=None):
     """
     Create movie directly form vari_dist data attained from
-    PLUME.train().
+    PLUME.train(). In PLUME.var1_dist and PLUME.var2_dist.
     """
 
     # find max r and d
@@ -457,5 +457,7 @@ def create_ROM_plume_movie(PLUME_object, save_path=None):
     ani = FuncAnimation(fig, generate_plot, frames=num_frames)
 
     if isinstance(save_path, str):
+        if save_path.endswith(".mp4") is False:
+            save_path += ".mp4"
         ani.save(save_path, writer="ffmpeg", fps=15)
         plt.show()

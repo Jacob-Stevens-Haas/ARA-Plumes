@@ -206,7 +206,7 @@ class PLUME:
         display_vid=True,
         mean_smoothing=True,
         mean_smoothing_sigma=2,
-        regression_method="poly",
+        regression_method="sinusoid",
         regression_kws={},
     ):
         """
@@ -626,26 +626,26 @@ class PLUME:
 
         Returns:
         --------
+        points_mean: np.ndarray
+            Returns nx3 array containing observed points along mean path.
+            Where the kth entry is of the form [r(k), x(k), y(k)], i.e the
+            coordinate (x,y) of the highest value point along the concetric circle
+            with radii r(k).
+
+        points_var1: np.ndarray
+            Returns nx3 array containing observed points along upper envolope path,
+            i.e., above the mean path. The kth entry is of the form [r(k), x(k), y(k)],
+            i.e the coordinate (x,y) of the intersection with the plume contour along
+            the concentric circle with raddi r(k).
+
+        points_var2: list of floats
+            Returns nx3 array containing observed points along lower envolope path,
+            i.e., below the mean path. The kth entry is of the form [r(k), x(k), y(k)],
+            i.e the coordinate (x,y) of the intersection with the plume contour along
+            the concentric circle with raddi r(k).
+
         contour_img: np.ndarray
             Image with concentric circle method applied and plotting applied.
-
-        poly_coef_mean: list of floats
-            Returns the list of learnd coefficients regressed on concentric
-            circle method for mean points. e.g., For degree 2 polynomial
-            regression,
-            return list will be of form [a,b,c] where ax^2+bx+c was learned.
-
-        poly_coef_var1: list of floats
-            Returns the list of learnd coefficients regressed on concentric
-            circle method for var1 points---points above mean line. e.g., For
-            degree 2 polynomail regression,
-            return list will be of form [a,b,c] where ax^2+bx+c was learned.
-
-        poly_coef_var2: list of floats
-            Returns the list of learnd coefficients regressed on concentric
-            circle method for var2 points---points below mean line. e.g., For
-            degree 2 polynomail regression,
-            return list will be of form [a,b,c] where ax^2+bx+c was learned.
         """
         # Check that original center has been declared
         if not isinstance(self.orig_center, tuple):
@@ -832,6 +832,9 @@ class PLUME:
 
         # Move this part of code? at least the plotting
 
+        # TO DO: Translate to origin - DONE
+        points_mean[:, 1:] -= self.orig_center
+
         poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
 
         f_mean = (
@@ -879,12 +882,17 @@ class PLUME:
             # print("intersection_point:", intersection_points)
 
             # ip_i is intersection_points_i
+
+            # TO DO: re translate these - DONE
             for ip_i in intersection_points:
                 for point in ip_i:
-                    if f_mean(point[0]) <= point[1]:
-                        var_above.append(point)
+                    if (
+                        f_mean(point[0] - self.orig_center[0])
+                        <= point[1] - self.orig_center[1]
+                    ):
+                        var_above.append(point - self.orig_center)
                     else:
-                        var_below.append(point)
+                        var_below.append(point - self.orig_center)
 
             if bool(var_above):
                 # Average the selected variance points (if multiple selected)
@@ -901,27 +909,30 @@ class PLUME:
                 var2_points.append(list(avg_var2_i))
 
         # Concatenate original center to both lists
+        # TO DO: concatenate (0,0) to each list - DONE
         if bool(var1_points):
             points_var1 = np.vstack(
-                (np.array(var1_points), list(np.insert(self.orig_center, 0, 0)))
+                (np.array(var1_points), list(np.insert((0, 0), 0, 0)))
             )
         else:
-            points_var1 = np.insert(self.orig_center, 0, 0).reshape(1, -1)
+            points_var1 = np.insert((0, 0), 0, 0).reshape(1, -1)
 
         if bool(var2_points):
             points_var2 = np.vstack(
-                (np.array(var2_points), list(np.insert(self.orig_center, 0, 0)))
+                (np.array(var2_points), list(np.insert((0, 0), 0, 0)))
             )
         else:
-            points_var2 = np.insert(self.orig_center, 0, 0).reshape(1, -1)
+            points_var2 = np.insert((0, 0), 0, 0).reshape(1, -1)
 
         # Plotting points
+        # TO DO: re translate these - DONE
         for point in points_var1:
-            cv2.circle(contour_img, point[1:], 7, blue_color, -1)
+            cv2.circle(contour_img, point[1:] + self.orig_center, 7, blue_color, -1)
 
         for point in points_var2:
-            cv2.circle(contour_img, point[1:], 7, blue_color, -1)
+            cv2.circle(contour_img, point[1:] + self.orig_center, 7, blue_color, -1)
 
+        # TO DO: These points are now translated back to the origin - DONE
         return (points_mean, points_var1, points_var2, contour_img)
 
     @staticmethod
@@ -1019,9 +1030,9 @@ class PLUME:
                 100,
             )
 
-            y = f_mean(x)
+            y = f_mean(x) + orig_center[1]
             curve_img = np.zeros_like(img)
-            curve_points = np.column_stack((x, y)).astype(np.int32)
+            curve_points = np.column_stack((x + orig_center[0], y)).astype(np.int32)
 
             cv2.polylines(
                 curve_img,
@@ -1044,7 +1055,9 @@ class PLUME:
 
             y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
 
-            curve_points = np.column_stack((x, y)).astype(np.int32)
+            curve_points = np.column_stack(
+                (x + orig_center[0], y + orig_center[1])
+            ).astype(np.int32)
 
             cv2.polylines(
                 curve_img,
@@ -1066,7 +1079,9 @@ class PLUME:
             )
             y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
 
-            curve_points = np.column_stack((x, y)).astype(np.int32)
+            curve_points = np.column_stack(
+                (x + orig_center[0], y + orig_center[1])
+            ).astype(np.int32)
 
             cv2.polylines(
                 curve_img,
@@ -1080,6 +1095,7 @@ class PLUME:
 
             return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
 
+        # TO DO: Update regression method
         if regression_method == "sinusoid":
             if "poly_deg" in regression_kws:
                 poly_deg = regression_kws["poly_deg"]
@@ -1103,6 +1119,7 @@ class PLUME:
                 line_thickness = 5
 
             # Use poly regression for mean path
+            # TO DO: subtract original center from here - DONE in concentric_circle
             poly_coef_mean = np.polyfit(
                 points_mean[:, 1], points_mean[:, 2], deg=poly_deg
             )
@@ -1115,50 +1132,66 @@ class PLUME:
             col, row = orig_center
 
             # convert (x,y) to (r,d) for var 1
+            # TO DO: Will have to think about how to modify this - DONE
             var1_dist = []
             for point in points_var1:
                 r = point[0]
-
+                # TO DO: Change x0 and y0 to zero - DONE
                 sols = utils.circle_poly_intersection(
                     r=r,
-                    x0=col,
-                    y0=row,
+                    x0=0,
+                    y0=0,
                     a=poly_coef_mean[0],
                     b=poly_coef_mean[1],
                     c=poly_coef_mean[2],
                 )
 
                 # Check if point falls in contour
+                # TO DO: sol + [original center] - DONE
                 for sol in sols:
                     for contour in selected_contours:
-                        if cv2.pointPolygonTest(contour, sol, False) == 1:
-                            dist_i = np.linalg.norm(point[1:] - sol)
+                        if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
+                            dist_i = np.linalg.norm(
+                                point[1:] - sol
+                            )  # TO DO: done bc var is not translated back to origin
+                            # by concentric_circle
                             var1_dist.append([r, dist_i])
-                            cv2.circle(img, sol.astype(int), 8, (255, 255, 0), -1)
+                            # TO DO: sol + [original center] - DONE
+                            translated_sol = sol + orig_center
+                            cv2.circle(
+                                img, translated_sol.astype(int), 8, (255, 255, 0), -1
+                            )
 
             var1_dist = np.array(var1_dist)
 
             # var2: convert (x,y) to (r,d) for var 2
+            # TO DO: will also have to think about how to modify this - DONE
             var2_dist = []
             for point in points_var2:
                 r = point[0]
 
+                # TO DO: x0 = y0 = 0 - DONE
                 sols = utils.circle_poly_intersection(
                     r=r,
-                    x0=col,
-                    y0=row,
+                    x0=0,
+                    y0=0,
                     a=poly_coef_mean[0],
                     b=poly_coef_mean[1],
                     c=poly_coef_mean[2],
                 )
 
                 # check if points fall in contour
+                # TO DO: sol + [original center] - DONE
                 for sol in sols:
                     for contour in selected_contours:
-                        if cv2.pointPolygonTest(contour, sol, False) == 1:
+                        if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
                             dist_i = np.linalg.norm(point[1:] - sol)
                             var2_dist.append([r, dist_i])
-                            cv2.circle(img, sol.astype(int), 8, (255, 255, 0), -1)
+                            # TO DO: translate back for plotting
+                            translated_sol = sol + orig_center
+                            cv2.circle(
+                                img, translated_sol.astype(int), 8, (255, 255, 0), -1
+                            )
             var2_dist = np.array(var2_dist)
 
             # Plotting polynomial on plot
@@ -1168,10 +1201,11 @@ class PLUME:
                 100,
             )
 
-            y = f_mean(x)
+            # Plotting
+            # TO DO: New translated function? - DONE??
+            y = f_mean(x) + orig_center[1]
             curve_img = np.zeros_like(img)
-            curve_points = np.column_stack((x, y)).astype(np.int32)
-
+            curve_points = np.column_stack((x + orig_center[0], y)).astype(np.int32)
             cv2.polylines(
                 curve_img,
                 [curve_points],
@@ -1484,21 +1518,30 @@ class PLUME:
         y_range = self.frame_height
 
         # Polynomial
-        x = np.linspace(0, self.orig_center[0], 200)
-        y_poly = poly_func(x)
+        # TO DO: shift x0? - DONE
+        x = np.linspace(0, self.orig_center[0], 200) - self.orig_center[0]
+
+        # TO DO: add y0 back in - DONE
+        y_poly = poly_func(x) + self.orig_center[1]
 
         # var
         var1_to_plot = [var1_func.eval_x(t, i) for i in x]
         var2_to_plot = [var2_func.eval_x(t, i) for i in x]
 
         # remove none type for plotting
-        var1_to_plot = np.array([x for x in var1_to_plot if x is not None])
-        var2_to_plot = np.array([x for x in var2_to_plot if x is not None])
+        # TO DO: rescale back on  - DONE
+        var1_to_plot = (
+            np.array([x for x in var1_to_plot if x is not None]) + self.orig_center
+        )
+        var2_to_plot = (
+            np.array([x for x in var2_to_plot if x is not None]) + self.orig_center
+        )
 
         # generate plot
+        # TO DO: shift by original center i.e., add + x0 - DONE
         plt.clf()
         plt.scatter(self.orig_center[0], self.orig_center[1], c="red")
-        plt.plot(x, y_poly, label="mean poly", c="red")
+        plt.plot(x + self.orig_center[0], y_poly, label="mean poly", c="red")
         plt.plot(var1_to_plot[:, 0], var1_to_plot[:, 1], label="var1", c="blue")
         plt.plot(var2_to_plot[:, 0], var2_to_plot[:, 1], label="var2", c="blue")
         plt.title(f"ROM Plume, t={t}")
@@ -1553,7 +1596,7 @@ class var_func_on_poly:
     def eval_x(self, t, x):
         # get r on flattened p_mean plane
         x1 = x
-        x0, y0 = self.orig_center
+        x0, y0 = (0, 0)  # TO DO: make this x0 = y0 = 0 - DONE
         y1 = self.poly_func(t, x1)
 
         r = np.sqrt((x0 - x1) ** 2 + (y0 - y1) ** 2)
@@ -1564,11 +1607,11 @@ class var_func_on_poly:
         # get y on regular cartesian plane
         sols = utils.circle_intersection(x0=x0, y0=y0, r0=r, x1=x1, y1=y1, r1=d)
 
-        if self.upper_lower_envelope == "upper":
+        if self.upper_lower_envelope == "lower":
             for sol in sols:
                 if sol[1] >= self.poly_func(t, sol[0]):
                     return sol
-        elif self.upper_lower_envelope == "lower":
+        elif self.upper_lower_envelope == "upper":
             for sol in sols:
                 if sol[1] <= self.poly_func(t, sol[0]):
                     return sol
