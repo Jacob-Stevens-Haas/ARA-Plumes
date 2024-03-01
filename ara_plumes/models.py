@@ -206,7 +206,7 @@ class PLUME:
         display_vid=True,
         mean_smoothing=True,
         mean_smoothing_sigma=2,
-        regression_method="poly",
+        regression_method="sinusoid",
         regression_kws={},
     ):
         """
