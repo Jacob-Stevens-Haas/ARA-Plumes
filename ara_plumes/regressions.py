@@ -50,6 +50,8 @@ def var_ensemble_learn(
     plt.show()
 
     # To do:
+    # - X_trian into a train and validation set
+    #   so we can try all combinations if bimodal behavior appears
     # - check if there is bimodal behaior
     #   - Kernel density approx, find local max
     # - try all possible combinations on a validation set?
