@@ -1607,11 +1607,11 @@ class var_func_on_poly:
         # get y on regular cartesian plane
         sols = utils.circle_intersection(x0=x0, y0=y0, r0=r, x1=x1, y1=y1, r1=d)
 
-        if self.upper_lower_envelope == "lower":
+        if self.upper_lower_envelope == "upper":
             for sol in sols:
                 if sol[1] >= self.poly_func(t, sol[0]):
                     return sol
-        elif self.upper_lower_envelope == "upper":
+        elif self.upper_lower_envelope == "lower":
             for sol in sols:
                 if sol[1] <= self.poly_func(t, sol[0]):
                     return sol
