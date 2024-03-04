@@ -1,63 +1,74 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
+from scipy.signal import find_peaks
+from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
 
 
 def var_ensemble_learn(
-    X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False
+    X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False, kernel_fit=False
 ):
     """
     Apply ensembling to training data via sinusoid regression and provide training
     and test accuracy. Produce histogram of learned params.
     """
-    param_opt, param_hist = var_ensemble_train(
-        X=X_train, Y=Y_train, n_samples=n_samples, trials=trials, replace=replace
-    )
+    if kernel_fit is False:
+        param_opt, param_hist = var_ensemble_train(
+            X=X_train, Y=Y_train, n_samples=n_samples, trials=trials, replace=replace
+        )
 
-    A_opt, w_opt, g_opt, B_opt = param_opt
+        A_opt, w_opt, g_opt, B_opt = param_opt
 
-    def learned_sinusoid_func(t, x):
-        return A_opt * np.sin(w_opt * x - g_opt * t) + B_opt * x
+        def learned_sinusoid_func(t, x):
+            return A_opt * np.sin(w_opt * x - g_opt * t) + B_opt * x
 
-    # get train accuracy
-    Y_train_learn = learned_sinusoid_func(X_train[:, 0], X_train[:, 1])
-    err = np.linalg.norm(Y_train_learn - Y_train) / np.linalg.norm(Y_train)
-    train_acc = 1 - err
+        # get train accuracy
+        Y_train_learn = learned_sinusoid_func(X_train[:, 0], X_train[:, 1])
+        err = np.linalg.norm(Y_train_learn - Y_train) / np.linalg.norm(Y_train)
+        train_acc = 1 - err
 
-    print("train accuracy:", train_acc)
+        print("train accuracy:", train_acc)
 
-    # get test accuracy
-    Y_test_learn = learned_sinusoid_func(X_test[:, 0], X_test[:, 1])
-    err = np.linalg.norm(Y_test - Y_test_learn) / np.linalg.norm(Y_test)
-    test_acc = 1 - err
+        # get validation accuracy
+        Y_test_learn = learned_sinusoid_func(X_test[:, 0], X_test[:, 1])
+        err = np.linalg.norm(Y_test - Y_test_learn) / np.linalg.norm(Y_test)
+        test_acc = 1 - err
 
-    print("test accuracy:", test_acc)
+        print("test accuracy:", test_acc)
 
-    # plot histograms
-    num_cols = param_hist.shape[1]
-    fig, axs = plt.subplots(1, num_cols, figsize=(15, 3))
+        # plot histograms
+        num_cols = param_hist.shape[1]
+        fig, axs = plt.subplots(1, num_cols, figsize=(15, 3))
 
-    titles = ["A_opt", "w_opt", "g_opt", "B_opt"]
+        titles = ["A_opt", "w_opt", "g_opt", "B_opt"]
 
-    for i in range(num_cols):
-        axs[i].hist(param_hist[:, i], bins=50)
-        axs[i].set_title(titles[i])
-        axs[i].set_xlabel("val")
-        axs[i].set_ylabel("Frequency")
+        for i in range(num_cols):
+            axs[i].hist(param_hist[:, i], bins=50)
+            axs[i].set_title(titles[i])
+            axs[i].set_xlabel("val")
+            axs[i].set_ylabel("Frequency")
 
-    plt.tight_layout()
-    plt.show()
+        plt.tight_layout()
+        plt.show()
 
-    # To do:
-    # - X_trian into a train and validation set
-    #   so we can try all combinations if bimodal behavior appears
-    # - check if there is bimodal behaior
-    #   - Kernel density approx, find local max
-    # - try all possible combinations on a validation set?
-    # - Plot red line to indicate selection
+        return param_opt, param_hist
 
-    return param_opt, param_hist
+    elif kernel_fit is True:
+        # To do:
+        # - X_trian into a train and validation set
+        #   so we can try all combinations if bimodal behavior appears
+        # - check if there is bimodal behaior
+        #   - Kernel density approx, find local max
+        # - try all possible combinations on a validation set?
+        # - Plot red line to indicate selection
+        train_index = int(len(X_train) * 0.9)
+        # X_val = X_train[train_index:]
+        X_train = X_train[:train_index]
+
+        param_opt, param_hist = var_ensemble_train(
+            X=X_train, Y=Y_train, n_samples=n_samples, trials=trials, replace=replace
+        )
 
 
 def var_ensemble_train(X, Y, n_samples, trials, replace=False):
@@ -229,3 +240,56 @@ def sinusoid_regression(X, Y, t, initial_guess):
     params, covariance = curve_fit(sinusoid, X, Y, initial_guess)
     A_opt, w_opt, gamma_opt, B_opt = params
     return (A_opt, w_opt, gamma_opt, B_opt)
+
+
+def kernel_density_fit(params_hist, bandwidth=1):
+    """
+    Find local maxima and mean of histograms using kernel density estimate.
+    """
+    # Create kernel density objects
+    kde_models = []
+    for i in range(params_hist.shape[1]):
+        kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth)
+        kde.fit(params_hist[:, i].reshape(-1, 1))
+        kde_models.append(kde)
+
+    param_opt_canidates = []
+    for i, kde_model in enumerate(kde_models):
+        data = params_hist[:, i]
+
+        # grab mean value
+        mean_val = np.mean(data)
+
+        # create linspace
+        x_min = min(data)
+        x_max = max(data)
+        x_spread = max(np.abs(x_max - mean_val), np.abs(x_min - mean_val))
+        buffer = 1.1
+        x0 = mean_val - x_spread * buffer
+        x1 = mean_val + x_spread * buffer
+        x = np.linspace(x0, x1, 1000)
+
+        # Create the density esimtae for each array
+        log_density = kde_model.score_samples(x[:, None])
+
+        # Evaluate mean_val on kde fit
+        log_density_mean_x = kde_model.score_samples(np.array(mean_val).reshape(1, -1))
+        kde_mean_x = np.exp(log_density_mean_x)[0]
+
+        # Find other local maxima
+        local_maxima_indicies = find_peaks(np.exp(log_density))
+
+        # store opt_params found
+        param_opt_i = [mean_val]
+        for max_index in local_maxima_indicies:
+            max_index_val_x = np.array(x[max_index]).reshape(1, -1)
+            log_density_max_x = kde_model.score_samples(max_index_val_x)
+            kde_max_x = np.exp(log_density_max_x)[0]
+
+            # Ensure max is larger than mean
+            if kde_max_x >= kde_mean_x:
+                param_opt_i.append(x[max_index])
+
+        param_opt_canidates.append(param_opt_i)
+
+    return param_opt_canidates
