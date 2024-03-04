@@ -1414,7 +1414,7 @@ class PLUME:
 
         return
 
-    def train_variance(self):
+    def train_variance(self, kernel_fit=False):
         """
         Learned sinusoid coefficients (A_opt, w_opt, g_opt, B_opt) for variance data
         on flattened p_mean, vari_dist, attained from PLUME.train().
@@ -1449,6 +1449,7 @@ class PLUME:
             Y_test=Y_test,
             n_samples=int(len(X_train) * 0.8),
             trials=2000,
+            kernel_fit=kernel_fit,
         )
         print("var1 opt params:", var1_param_opt)
         self.var1_params_opt = var1_param_opt
@@ -1490,6 +1491,7 @@ class PLUME:
             Y_test=Y_test,
             n_samples=int(len(X_train) * 0.8),
             trials=2000,
+            kernel_fit=kernel_fit,
         )
 
         self.var2_params_opt = var2_param_opt
