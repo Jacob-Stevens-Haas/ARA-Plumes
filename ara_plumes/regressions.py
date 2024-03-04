@@ -1,3 +1,5 @@
+import itertools
+
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
@@ -7,7 +9,16 @@ from tqdm import tqdm
 
 
 def var_ensemble_learn(
-    X_train, Y_train, X_test, Y_test, n_samples, trials, replace=False, kernel_fit=False
+    X_train,
+    Y_train,
+    X_test,
+    Y_test,
+    n_samples,
+    trials,
+    replace=False,
+    kernel_fit=False,
+    bandwidth=1,
+    plotting=True,
 ):
     """
     Apply ensembling to training data via sinusoid regression and provide training
@@ -38,19 +49,20 @@ def var_ensemble_learn(
         print("test accuracy:", test_acc)
 
         # plot histograms
-        num_cols = param_hist.shape[1]
-        fig, axs = plt.subplots(1, num_cols, figsize=(15, 3))
+        if plotting is True:
+            num_cols = param_hist.shape[1]
+            fig, axs = plt.subplots(1, num_cols, figsize=(15, 3))
 
-        titles = ["A_opt", "w_opt", "g_opt", "B_opt"]
+            titles = ["A_opt", "w_opt", "g_opt", "B_opt"]
 
-        for i in range(num_cols):
-            axs[i].hist(param_hist[:, i], bins=50)
-            axs[i].set_title(titles[i])
-            axs[i].set_xlabel("val")
-            axs[i].set_ylabel("Frequency")
+            for i in range(num_cols):
+                axs[i].hist(param_hist[:, i], bins=50)
+                axs[i].set_title(titles[i])
+                axs[i].set_xlabel("val")
+                axs[i].set_ylabel("Frequency")
 
-        plt.tight_layout()
-        plt.show()
+            plt.tight_layout()
+            plt.show()
 
         return param_opt, param_hist
 
@@ -62,13 +74,66 @@ def var_ensemble_learn(
         #   - Kernel density approx, find local max
         # - try all possible combinations on a validation set?
         # - Plot red line to indicate selection
-        train_index = int(len(X_train) * 0.9)
-        # X_val = X_train[train_index:]
-        X_train = X_train[:train_index]
 
-        param_opt, param_hist = var_ensemble_train(
+        # randomize selection
+        indices = np.arange(len(X_train))
+        shuffled_indicies = np.random.permutation(indices)
+        train_index = int(len(X_train) * 0.8)
+
+        # Split X_train & Y_train into train and validation set
+        X_val = X_train[shuffled_indicies[train_index:]]
+        Y_val = Y_train[shuffled_indicies[train_index:]]
+
+        X_train = X_train[shuffled_indicies[:train_index]]
+        Y_train = Y_train[shuffled_indicies[:train_index]]
+
+        # Apply ensembling
+        _, param_hist = var_ensemble_train(
             X=X_train, Y=Y_train, n_samples=n_samples, trials=trials, replace=replace
         )
+
+        # Apply kernel density fit and idetify param candidates
+        param_opt_candidates, kde_models = kernel_density_fit(
+            param_hist=param_hist, bandwidth=bandwidth
+        )
+
+        # Test all candidates on validation data
+        val_acc = -np.inf
+        param_opt = None
+
+        for AwgB_i in list(itertools.product(*param_opt_candidates)):
+            A_opt, w_opt, g_opt, B_opt = AwgB_i
+
+            def learned_sinusoid_func(t, x):
+                return A_opt * np.sin(w_opt * x - g_opt * t) + B_opt * x
+
+            Y_val_learn = learned_sinusoid_func(X_val[:, 0], X_val[:, 1])
+            err = np.linalg.norm(Y_val_learn - Y_val) / np.linalg.norm(Y_val)
+            val_acc_i = 1 - err
+
+            # Update if validation accuracy increases
+            if val_acc_i >= val_acc:
+                val_acc = val_acc_i
+                param_opt = AwgB_i
+
+        # print accuracies
+        A_opt, w_opt, g_opt, B_opt = param_opt
+
+        def learned_sinusoid_func(t, x):
+            return A_opt * np.sin(w_opt * x - g_opt * t) + B_opt * x
+
+        Y_train_learn = learned_sinusoid_func(X_train[:, 0], X_train[:, 1])
+        err = np.linalg.norm(Y_train_learn - Y_train) / np.linalg.norm(Y_train)
+        train_acc = 1 - err
+
+        Y_test_learn = learned_sinusoid_func(X_test[:, 0], X_test[:, 1])
+        err = np.linalg.norm(Y_test_learn - Y_test) / np.linalg.norm(Y_test)
+        test_acc = 1 - err
+
+        print("Train accuracy:", train_acc)
+        print("Validation accuracy:", val_acc)
+        print("Test accuracy:", test_acc)
+        return param_opt, param_hist
 
 
 def var_ensemble_train(X, Y, n_samples, trials, replace=False):
@@ -180,6 +245,65 @@ def regression(
         return regression_coeff
 
 
+def kernel_density_fit(param_hist, bandwidth=1):
+    """
+    Find local maxima and mean of histograms using kernel density estimate.
+    Applies a kernel density estimate to histogram of data sets, then returns x value
+    of local maxima for kernel density function and mean values of data that is fitted.
+
+    Also returns the learned kernel models
+    """
+
+    # Create kernel density objects
+    kde_models = []
+    for i in range(param_hist.shape[1]):
+        kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth)
+        kde.fit(param_hist[:, i].reshape(-1, 1))
+        kde_models.append(kde)
+
+    # instantiate list to store optimal param candidates
+    param_opt_canidates = []
+    for i, kde_model in enumerate(kde_models):
+        data = param_hist[:, i]
+
+        # grab mean value from each column
+        mean_val = np.mean(data)
+
+        # create linspace
+        x_min = min(data)
+        x_max = max(data)
+        x_spread = max(np.abs(x_max - mean_val), np.abs(x_min - mean_val))
+        buffer = 1.1
+        x0 = mean_val - x_spread * buffer
+        x1 = mean_val + x_spread * buffer
+        x = np.linspace(x0, x1, 1000)
+
+        # Create the density esimtae for each array
+        log_density = kde_model.score_samples(x[:, None])
+
+        # Evaluate mean_val on kde fit
+        log_density_mean_x = kde_model.score_samples(np.array(mean_val).reshape(1, -1))
+        kde_mean_x = np.exp(log_density_mean_x)[0]
+
+        # Find other local maxima
+        local_maxima_indicies, _ = find_peaks(np.exp(log_density))
+
+        # store opt_params found
+        param_opt_i = [mean_val]
+        for max_index in local_maxima_indicies:
+            max_index_val_x = np.array(x[max_index]).reshape(1, -1)
+            log_density_max_x = kde_model.score_samples(max_index_val_x)
+            kde_max_x = np.exp(log_density_max_x)[0]
+
+            # Ensure max is larger than mean
+            if kde_max_x >= kde_mean_x:
+                param_opt_i.append(x[max_index])
+
+        param_opt_canidates.append(param_opt_i)
+
+    return param_opt_canidates, kde_models
+
+
 def flatten_vari_dist(vari_dist):
     """
     Convert vari_dist list [(t0,[[x0,y0],...[xn,yn]]),...]
@@ -240,62 +364,3 @@ def sinusoid_regression(X, Y, t, initial_guess):
     params, covariance = curve_fit(sinusoid, X, Y, initial_guess)
     A_opt, w_opt, gamma_opt, B_opt = params
     return (A_opt, w_opt, gamma_opt, B_opt)
-
-
-def kernel_density_fit(params_hist, bandwidth=1):
-    """
-    Find local maxima and mean of histograms using kernel density estimate.
-    Applies a kernel density estimate to histogram of data sets, then returns x value
-    of local maxima for kernel density function and mean values of data that is fitted.
-
-    Also returns the learned kernel models
-    """
-
-    # Create kernel density objects
-    kde_models = []
-    for i in range(params_hist.shape[1]):
-        kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth)
-        kde.fit(params_hist[:, i].reshape(-1, 1))
-        kde_models.append(kde)
-
-    # instantiate list to store optimal param candidates
-    param_opt_canidates = []
-    for i, kde_model in enumerate(kde_models):
-        data = params_hist[:, i]
-
-        # grab mean value from each column
-        mean_val = np.mean(data)
-
-        # create linspace
-        x_min = min(data)
-        x_max = max(data)
-        x_spread = max(np.abs(x_max - mean_val), np.abs(x_min - mean_val))
-        buffer = 1.1
-        x0 = mean_val - x_spread * buffer
-        x1 = mean_val + x_spread * buffer
-        x = np.linspace(x0, x1, 1000)
-
-        # Create the density esimtae for each array
-        log_density = kde_model.score_samples(x[:, None])
-
-        # Evaluate mean_val on kde fit
-        log_density_mean_x = kde_model.score_samples(np.array(mean_val).reshape(1, -1))
-        kde_mean_x = np.exp(log_density_mean_x)[0]
-
-        # Find other local maxima
-        local_maxima_indicies, _ = find_peaks(np.exp(log_density))
-
-        # store opt_params found
-        param_opt_i = [mean_val]
-        for max_index in local_maxima_indicies:
-            max_index_val_x = np.array(x[max_index]).reshape(1, -1)
-            log_density_max_x = kde_model.score_samples(max_index_val_x)
-            kde_max_x = np.exp(log_density_max_x)[0]
-
-            # Ensure max is larger than mean
-            if kde_max_x >= kde_mean_x:
-                param_opt_i.append(x[max_index])
-
-        param_opt_canidates.append(param_opt_i)
-
-    return param_opt_canidates, kde_models
