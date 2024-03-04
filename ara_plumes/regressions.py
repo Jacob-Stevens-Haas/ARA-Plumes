@@ -245,7 +245,10 @@ def sinusoid_regression(X, Y, t, initial_guess):
 def kernel_density_fit(params_hist, bandwidth=1):
     """
     Find local maxima and mean of histograms using kernel density estimate.
+    Applies a kernel density estimate to histogram of data sets, then returns x value
+    of local maxima for kernel density function. Also returns mean values.
     """
+
     # Create kernel density objects
     kde_models = []
     for i in range(params_hist.shape[1]):
@@ -253,11 +256,12 @@ def kernel_density_fit(params_hist, bandwidth=1):
         kde.fit(params_hist[:, i].reshape(-1, 1))
         kde_models.append(kde)
 
+    # instantiate list to store optimal param candidates
     param_opt_canidates = []
     for i, kde_model in enumerate(kde_models):
         data = params_hist[:, i]
 
-        # grab mean value
+        # grab mean value from each column
         mean_val = np.mean(data)
 
         # create linspace
