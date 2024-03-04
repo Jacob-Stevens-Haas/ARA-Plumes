@@ -56,7 +56,7 @@ def var_ensemble_learn(
             titles = ["A_opt", "w_opt", "g_opt", "B_opt"]
 
             for i in range(num_cols):
-                axs[i].hist(param_hist[:, i], bins=50)
+                axs[i].hist(param_hist[:, i], bins=50, density=True)
                 axs[i].set_title(titles[i])
                 axs[i].set_xlabel("val")
                 axs[i].set_ylabel("Frequency")
