@@ -283,7 +283,7 @@ def kernel_density_fit(params_hist, bandwidth=1):
         kde_mean_x = np.exp(log_density_mean_x)[0]
 
         # Find other local maxima
-        local_maxima_indicies = find_peaks(np.exp(log_density))
+        local_maxima_indicies, _ = find_peaks(np.exp(log_density))
 
         # store opt_params found
         param_opt_i = [mean_val]
