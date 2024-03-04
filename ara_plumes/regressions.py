@@ -246,7 +246,9 @@ def kernel_density_fit(params_hist, bandwidth=1):
     """
     Find local maxima and mean of histograms using kernel density estimate.
     Applies a kernel density estimate to histogram of data sets, then returns x value
-    of local maxima for kernel density function. Also returns mean values.
+    of local maxima for kernel density function and mean values of data that is fitted.
+
+    Also returns the learned kernel models
     """
 
     # Create kernel density objects
@@ -296,4 +298,4 @@ def kernel_density_fit(params_hist, bandwidth=1):
 
         param_opt_canidates.append(param_opt_i)
 
-    return param_opt_canidates
+    return param_opt_canidates, kde_models
