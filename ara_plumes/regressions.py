@@ -56,10 +56,11 @@ def var_ensemble_learn(
             titles = ["A_opt", "w_opt", "g_opt", "B_opt"]
 
             for i in range(num_cols):
-                axs[i].hist(param_hist[:, i], bins=50, density=True)
+                axs[i].hist(param_hist[:, i], bins=50, density=True, alpha=0.8)
                 axs[i].set_title(titles[i])
                 axs[i].set_xlabel("val")
                 axs[i].set_ylabel("Frequency")
+                axs[i].axvline(param_opt[i], c="red", linestyle="--")
 
             plt.tight_layout()
             plt.show()
@@ -78,7 +79,7 @@ def var_ensemble_learn(
         # randomize selection
         indices = np.arange(len(X_train))
         shuffled_indicies = np.random.permutation(indices)
-        train_index = int(len(X_train) * 0.8)
+        train_index = int(len(X_train) * 0.9)
 
         # Split X_train & Y_train into train and validation set
         X_val = X_train[shuffled_indicies[train_index:]]
@@ -133,6 +134,27 @@ def var_ensemble_learn(
         print("Train accuracy:", train_acc)
         print("Validation accuracy:", val_acc)
         print("Test accuracy:", test_acc)
+
+        # Plotting
+        if plotting is True:
+            # Plot histograms first
+            num_cols = param_hist.shape[1]
+            fig, axs = plt.subplots(1, num_cols, figsize=(15, 3))
+
+            titles = ["A_opt", "w_opt", "g_opt", "B_opt"]
+
+            for i in range(num_cols):
+                axs[i].hist(param_hist[:, i], bins=50, density=True, alpha=0.8)
+                axs[i].set_title(titles[i])
+                axs[i].set_xlabel("val")
+                axs[i].set_ylabel("Frequency")
+                # plot candidate options
+                for candidate_j in param_opt_candidates[i]:
+                    axs[i].axvline(candidate_j, c="black", linestyle="--")
+                # plot selected options
+                axs[i].axvline(param_opt[i], c="red", linestyle="--")
+            plt.tight_layout()
+            plt.show()
         return param_opt, param_hist
 
 
