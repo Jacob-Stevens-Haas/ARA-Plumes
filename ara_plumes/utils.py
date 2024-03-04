@@ -443,12 +443,17 @@ def create_vari_dist_movie(vari_dist, save_path=None):
         plt.show()
 
 
-def create_ROM_plume_movie(PLUME_object, save_path=None):
+def create_ROM_plume_movie(PLUME_object, frame_range=None, save_path=None):
     """
     Create the ROM plume movie using the trained PLUME model
     """
 
-    num_frames = len(PLUME_object.mean_poly)
+    if frame_range is None:
+        num_frames = len(PLUME_object.mean_poly)
+    elif isinstance(frame_range, int) is True:
+        num_frames = range(frame_range, len(PLUME_object.mean_poly))
+    elif isinstance(frame_range, list) is True:
+        num_frames = range(frame_range[0], frame_range[1])
 
     def generate_plot(frame):
         PLUME_object.plot_ROM_plume(frame, show_plot=False)
