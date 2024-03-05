@@ -149,8 +149,8 @@ def var_ensemble_learn(
                 axs[i].set_xlabel("val")
                 axs[i].set_ylabel("Frequency")
                 # plot candidate options
-                for candidate_j in param_opt_candidates[i]:
-                    axs[i].axvline(candidate_j, c="black", linestyle="--")
+                # for candidate_j in param_opt_candidates[i]:
+                #     axs[i].axvline(candidate_j, c="black", linestyle="--")
                 # plot selected options
                 axs[i].axvline(param_opt[i], c="red", linestyle="--")
             plt.tight_layout()
