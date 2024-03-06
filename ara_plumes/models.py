@@ -1505,6 +1505,8 @@ class PLUME:
 
         self.var2_func = var2_func
 
+        return var1_param_opt, var2_param_opt
+
     def plot_ROM_plume(self, t, show_plot=True):
         """
         Plot a single frame, at time t, of the ROM plume
