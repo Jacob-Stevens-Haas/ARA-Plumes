@@ -853,22 +853,6 @@ class PLUME:
                 dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
                 intersection_points_i = contour.reshape(-1, 2)[dist_mask]
                 intersection_points.append(intersection_points_i)
-                # if len(intersection_points_i) != 0:
-                #     intersection_points.append(intersection_points_i)
-
-            # # Reshape array
-            # try:
-            #     intersection_points = np.array(
-            #         intersection_points
-            #     ).reshape(-1,2)
-            # except Exception as e:
-            #     for arr in intersection_points:
-            #         print("arr:", arr)
-            #         print("arr type:", type(arr))
-            #         print(intersection_points)
-            # print("intersection_point:", intersection_points)
-
-            # ip_i is intersection_points_i
 
             # TO DO: re translate these - DONE
             for ip_i in intersection_points:
