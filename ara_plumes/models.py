@@ -586,21 +586,7 @@ class PLUME:
         return (contour_img, selected_contours)
 
     def concentric_circle(
-        self,
-        img,
-        contour_img,
-        selected_contours,
-        radii=50,
-        num_of_circs=30,
-        boundary_ring=True,
-        interior_ring=False,
-        interior_scale=3 / 5,
-        rtol=1e-2,
-        atol=1e-6,
-        poly_deg=2,
-        mean_smoothing=True,
-        mean_smoothing_sigma=2,
-        quiet=True,
+        self, img, contour_img, selected_contours, concentric_circle_kws={}
     ):
         """
         Applies concentric cirlces to a single frame (gray or BGR) from video
@@ -618,45 +604,50 @@ class PLUME:
         selected_contours: list
             List of contours learned from get_contour
 
-        radii: int, optional (default 50)
-            The radii used to step out in concentric circles method.
+        concentric_circle_kws: dict, default empty
 
-        num_of_circles: int, optional (default 22)
-            number of circles and radii steps to take in concentric circles method.
+            radii: int, optional (default 50)
+                The radii used to step out in concentric circles method.
 
-        fit_poly: bool, optional (default True)
-            For plotting and image return. Specify whether or not to include
-            learned polynomials in returned image.
+            num_of_circles: int, optional (default 22)
+                number of circles and radii steps to take in concentric circles method.
 
-        interior_ring, boundary_ring: bools, optional (default False)
-            For plotting and image return. Specify whether or not to include the
-            concentric circle rings (boundary_ring)
-            and/or the focusing rings (interior_ring) in returned image.
+            fit_poly: bool, optional (default True)
+                For plotting and image return. Specify whether or not to include
+                learned polynomials in returned image.
 
-        interior_scale: float, optional (default 3/5)
-            Used to scale down the radii used on the focusing rings. Called in
-            find_next_center
+            interior_ring, boundary_ring: bools, optional (default False)
+                For plotting and image return. Specify whether or not to include the
+                concentric circle rings (boundary_ring)
+                and/or the focusing rings (interior_ring) in returned image.
 
-        rtol, atol: float, optional (default 1e-2, 1e-6)
-            Relative and absolute tolerances. Used in np.isclose function in
-            find_max_on_boundary and find_next_center functions.
-            Checks if points are close to selected radii.
+            interior_scale: float, optional (default 3/5)
+                Used to scale down the radii used on the focusing rings. Called in
+                find_next_center
 
-        poly_deg: int, optional (default 2)
-            Specifying degree of polynomail to learn on points selected from
-            concentric circle method.
+            rtol, atol: float, optional (default 1e-2, 1e-6)
+                Relative and absolute tolerances. Used in np.isclose function in
+                find_max_on_boundary and find_next_center functions.
+                Checks if points are close to selected radii.
 
-        x_less, x_plus: int, optional (default 600, 0)
-            For plotting and image return. Specifically to delegate more points
-            to plot learned polynomial on returned image.
+            poly_deg: int, optional (default 2)
+                Specifying degree of polynomail to learn on points selected from
+                concentric circle method.
 
-        mean_smoothing: bool, optional (default True)
-            Applying additional gaussian filter to learned concentric circle
-            points. Only in y direction
+            x_less, x_plus: int, optional (default 600, 0)
+                For plotting and image return. Specifically to delegate more points
+                to plot learned polynomial on returned image.
 
-        mean_smoothing_sigma: int, optional (default 2)
+            mean_smoothing: bool, optional (default True)
+                Applying additional gaussian filter to learned concentric circle
+                points. Only in y direction
+
+            mean_smoothing_sigma: int, optional (default 2)
             Sigma parameter to be passed into gaussian_filter function when
             ``mean_smoothing = True``.
+
+            quiet: bool, default True
+            suppresses error output
 
 
         Returns:
@@ -682,6 +673,52 @@ class PLUME:
         contour_img: np.ndarray
             Image with concentric circle method applied and plotting applied.
         """
+        # Declare kws
+        if "radii" in concentric_circle_kws:
+            radii = concentric_circle_kws["radii"]
+        else:
+            radii = 50
+        if "num_of_circs" in concentric_circle_kws:
+            num_of_circs = concentric_circle_kws["num_of_circs"]
+        else:
+            num_of_circs = 30
+        if "boundary_ring" in concentric_circle_kws:
+            boundary_ring = concentric_circle_kws["boundary_ring"]
+        else:
+            boundary_ring = True
+        if "interior_ring" in concentric_circle_kws:
+            interior_ring = concentric_circle_kws["interior_ring"]
+        else:
+            interior_ring = False
+        if "interior_scale" in concentric_circle_kws:
+            interior_scale = concentric_circle_kws["interior_scale"]
+        else:
+            interior_scale = 3 / 5
+        if "rtol" in concentric_circle_kws:
+            rtol = concentric_circle_kws["rtol"]
+        else:
+            rtol = 1e-2
+        if "atol" in concentric_circle_kws:
+            atol = concentric_circle_kws["atol"]
+        else:
+            atol = 1e-6
+        if "poly_deg" in concentric_circle_kws:
+            poly_deg = concentric_circle_kws["poly_deg"]
+        else:
+            poly_deg = 2
+        if "mean_smoothing" in concentric_circle_kws:
+            mean_smoothing = concentric_circle_kws["mean_smoothing"]
+        else:
+            mean_smoothing = True
+        if "mean_smoothing_sigma" in concentric_circle_kws:
+            mean_smoothing_sigma = concentric_circle_kws["mean_smoothing_sigma"]
+        else:
+            mean_smoothing_sigma = 2
+        if "quiet" in concentric_circle_kws:
+            quiet = concentric_circle_kws["quiet"]
+        else:
+            quiet = True
+
         # Check that original center has been declared
         if not isinstance(self.orig_center, tuple):
             raise TypeError(
