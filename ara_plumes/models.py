@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 import cv2
 import IPython
@@ -154,7 +155,7 @@ class PLUME:
 
         return
 
-    def set_center(self, frame: int | None = None) -> None:
+    def set_center(self, frame: Optional[int] = None) -> None:
         """Set the plume source in the video"""
         self.orig_center = click_coordinates(self.video_capture, frame)
 
@@ -1586,7 +1587,7 @@ class var_func_on_poly:
 
 
 def click_coordinates(
-    vid: cv2.VideoCapture, frame: int | None = None
+    vid: cv2.VideoCapture, frame: Optional[int] = None
 ) -> tuple[float, float]:
     """
     Scan to a frame and get coordinates of user click.
