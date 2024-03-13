@@ -1,3 +1,6 @@
+import logging
+from typing import Optional
+
 import cv2
 import IPython
 import matplotlib.pyplot as plt
@@ -10,6 +13,7 @@ from ara_plumes import utils
 
 # For displaying clips in Jupyter notebooks
 # from IPython.display import Image, display
+logger = logging.getLogger(__name__)
 
 
 class PLUME:
@@ -151,44 +155,9 @@ class PLUME:
 
         return
 
-    def get_center(self, frame=None):
-        """
-        QUITE BROKEN RIGHT NOW - Doesn't seem to want to work with
-        Jupyternotebook.
-        Allows users to easily get coordinate point values from image.
-        Args:
-            frame (int): Which frame to select from. Default is None type which
-            gives middle frame of video.
-        Returns:
-            orig_center (tuple): Assigns tuple of selected coordinate to
-            self.orig_center
-        """
-        video_capture = self.video_capture
-        tot_frames = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
-        middle_frame_id = tot_frames // 2
-        video_capture.set(cv2.CAP_PROP_POS_FRAMES, middle_frame_id)
-
-        ret, frame = video_capture.read()
-
-        video = self.video_capture
-        ret, frame = video.read()
-
-        if ret:
-            plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-            plt.axis("off")
-            plt.show()
-
-        # allow users to select point
-        print("made it to pre selected points")
-        selected_point = plt.ginput(n=1, timeout=0)
-        print("made it to after selection.")
-        if selected_point:
-            x, y = selected_point[0]
-            self.orig_center = (x, y)
-            print(f"Selected point: ({x}, {y})")
-        else:
-            print("No point selected.")
-        return
+    def set_center(self, frame: Optional[int] = None) -> None:
+        """Set the plume source in the video"""
+        self.orig_center = click_coordinates(self.video_capture, frame)
 
     def train(
         self,
@@ -1615,3 +1584,51 @@ class var_func_on_poly:
             for sol in sols:
                 if sol[1] <= self.poly_func(t, sol[0]):
                     return sol
+
+
+def click_coordinates(
+    vid: cv2.VideoCapture, frame: Optional[int] = None
+) -> tuple[float, float]:
+    """
+    Scan to a frame and get coordinates of user click.
+
+    Can be used to identify the plume source in video coordinates.
+
+    Args:
+        frame: Which frame to select from. Default is None, which
+            gives middle frame of video.
+
+    Returns:
+        User click in video_coordinates
+
+    Raises:
+        ValueError: If frame has no data or cannot reach frame
+        RuntimeError: If user input is closed externally
+    """
+
+    if frame is None:
+        tot_frames = int(vid.get(cv2.CAP_PROP_FRAME_COUNT))
+        frame = tot_frames // 2
+
+    # get frame image
+    vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
+    for _ in range(frame):
+        vid.grab()
+    found_frame, image = vid.retrieve()
+    vid.set(cv2.CAP_PROP_POS_FRAMES, 0)
+
+    if not found_frame:
+        raise ValueError(f"Cannot get image from frame {frame}")
+    logger.debug("made it to pre selected points")
+
+    # allow users to select point
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    ax.axis("off")
+    selected_point = plt.ginput(n=1, timeout=0)[0]
+    plt.close(fig)
+    logger.debug("Point-selection input closed")
+    if not selected_point:
+        raise RuntimeError("Point not selected")
+    return selected_point
