@@ -423,8 +423,7 @@ class PLUME:
             var1_points_k = out_data[1]
             var2_points_k = out_data[2]
             frame = out_data[3]
-            if len(var2_points_k) == 0:
-                print("mistake")
+
             # Apply regression method to selected points
             out_data = self.regression(
                 points_mean=mean_points_k,
@@ -510,6 +509,42 @@ class PLUME:
         selected_contours: list
             Returns list of num_of_contours largest contours detected in image.
         """
+        # ######################
+        # # Apply Thresholding #
+        # ######################
+
+        # # OTSU thresholding -- automatically choose params for selecting contours
+        # _, threshold = cv2.threshold(
+        #     img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        # )
+
+        # #################
+        # # Find Contours #
+        # #################
+        # contours, _ = cv2.findContours(
+        #     threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        # )
+
+        # # Select n largest contours
+        # n = 1
+        # contours = sorted(contours, key=cv2.contourArea, reverse=True)
+        # selected_contours = contours[:n]
+
+        # ###########################
+        # # Apply Contour Smoothing #
+        # ###########################
+
+        # # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
+        # if contour_smoothing is True:
+        #     smoothed_contours = []
+
+        #     for contour in selected_contours:
+        #         smoothed_contours.append(
+        #             cv2.approxPolyDP(contour, contour_smoothing_eps, True)
+        #         )
+
+        #     selected_contours = smoothed_contours
+
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -654,45 +689,8 @@ class PLUME:
                 " use find_center function."
             )
 
-        # # print(img.shape)
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # ######################
-        # # Apply Thresholding #
-        # ######################
-
-        # # OTSU thresholding -- automatically choose params for selecting contours
-        # _, threshold = cv2.threshold(
-        #     img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        # )
-
-        # #################
-        # # Find Contours #
-        # #################
-        # contours, _ = cv2.findContours(
-        #     threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        # )
-
-        # # Select n largest contours
-        # n = 1
-        # contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        # selected_contours = contours[:n]
-
-        # ###########################
-        # # Apply Contour Smoothing #
-        # ###########################
-
-        # # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
-        # if contour_smoothing is True:
-        #     smoothed_contours = []
-
-        #     for contour in selected_contours:
-        #         smoothed_contours.append(
-        #             cv2.approxPolyDP(contour, contour_smoothing_eps, True)
-        #         )
-
-        #     selected_contours = smoothed_contours
 
         # ##########################
         # # Draw contours on image #
@@ -701,20 +699,9 @@ class PLUME:
         red_color = (0, 0, 255)
         blue_color = (255, 0, 0)
 
-        # contour_img = img.copy()
-        # cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
-        # cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
-
-        # Make break here for contour.
-
         ############################
         # Apply Concentric Circles #
         ############################
-
-        # # get contours
-        # contour_img, img_gray, selected_contours = self.get_contour(
-        #     img
-        # )gi
 
         # array of distance of each point on contour to original center
         contour_dist_list = []
