@@ -327,7 +327,7 @@ def create_video(directory, output_file, fps=15, extension="png", folder="movies
     video_writer = cv2.VideoWriter(output_file, fourcc, fps, (width, height))
 
     # Write each image to the video writer
-    for png_file in png_files:
+    for png_file in tqdm(png_files):
         image_path = os.path.join(directory, png_file)
         image = cv2.imread(image_path)
         video_writer.write(image)
