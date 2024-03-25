@@ -685,52 +685,6 @@ class PLUME:
         contour_img: np.ndarray
             Image with concentric circle method applied and plotting applied.
         """
-        # Declare kws
-        if "radii" in concentric_circle_kws:
-            radii = concentric_circle_kws["radii"]
-        else:
-            radii = 50
-        if "num_of_circs" in concentric_circle_kws:
-            num_of_circs = concentric_circle_kws["num_of_circs"]
-        else:
-            num_of_circs = 30
-        if "boundary_ring" in concentric_circle_kws:
-            boundary_ring = concentric_circle_kws["boundary_ring"]
-        else:
-            boundary_ring = True
-        if "interior_ring" in concentric_circle_kws:
-            interior_ring = concentric_circle_kws["interior_ring"]
-        else:
-            interior_ring = False
-        if "interior_scale" in concentric_circle_kws:
-            interior_scale = concentric_circle_kws["interior_scale"]
-        else:
-            interior_scale = 3 / 5
-        if "rtol" in concentric_circle_kws:
-            rtol = concentric_circle_kws["rtol"]
-        else:
-            rtol = 1e-2
-        if "atol" in concentric_circle_kws:
-            atol = concentric_circle_kws["atol"]
-        else:
-            atol = 1e-6
-        if "poly_deg" in concentric_circle_kws:
-            poly_deg = concentric_circle_kws["poly_deg"]
-        else:
-            poly_deg = 2
-        if "mean_smoothing" in concentric_circle_kws:
-            mean_smoothing = concentric_circle_kws["mean_smoothing"]
-        else:
-            mean_smoothing = True
-        if "mean_smoothing_sigma" in concentric_circle_kws:
-            mean_smoothing_sigma = concentric_circle_kws["mean_smoothing_sigma"]
-        else:
-            mean_smoothing_sigma = 2
-        if "quiet" in concentric_circle_kws:
-            quiet = concentric_circle_kws["quiet"]
-        else:
-            quiet = True
-
         # Check that original center has been declared
         if not isinstance(self.orig_center, tuple):
             raise TypeError(
