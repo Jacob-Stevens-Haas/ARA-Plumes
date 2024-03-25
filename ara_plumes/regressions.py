@@ -115,7 +115,7 @@ def var_ensemble_learn(
             # Update if validation accuracy increases
             if val_acc_i >= val_acc:
                 val_acc = val_acc_i
-                param_opt = AwgB_i
+                param_opt = cast(tuple[float, float, float, float], AwgB_i)
 
         # print accuracies
         A_opt, w_opt, g_opt, B_opt = param_opt
