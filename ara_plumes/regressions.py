@@ -158,7 +158,15 @@ def var_ensemble_learn(
         return param_opt, param_hist
 
 
-def var_ensemble_train(X, Y, n_samples, trials, replace=False):
+def var_ensemble_train(
+    X: Float2D,
+    Y: Float2D,
+    n_samples: int,
+    trials: int,
+    replace: bool=False
+) -> tuple[
+     np.ndarray[tuple[Literal[4]], NpFlt],
+     np.ndarray[tuple[int, Literal[4]], NpFlt]]:
     """
     Ensemble sinusoid regression fit to data
     """
