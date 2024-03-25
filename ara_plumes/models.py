@@ -616,7 +616,6 @@ class PLUME:
         selected_contours: list
             List of contours learned from get_contour
 
-        concentric_circle_kws: dict, default empty
 
             radii: int, optional (default 50)
                 The radii used to step out in concentric circles method.
