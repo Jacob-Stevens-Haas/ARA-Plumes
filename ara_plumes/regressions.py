@@ -8,6 +8,11 @@ from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
 
 
+NpFlt = np.dtype[np.floating[NBitBase]]
+Float1D = np.ndarray[tuple[int], NpFlt]
+Float2D = np.ndarray[tuple[int, int], NpFlt]
+FloatND = np.ndarray[Any, NpFlt]
+
 def var_ensemble_learn(
     X_train: Float2D,
     Y_train: Float2D,
