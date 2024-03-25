@@ -414,7 +414,7 @@ class PLUME:
                 frame,
                 contour_img=contour_img,
                 selected_contours=selected_contours,
-                concentric_circle_kws=concentric_circle_kws,
+                **concentric_circle_kws,
             )
             # DONE: FIX THIS: OUT_DATA[I][1:]
             mean_points_k = out_data[0]
