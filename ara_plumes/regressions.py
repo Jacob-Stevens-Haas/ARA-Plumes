@@ -9,17 +9,20 @@ from tqdm import tqdm
 
 
 def var_ensemble_learn(
-    X_train,
-    Y_train,
-    X_test,
-    Y_test,
-    n_samples,
-    trials,
-    replace=False,
-    kernel_fit=False,
-    bandwidth=1,
-    plotting=True,
-):
+    X_train: Float2D,
+    Y_train: Float2D,
+    X_test: Float2D,
+    Y_test: Float2D,
+    n_samples: int,
+    trials: int,
+    replace: bool=False,
+    kernel_fit: bool=False,
+    bandwidth: int=1,
+    plotting: bool=True,
+) -> tuple[
+    np.ndarray[tuple[Literal[4]], NpFlt] | tuple[float, float, float, float],
+    np.ndarray[tuple[int, Literal[4]], NpFlt]
+]:
     """
     Apply ensembling to training data via sinusoid regression and provide training
     and test accuracy. Produce histogram of learned params.
