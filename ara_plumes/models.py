@@ -584,7 +584,21 @@ class PLUME:
         return (contour_img, selected_contours)
 
     def concentric_circle(
-        self, img, contour_img, selected_contours, concentric_circle_kws={}
+        self,
+        img, 
+        contour_img, 
+        selected_contours, 
+        radii=50,
+        num_of_circles=30,
+        boundary_ring=True,
+        interior_ring=False,
+        interior_scale=3/5,
+        rtol=1e-2,
+        atol=1e-6,
+        poly_deg=2,
+        mean_smoothing=True,
+        mean_smoothing_sigma=2,
+        quiet=True,
     ):
         """
         Applies concentric cirlces to a single frame (gray or BGR) from video
