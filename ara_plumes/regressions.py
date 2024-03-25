@@ -24,7 +24,7 @@ def var_ensemble_learn(
     Apply ensembling to training data via sinusoid regression and provide training
     and test accuracy. Produce histogram of learned params.
     """
-    if kernel_fit is False:
+    if not kernel_fit:
         param_opt, param_hist = var_ensemble_train(
             X=X_train, Y=Y_train, n_samples=n_samples, trials=trials, replace=replace
         )
