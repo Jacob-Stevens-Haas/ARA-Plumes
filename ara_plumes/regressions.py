@@ -2,6 +2,7 @@ import itertools
 from typing import Any, cast, Literal
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NBitBase
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from sklearn.neighbors import KernelDensity
