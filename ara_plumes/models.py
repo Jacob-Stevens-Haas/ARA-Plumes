@@ -574,49 +574,48 @@ class PLUME:
         selected_contours: list
             List of contours learned from get_contour
 
+        radii: int, optional (default 50)
+            The radii used to step out in concentric circles method.
 
-            radii: int, optional (default 50)
-                The radii used to step out in concentric circles method.
+        num_of_circles: int, optional (default 22)
+            number of circles and radii steps to take in concentric circles method.
 
-            num_of_circles: int, optional (default 22)
-                number of circles and radii steps to take in concentric circles method.
+        fit_poly: bool, optional (default True)
+            For plotting and image return. Specify whether or not to include
+            learned polynomials in returned image.
 
-            fit_poly: bool, optional (default True)
-                For plotting and image return. Specify whether or not to include
-                learned polynomials in returned image.
+        interior_ring, boundary_ring: bools, optional (default False)
+            For plotting and image return. Specify whether or not to include the
+            concentric circle rings (boundary_ring)
+            and/or the focusing rings (interior_ring) in returned image.
 
-            interior_ring, boundary_ring: bools, optional (default False)
-                For plotting and image return. Specify whether or not to include the
-                concentric circle rings (boundary_ring)
-                and/or the focusing rings (interior_ring) in returned image.
+        interior_scale: float, optional (default 3/5)
+            Used to scale down the radii used on the focusing rings. Called in
+            find_next_center
 
-            interior_scale: float, optional (default 3/5)
-                Used to scale down the radii used on the focusing rings. Called in
-                find_next_center
+        rtol, atol: float, optional (default 1e-2, 1e-6)
+            Relative and absolute tolerances. Used in np.isclose function in
+            find_max_on_boundary and find_next_center functions.
+            Checks if points are close to selected radii.
 
-            rtol, atol: float, optional (default 1e-2, 1e-6)
-                Relative and absolute tolerances. Used in np.isclose function in
-                find_max_on_boundary and find_next_center functions.
-                Checks if points are close to selected radii.
+        poly_deg: int, optional (default 2)
+            Specifying degree of polynomail to learn on points selected from
+            concentric circle method.
 
-            poly_deg: int, optional (default 2)
-                Specifying degree of polynomail to learn on points selected from
-                concentric circle method.
+        x_less, x_plus: int, optional (default 600, 0)
+            For plotting and image return. Specifically to delegate more points
+            to plot learned polynomial on returned image.
 
-            x_less, x_plus: int, optional (default 600, 0)
-                For plotting and image return. Specifically to delegate more points
-                to plot learned polynomial on returned image.
+        mean_smoothing: bool, optional (default True)
+            Applying additional gaussian filter to learned concentric circle
+            points. Only in y direction
 
-            mean_smoothing: bool, optional (default True)
-                Applying additional gaussian filter to learned concentric circle
-                points. Only in y direction
+        mean_smoothing_sigma: int, optional (default 2)
+        Sigma parameter to be passed into gaussian_filter function when
+        ``mean_smoothing = True``.
 
-            mean_smoothing_sigma: int, optional (default 2)
-            Sigma parameter to be passed into gaussian_filter function when
-            ``mean_smoothing = True``.
-
-            quiet: bool, default True
-            suppresses error output
+        quiet: bool, default True
+        suppresses error output
 
 
         Returns:
