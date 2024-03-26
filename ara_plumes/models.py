@@ -500,41 +500,6 @@ class PLUME:
         selected_contours: list
             Returns list of num_of_contours largest contours detected in image.
         """
-        # ######################
-        # # Apply Thresholding #
-        # ######################
-
-        # # OTSU thresholding -- automatically choose params for selecting contours
-        # _, threshold = cv2.threshold(
-        #     img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        # )
-
-        # #################
-        # # Find Contours #
-        # #################
-        # contours, _ = cv2.findContours(
-        #     threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        # )
-
-        # # Select n largest contours
-        # n = 1
-        # contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        # selected_contours = contours[:n]
-
-        # ###########################
-        # # Apply Contour Smoothing #
-        # ###########################
-
-        # # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
-        # if contour_smoothing is True:
-        #     smoothed_contours = []
-
-        #     for contour in selected_contours:
-        #         smoothed_contours.append(
-        #             cv2.approxPolyDP(contour, contour_smoothing_eps, True)
-        #         )
-
-        #     selected_contours = smoothed_contours
 
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
