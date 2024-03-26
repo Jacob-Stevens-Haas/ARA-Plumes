@@ -250,13 +250,6 @@ class PLUME:
         display_vid: bool (default True)
             Display concentric_circles in jupyter notebook window.
 
-        mean_smoothing: bool (default True)
-            Additional gaussian smoothing for leaning concentric
-            circle points
-        mean_smoothing_sigma: int (default 2)
-            Standard variation for gaussian kernel smoother
-            or mean_smoothing
-
         regression_method: str (default "poly")
             Regression method to be applied to selected points in
             concentric circle pipeline.
@@ -585,14 +578,14 @@ class PLUME:
 
     def concentric_circle(
         self,
-        img, 
-        contour_img, 
-        selected_contours, 
+        img,
+        contour_img,
+        selected_contours,
         radii=50,
-        num_of_circles=30,
+        num_of_circs=30,
         boundary_ring=True,
         interior_ring=False,
-        interior_scale=3/5,
+        interior_scale=3 / 5,
         rtol=1e-2,
         atol=1e-6,
         poly_deg=2,
