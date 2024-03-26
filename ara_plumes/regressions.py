@@ -58,7 +58,7 @@ def var_ensemble_learn(
         print("test accuracy:", test_acc)
 
         # plot histograms
-        if plotting is True:
+        if plotting:
             num_cols = param_hist.shape[1]
             fig, axs = plt.subplots(1, num_cols, figsize=(15, 3))
 
