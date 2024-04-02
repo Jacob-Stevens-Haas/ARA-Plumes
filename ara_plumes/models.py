@@ -395,7 +395,7 @@ class PLUME:
                 orig_center=self.orig_center,
                 selected_contours=selected_contours,
                 regression_method=regression_method,
-                regression_kws=regression_kws,
+                **regression_kws,
             )
 
             mean_array[k] = out_data[0]
@@ -845,7 +845,11 @@ class PLUME:
         orig_center=None,
         selected_contours=None,
         regression_method="poly",
-        regression_kws={},
+        poly_deg=2,
+        x_less=600,
+        x_plus=0,
+        BGR_color=(0, 0, 255),
+        line_thickness=5,
     ):
         """
         Apply selected regression method to learned points from concentric_circle.
@@ -873,8 +877,20 @@ class PLUME:
         regression_method: str (default "poly")
             Regression method used to predict path of plume.
 
-        regression_kws: dict (default {})
-            additional arguments used for selected regression_method.
+        poly_deg: int (default 2)
+            degree of polynomial used for regression (either explicit or parametric)
+
+        x_less: int (default 600)
+            buffer on linspace for plotting on original image
+
+        x_plus: int (default 0)
+            buffer on linspace for plotting on original image
+
+        BGR_color: tuple (default (0,0,255))
+            color of polynomial lines plotted on image
+
+        line_thickness: int (default 5)
+            thickeness of polynomials plotted on image
 
         Returns:
         --------
@@ -892,27 +908,6 @@ class PLUME:
         """
 
         if regression_method == "poly":
-            if "poly_deg" in regression_kws:
-                poly_deg = regression_kws["poly_deg"]
-            else:
-                poly_deg = 2
-            if "x_less" in regression_kws:
-                x_less = regression_kws["x_less"]
-            else:
-                x_less = 600
-            if "x_plus" in regression_kws:
-                x_plus = regression_kws["x_plus"]
-            else:
-                x_plus = 0
-            if "BGR_color" in regression_kws:
-                BGR_color = regression_kws["BGR_color"]
-            else:
-                BGR_color = (0, 0, 255)
-            if "line_thickness" in regression_kws:
-                line_thickness = regression_kws["line_thickness"]
-            else:
-                line_thickness = 5
-
             # Applying mean poly regression
             poly_coef_mean = np.polyfit(
                 points_mean[:, 1], points_mean[:, 2], deg=poly_deg
@@ -998,27 +993,6 @@ class PLUME:
 
         # TO DO: Update regression method
         if regression_method == "sinusoid":
-            if "poly_deg" in regression_kws:
-                poly_deg = regression_kws["poly_deg"]
-            else:
-                poly_deg = 2
-            if "x_less" in regression_kws:
-                x_less = regression_kws["x_less"]
-            else:
-                x_less = 600
-            if "x_plus" in regression_kws:
-                x_plus = regression_kws["x_plus"]
-            else:
-                x_plus = 0
-            if "BGR_color" in regression_kws:
-                BGR_color = regression_kws["BGR_color"]
-            else:
-                BGR_color = (0, 0, 255)
-            if "line_thickness" in regression_kws:
-                line_thickness = regression_kws["line_thickness"]
-            else:
-                line_thickness = 5
-
             # Use poly regression for mean path
             # TO DO: subtract original center from here - DONE in concentric_circle
             poly_coef_mean = np.polyfit(
@@ -1129,6 +1103,9 @@ class PLUME:
                 var1_dist,
                 var2_dist,
             )
+        if regression_method == "parametric":
+
+            return
 
     def find_next_center(
         self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
