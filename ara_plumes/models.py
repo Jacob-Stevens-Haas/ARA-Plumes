@@ -17,13 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class PLUME:
-    def __init__(self, video_path):
-        self.video_path = video_path
-        self.video_capture = cv2.VideoCapture(video_path)
-        self.frame_width = int(self.video_capture.get(3))
-        self.frame_height = int(self.video_capture.get(4))
-        self.fps = int(self.video_capture.get(5))
-        self.tot_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+    def __init__(self):
         self.mean_poly = None
         self.var1_poly = None
         self.var2_poly = None
@@ -35,6 +29,14 @@ class PLUME:
         self.var2_params_opt = None
         self.var1_func = None
         self.var2_func = None
+
+    def read_video(self, video_path):
+        self.video_path = video_path
+        self.video_capture = cv2.VideoCapture(video_path)
+        self.frame_width = int(self.video_capture.get(3))
+        self.frame_height = int(self.video_capture.get(4))
+        self.fps = int(self.video_capture.get(5))
+        self.tot_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
     def display_frame(self, frame: int):
         cap = self.video_capture
