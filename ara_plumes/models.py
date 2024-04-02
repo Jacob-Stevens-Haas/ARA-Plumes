@@ -173,9 +173,8 @@ class PLUME:
         extension="mp4",
         save_path=None,
         display_vid=True,
-        mean_smoothing=True,
-        mean_smoothing_sigma=2,
         regression_method="sinusoid",
+        concentric_circle_kws={},
         regression_kws={},
     ):
         """
@@ -219,13 +218,6 @@ class PLUME:
 
         display_vid: bool (default True)
             Display concentric_circles in jupyter notebook window.
-
-        mean_smoothing: bool (default True)
-            Additional gaussian smoothing for leaning concentric
-            circle points
-        mean_smoothing_sigma: int (default 2)
-            Standard variation for gaussian kernel smoother
-            or mean_smoothing
 
         regression_method: str (default "poly")
             Regression method to be applied to selected points in
@@ -384,16 +376,14 @@ class PLUME:
                 frame,
                 contour_img=contour_img,
                 selected_contours=selected_contours,
-                mean_smoothing=mean_smoothing,
-                mean_smoothing_sigma=mean_smoothing_sigma,
+                **concentric_circle_kws,
             )
             # DONE: FIX THIS: OUT_DATA[I][1:]
             mean_points_k = out_data[0]
             var1_points_k = out_data[1]
             var2_points_k = out_data[2]
             frame = out_data[3]
-            if len(var2_points_k) == 0:
-                print("mistake")
+
             # Apply regression method to selected points
             out_data = self.regression(
                 points_mean=mean_points_k,
@@ -479,6 +469,7 @@ class PLUME:
         selected_contours: list
             Returns list of num_of_contours largest contours detected in image.
         """
+
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -589,8 +580,11 @@ class PLUME:
             points. Only in y direction
 
         mean_smoothing_sigma: int, optional (default 2)
-            Sigma parameter to be passed into gaussian_filter function when
-            ``mean_smoothing = True``.
+        Sigma parameter to be passed into gaussian_filter function when
+        ``mean_smoothing = True``.
+
+        quiet: bool, default True
+        suppresses error output
 
 
         Returns:
@@ -623,45 +617,8 @@ class PLUME:
                 " use find_center function."
             )
 
-        # # print(img.shape)
         # convert image to gray
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # ######################
-        # # Apply Thresholding #
-        # ######################
-
-        # # OTSU thresholding -- automatically choose params for selecting contours
-        # _, threshold = cv2.threshold(
-        #     img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-        # )
-
-        # #################
-        # # Find Contours #
-        # #################
-        # contours, _ = cv2.findContours(
-        #     threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        # )
-
-        # # Select n largest contours
-        # n = 1
-        # contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        # selected_contours = contours[:n]
-
-        # ###########################
-        # # Apply Contour Smoothing #
-        # ###########################
-
-        # # POTENTIALLY REMOVE SINCE IT REMOVES VERTICES
-        # if contour_smoothing is True:
-        #     smoothed_contours = []
-
-        #     for contour in selected_contours:
-        #         smoothed_contours.append(
-        #             cv2.approxPolyDP(contour, contour_smoothing_eps, True)
-        #         )
-
-        #     selected_contours = smoothed_contours
 
         # ##########################
         # # Draw contours on image #
@@ -670,20 +627,9 @@ class PLUME:
         red_color = (0, 0, 255)
         blue_color = (255, 0, 0)
 
-        # contour_img = img.copy()
-        # cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
-        # cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
-
-        # Make break here for contour.
-
         ############################
         # Apply Concentric Circles #
         ############################
-
-        # # get contours
-        # contour_img, img_gray, selected_contours = self.get_contour(
-        #     img
-        # )gi
 
         # array of distance of each point on contour to original center
         contour_dist_list = []
@@ -835,22 +781,6 @@ class PLUME:
                 dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
                 intersection_points_i = contour.reshape(-1, 2)[dist_mask]
                 intersection_points.append(intersection_points_i)
-                # if len(intersection_points_i) != 0:
-                #     intersection_points.append(intersection_points_i)
-
-            # # Reshape array
-            # try:
-            #     intersection_points = np.array(
-            #         intersection_points
-            #     ).reshape(-1,2)
-            # except Exception as e:
-            #     for arr in intersection_points:
-            #         print("arr:", arr)
-            #         print("arr type:", type(arr))
-            #         print(intersection_points)
-            # print("intersection_point:", intersection_points)
-
-            # ip_i is intersection_points_i
 
             # TO DO: re translate these - DONE
             for ip_i in intersection_points:
@@ -1383,7 +1313,7 @@ class PLUME:
 
         return
 
-    def train_variance(self):
+    def train_variance(self, kernel_fit=False):
         """
         Learned sinusoid coefficients (A_opt, w_opt, g_opt, B_opt) for variance data
         on flattened p_mean, vari_dist, attained from PLUME.train().
@@ -1418,6 +1348,7 @@ class PLUME:
             Y_test=Y_test,
             n_samples=int(len(X_train) * 0.8),
             trials=2000,
+            kernel_fit=kernel_fit,
         )
         print("var1 opt params:", var1_param_opt)
         self.var1_params_opt = var1_param_opt
@@ -1459,6 +1390,7 @@ class PLUME:
             Y_test=Y_test,
             n_samples=int(len(X_train) * 0.8),
             trials=2000,
+            kernel_fit=kernel_fit,
         )
 
         self.var2_params_opt = var2_param_opt
@@ -1471,6 +1403,8 @@ class PLUME:
         var2_func.upper_lower_envelope = "lower"
 
         self.var2_func = var2_func
+
+        return var1_param_opt, var2_param_opt
 
     def plot_ROM_plume(self, t, show_plot=True):
         """
@@ -1576,11 +1510,11 @@ class var_func_on_poly:
         # get y on regular cartesian plane
         sols = utils.circle_intersection(x0=x0, y0=y0, r0=r, x1=x1, y1=y1, r1=d)
 
-        if self.upper_lower_envelope == "lower":
+        if self.upper_lower_envelope == "upper":
             for sol in sols:
                 if sol[1] >= self.poly_func(t, sol[0]):
                     return sol
-        elif self.upper_lower_envelope == "upper":
+        elif self.upper_lower_envelope == "lower":
             for sol in sols:
                 if sol[1] <= self.poly_func(t, sol[0]):
                     return sol
