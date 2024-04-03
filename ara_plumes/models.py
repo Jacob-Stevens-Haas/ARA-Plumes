@@ -1120,7 +1120,67 @@ class PLUME:
             def y_func(r):
                 return np.polyval(y_poly_coeff_mean, r)
 
-            return
+            x = x_func(r) + orig_center[0]
+            y = y_func(r) + orig_center[1]
+
+            curve_img = np.zeros_like(img)
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=BGR_color,
+                thickness=line_thickness,
+            )
+
+            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
+
+            # convert (x,y) to (r,d) for var 1
+            var1_dist = []
+            for point in points_var1:
+                r = point[0]
+
+                sol = (x_func(r), y_func(r))
+
+                for contour in selected_contours:
+                    if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
+                        dist_i = np.linalg.norm(point[1:] - sol)
+                        var1_dist.append([r, dist_i])
+                        translated_sol = sol + orig_center
+                        cv2.circle(
+                            img, translated_sol.astype(int), 8, (255, 255, 0), -1
+                        )
+
+            var1_dist = np.array(var1_dist)
+
+            var2_dist = []
+            for point in points_var2:
+                r = point[0]
+
+                sol = (x_func(r), y_func(r))
+
+                for contour in selected_contours:
+                    if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
+                        dist_i = np.linalg.norm(point[1:] - sol)
+                        var2_dist.append([r, dist_i])
+                        translated_sol = sol + orig_center
+                        cv2.circle(
+                            img, translated_sol.astype(int), 8, (255, 255, 0), -1
+                        )
+
+            # get regressions parameters
+            poly_coef_var1 = (0, 0, 0)
+            poly_coef_var2 = (0, 0, 0)
+
+            return (
+                x_poly_coef_mean,
+                y_poly_coeff_mean,
+                poly_coef_var1,
+                poly_coef_var2,
+                img,
+                var1_dist,
+                var2_dist,
+            )
 
     def find_next_center(
         self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
