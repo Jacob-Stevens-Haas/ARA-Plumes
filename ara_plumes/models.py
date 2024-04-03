@@ -596,6 +596,7 @@ class PLUME:
             Where the kth entry is of the form [r(k), x(k), y(k)], i.e the
             coordinate (x,y) of the highest value point along the concetric circle
             with radii r(k).
+            Note: (x,y) coordinates are re-centered to origin (0,0).
 
         points_var1: np.ndarray
             Returns nx3 array containing observed points along upper envolope path,
@@ -1104,6 +1105,20 @@ class PLUME:
                 var2_dist,
             )
         if regression_method == "parametric":
+            r_x_arr = points_mean[:, 0:2]
+            r_y_arr = points_mean[:, [0, -1]]
+
+            x_poly_coef_mean = np.polyfit(r_x_arr[:, 0], r_x_arr[:, 1], deg=poly_deg)
+
+            y_poly_coeff_mean = np.polyfit(r_y_arr[:, 0], r_y_arr[:, 1], deg=poly_deg)
+            max_r = max(points_mean[:, 0])
+            r = np.linspace(0, max_r, 100)
+
+            def x_func(r):
+                return np.polyval(x_poly_coef_mean, r)
+
+            def y_func(r):
+                return np.polyval(y_poly_coeff_mean, r)
 
             return
 
