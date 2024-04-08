@@ -294,9 +294,20 @@ class PLUME:
             fin_frame = self.tot_frames - 1
 
         # Initialize poly arrays
-        mean_array = np.zeros((fin_frame - init_frame, 3))
-        var1_array = np.zeros((fin_frame - init_frame, 3))
-        var2_array = np.zeros((fin_frame - init_frame, 3))
+        if "poly_deg" in regression_kws:
+            poly_deg = regression_kws["poly_deg"]
+        else:
+            poly_deg = 2
+
+        if regression_method == "parametric":
+            mean_array = np.zeros((fin_frame - init_frame, (poly_deg + 1) * 2))
+            var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
+            var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
+
+        else:
+            mean_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
+            var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
+            var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
 
         # Check for Gaussian Time Blur
         if gauss_time_blur is True:
@@ -402,7 +413,7 @@ class PLUME:
             var2_array[k] = out_data[2]
             frame = out_data[3]
 
-            if regression_method == "sinusoid":
+            if regression_method == "sinusoid" or regression_method == "parametric":
                 var1_dist_k = out_data[4]
                 var2_dist_k = out_data[5]
 
@@ -1168,12 +1179,12 @@ class PLUME:
                         )
 
             # get regressions parameters
+            poly_coeff_mean = np.hstack((x_poly_coef_mean, y_poly_coeff_mean))
             poly_coef_var1 = (0, 0, 0)
             poly_coef_var2 = (0, 0, 0)
 
             return (
-                x_poly_coef_mean,
-                y_poly_coeff_mean,
+                poly_coeff_mean,
                 poly_coef_var1,
                 poly_coef_var2,
                 img,
