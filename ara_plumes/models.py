@@ -22,7 +22,6 @@ class PLUME:
         self.var1_poly = None
         self.var2_poly = None
         self.orig_center = None
-        self.count = None
         self.var1_dist = []
         self.var2_dist = []
         self.var1_params_opt = None
