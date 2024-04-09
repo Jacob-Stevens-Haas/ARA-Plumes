@@ -1115,6 +1115,7 @@ class PLUME:
                 var2_dist,
             )
         if regression_method == "parametric":
+            # print("regression method:", regression_method)
             r_x_arr = points_mean[:, 0:2]
             r_y_arr = points_mean[:, [0, -1]]
 
@@ -1150,7 +1151,7 @@ class PLUME:
             for point in points_var1:
                 r = point[0]
 
-                sol = (x_func(r), y_func(r))
+                sol = np.array((x_func(r), y_func(r)))
 
                 for contour in selected_contours:
                     if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
@@ -1167,7 +1168,7 @@ class PLUME:
             for point in points_var2:
                 r = point[0]
 
-                sol = (x_func(r), y_func(r))
+                sol = np.array((x_func(r), y_func(r)))
 
                 for contour in selected_contours:
                     if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
@@ -1179,12 +1180,12 @@ class PLUME:
                         )
 
             # get regressions parameters
-            poly_coeff_mean = np.hstack((x_poly_coef_mean, y_poly_coeff_mean))
+            poly_coef_mean = np.hstack((x_poly_coef_mean, y_poly_coeff_mean))
             poly_coef_var1 = (0, 0, 0)
             poly_coef_var2 = (0, 0, 0)
 
             return (
-                poly_coeff_mean,
+                poly_coef_mean,
                 poly_coef_var1,
                 poly_coef_var2,
                 img,
