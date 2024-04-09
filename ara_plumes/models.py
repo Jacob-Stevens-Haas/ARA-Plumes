@@ -177,6 +177,7 @@ class PLUME:
         regression_method="sinusoid",
         concentric_circle_kws={},
         regression_kws={},
+        get_contour_kws={},
     ):
         """
         Apply connetric circles to frames range
@@ -381,7 +382,7 @@ class PLUME:
                 frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
             # Apply contour detection
-            contour_img, selected_contours = self.get_contour(frame, num_of_contours=1)
+            contour_img, selected_contours = self.get_contour(frame, **get_contour_kws)
 
             # Apply concentric circles to frame
             out_data = self.concentric_circle(
