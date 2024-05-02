@@ -1560,7 +1560,11 @@ def click_coordinates(
     ax = fig.gca()
     ax.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     ax.axis("off")
-    selected_point = plt.ginput(n=1, timeout=0)[0]
+    fig.show()
+    try:
+        selected_point = plt.ginput(n=1)[0]
+    except IndexError:
+        raise RuntimeError("Point not selected")
     plt.close(fig)
     logger.debug("Point-selection input closed")
     if not selected_point:
