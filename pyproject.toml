@@ -7,7 +7,7 @@ name = "ara-plumes"
 dynamic = ["version"]
 description = "Utilties for tracking smoke plumes"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = {file = "LICENSE"}
 keywords = ["Machine Learning", "Science", "Mathematics", "Experiments"]
 classifiers = [
