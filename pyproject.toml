@@ -29,6 +29,7 @@ dependencies = [
   "moviepy",
   "imageio",
   "scipy",
+  "scikit-learn",
   "matplotlib",
 ]
 
