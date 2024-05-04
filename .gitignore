@@ -17,3 +17,5 @@ commit-msg
 *version.py
 *.egg-info
 *__pycache__
+
+build/

@@ -1,5 +1,8 @@
 import itertools
-from typing import Any, cast, Literal
+from typing import Any
+from typing import cast
+from typing import Literal
+
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NBitBase
@@ -14,6 +17,7 @@ Float1D = np.ndarray[tuple[int], NpFlt]
 Float2D = np.ndarray[tuple[int, int], NpFlt]
 FloatND = np.ndarray[Any, NpFlt]
 
+
 def var_ensemble_learn(
     X_train: Float2D,
     Y_train: Float2D,
@@ -21,13 +25,13 @@ def var_ensemble_learn(
     Y_test: Float2D,
     n_samples: int,
     trials: int,
-    replace: bool=False,
-    kernel_fit: bool=False,
-    bandwidth: int=1,
-    plotting: bool=True,
+    replace: bool = False,
+    kernel_fit: bool = False,
+    bandwidth: int = 1,
+    plotting: bool = True,
 ) -> tuple[
     np.ndarray[tuple[Literal[4]], NpFlt] | tuple[float, float, float, float],
-    np.ndarray[tuple[int, Literal[4]], NpFlt]
+    np.ndarray[tuple[int, Literal[4]], NpFlt],
 ]:
     """
     Apply ensembling to training data via sinusoid regression and provide training
@@ -168,14 +172,10 @@ def var_ensemble_learn(
 
 
 def var_ensemble_train(
-    X: Float2D,
-    Y: Float2D,
-    n_samples: int,
-    trials: int,
-    replace: bool=False
+    X: Float2D, Y: Float2D, n_samples: int, trials: int, replace: bool = False
 ) -> tuple[
-     np.ndarray[tuple[Literal[4]], NpFlt],
-     np.ndarray[tuple[int, Literal[4]], NpFlt]]:
+    np.ndarray[tuple[Literal[4]], NpFlt], np.ndarray[tuple[int, Literal[4]], NpFlt]
+]:
     """
     Ensemble sinusoid regression fit to data
     """

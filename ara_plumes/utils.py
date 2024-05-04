@@ -445,8 +445,8 @@ def create_vari_dist_movie(vari_dist, save_path=None):
 
 def create_ROM_plume_movie(
     PLUME_object,
-    frame_range: int | list[int] | None=None,
-    save_path: str | None=None
+    frame_range: int | list[int] | None = None,
+    save_path: str | None = None,
 ) -> None:
     """
     Create the ROM plume movie using the trained PLUME model
