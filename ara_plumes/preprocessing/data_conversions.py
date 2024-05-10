@@ -54,19 +54,22 @@ def convert_video_to_numpy_array(
             f"end_frame must be int less than or equal to tot_frame count: {tot_frame}"
         )
 
-    print(f"converting frames {start_frame} to {end_frame}")
+    print(f"converting frames {start_frame} to {end_frame-1}")
 
     # convert frames to numpy arrays
     frames_as_arrays = []
     for k in tqdm(range(start_frame, end_frame)):
 
+        # read frame
         vid_capture.set(cv2.CAP_PROP_POS_FRAMES, k)
         ret, frame_k = vid_capture.read()
 
+        # if frame cannot be read stop process and return array as is
         if not ret:
             print(f"Frame {k} could not be read.\nHaulting Process..")
             break
 
+        # convert to gray
         if gray:
             frame_k = cv2.cvtColor(frame_k, cv2.COLOR_BGR2GRAY)
 
