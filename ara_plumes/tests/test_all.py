@@ -1,8 +1,36 @@
+import unittest
+from unittest.mock import MagicMock
+
 import numpy as np
 
-from ara_plumes import models  # noqa: F401
 from ara_plumes import regressions
 from ara_plumes import utils
+from ara_plumes.preprocessing import convert_video_to_numpy_array
+
+
+def test_convert_video_to_numpy_array():
+    # Mock cv2.VideoCapture and its methods
+    mock_capture = MagicMock()
+    mock_capture.get.return_value = 100  # Mock total frame count
+    mock_capture.read.side_effect = [
+        (True, np.ones((100, 100, 3), dtype=np.uint8)) for _ in range(100)
+    ]  # Mock reading frames
+
+    # Mock cv2.VideoCapture constructor
+    with unittest.mock.patch("cv2.VideoCapture", return_value=mock_capture):
+        # Call the function with mocked arguments
+        result = convert_video_to_numpy_array(
+            "dummy_video.mp4", start_frame=0, end_frame=10, gray=True
+        )
+
+    # Assertions
+    # Check number of frames
+    np.testing.assert_equal(len(result), 10)
+    # Check if frames are numpy arrays
+    assert all(isinstance(frame, np.ndarray) for frame in result)
+
+    # Check frame shape (grayscale)
+    np.testing.assert_equal(result[0].shape, (100, 100))
 
 
 def test_circle_poly_intersection_real():
