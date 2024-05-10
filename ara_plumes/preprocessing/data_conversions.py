@@ -18,9 +18,9 @@ def convert_video_to_numpy_array(
     ----------
     path_to_vid : str
         Path to the video file.
-    start_frame : int, optional
+    start_frame : int, optional (default 0)
         Starting frame index. If not provided, defaults to the first frame (0).
-    end_frame : int, optional
+    end_frame : int, optional (default total frame)
         Ending frame index. If not provided, defaults to the last frame of the
         video.
     gray : bool, optional
