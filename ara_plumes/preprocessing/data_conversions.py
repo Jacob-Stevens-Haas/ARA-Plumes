@@ -1,3 +1,4 @@
+import warnings
 from typing import NewType
 from typing import Optional
 from typing import Union
@@ -76,7 +77,7 @@ def convert_video_to_numpy_array(
 
         # if frame cannot be read stop process and return array as is
         if not ret:
-            print(f"Frame {k} could not be read.\nHaulting Process..")
+            warnings.warn(f"Frame {k} could not be read.\nHalting Process..")
             break
 
         # convert to gray
