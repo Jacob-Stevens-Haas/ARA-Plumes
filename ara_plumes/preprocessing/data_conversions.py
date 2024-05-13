@@ -1,13 +1,15 @@
-from typing import NewType, Optional, Union
+from typing import NewType
+from typing import Optional
+from typing import Union
+
+import cv2
+import numpy as np
+from tqdm import tqdm
 
 Frame = NewType("Frame", int)
 Width = NewType("Width", int)
 Height = NewType("Height", int)
 Channel = NewType("Channel", int)
-
-import cv2
-import numpy as np
-from tqdm import tqdm
 
 
 def convert_video_to_numpy_array(
@@ -17,7 +19,7 @@ def convert_video_to_numpy_array(
     gray: bool = True,
 ) -> Union[
     np.ndarray[tuple[Frame, Width, Height], np.dtype[np.uint8]],
-    np.ndarray[tuple[Frame, Width, Height, Channel], np.dtype[np.uint8]]
+    np.ndarray[tuple[Frame, Width, Height, Channel], np.dtype[np.uint8]],
 ]:
     """
     Convert a video file to a NumPy array of frames.
@@ -62,7 +64,7 @@ def convert_video_to_numpy_array(
             f"end_frame must be int less than or equal to tot_frame count: {tot_frame}"
         )
 
-    print(f"converting frames {start_frame} to {end_frame-1}")
+    print(f"converting frames {start_frame} to {end_frame}")
 
     # convert frames to numpy arrays
     frames_as_arrays = []
