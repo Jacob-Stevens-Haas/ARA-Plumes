@@ -10,7 +10,10 @@ def convert_video_to_numpy_array(
     start_frame: Optional[int] = None,
     end_frame: Optional[int] = None,
     gray: bool = True,
-) -> np.ndarray:
+) -> Union[
+    np.ndarray[tuple[Frame, Width, Height], np.dtype[np.uint8]],
+    np.ndarray[tuple[Frame, Width, Height, Channel], np.dtype[np.uint8]]
+]:
     """
     Convert a video file to a NumPy array of frames.
 
