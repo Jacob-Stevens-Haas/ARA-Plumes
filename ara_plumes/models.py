@@ -17,24 +17,25 @@ logger = logging.getLogger(__name__)
 
 
 class PLUME:
-    def __init__(self, video_path):
-        self.video_path = video_path
-        self.video_capture = cv2.VideoCapture(video_path)
-        self.frame_width = int(self.video_capture.get(3))
-        self.frame_height = int(self.video_capture.get(4))
-        self.fps = int(self.video_capture.get(5))
-        self.tot_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+    def __init__(self):
         self.mean_poly = None
         self.var1_poly = None
         self.var2_poly = None
         self.orig_center = None
-        self.count = None
         self.var1_dist = []
         self.var2_dist = []
         self.var1_params_opt = None
         self.var2_params_opt = None
         self.var1_func = None
         self.var2_func = None
+
+    def read_video(self, video_path):
+        self.video_path = video_path
+        self.video_capture = cv2.VideoCapture(video_path)
+        self.frame_width = int(self.video_capture.get(3))
+        self.frame_height = int(self.video_capture.get(4))
+        self.fps = int(self.video_capture.get(5))
+        self.tot_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
     def display_frame(self, frame: int):
         cap = self.video_capture
@@ -176,6 +177,7 @@ class PLUME:
         regression_method="sinusoid",
         concentric_circle_kws={},
         regression_kws={},
+        get_contour_kws={},
     ):
         """
         Apply connetric circles to frames range
@@ -293,9 +295,20 @@ class PLUME:
             fin_frame = self.tot_frames - 1
 
         # Initialize poly arrays
-        mean_array = np.zeros((fin_frame - init_frame, 3))
-        var1_array = np.zeros((fin_frame - init_frame, 3))
-        var2_array = np.zeros((fin_frame - init_frame, 3))
+        if "poly_deg" in regression_kws:
+            poly_deg = regression_kws["poly_deg"]
+        else:
+            poly_deg = 2
+
+        if regression_method == "parametric":
+            mean_array = np.zeros((fin_frame - init_frame, (poly_deg + 1) * 2))
+            var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
+            var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
+
+        else:
+            mean_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
+            var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
+            var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
 
         # Check for Gaussian Time Blur
         if gauss_time_blur is True:
@@ -369,7 +382,7 @@ class PLUME:
                 frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
             # Apply contour detection
-            contour_img, selected_contours = self.get_contour(frame, num_of_contours=1)
+            contour_img, selected_contours = self.get_contour(frame, **get_contour_kws)
 
             # Apply concentric circles to frame
             out_data = self.concentric_circle(
@@ -393,7 +406,7 @@ class PLUME:
                 orig_center=self.orig_center,
                 selected_contours=selected_contours,
                 regression_method=regression_method,
-                regression_kws=regression_kws,
+                **regression_kws,
             )
 
             mean_array[k] = out_data[0]
@@ -401,7 +414,7 @@ class PLUME:
             var2_array[k] = out_data[2]
             frame = out_data[3]
 
-            if regression_method == "sinusoid":
+            if regression_method == "sinusoid" or regression_method == "parametric":
                 var1_dist_k = out_data[4]
                 var2_dist_k = out_data[5]
 
@@ -594,6 +607,7 @@ class PLUME:
             Where the kth entry is of the form [r(k), x(k), y(k)], i.e the
             coordinate (x,y) of the highest value point along the concetric circle
             with radii r(k).
+            Note: (x,y) coordinates are re-centered to origin (0,0).
 
         points_var1: np.ndarray
             Returns nx3 array containing observed points along upper envolope path,
@@ -843,7 +857,11 @@ class PLUME:
         orig_center=None,
         selected_contours=None,
         regression_method="poly",
-        regression_kws={},
+        poly_deg=2,
+        x_less=600,
+        x_plus=0,
+        BGR_color=(0, 0, 255),
+        line_thickness=5,
     ):
         """
         Apply selected regression method to learned points from concentric_circle.
@@ -871,8 +889,20 @@ class PLUME:
         regression_method: str (default "poly")
             Regression method used to predict path of plume.
 
-        regression_kws: dict (default {})
-            additional arguments used for selected regression_method.
+        poly_deg: int (default 2)
+            degree of polynomial used for regression (either explicit or parametric)
+
+        x_less: int (default 600)
+            Amount of extra pixels to the left of data to extrapolate fitted trajectories
+
+        x_plus: int (default 0)
+            Amount of extra pixels to the right of data to extrapolate fitted trajectories
+
+        BGR_color: tuple (default (0,0,255))
+            color of polynomial lines plotted on image
+
+        line_thickness: int (default 5)
+            thickeness of polynomials plotted on image
 
         Returns:
         --------
@@ -890,27 +920,6 @@ class PLUME:
         """
 
         if regression_method == "poly":
-            if "poly_deg" in regression_kws:
-                poly_deg = regression_kws["poly_deg"]
-            else:
-                poly_deg = 2
-            if "x_less" in regression_kws:
-                x_less = regression_kws["x_less"]
-            else:
-                x_less = 600
-            if "x_plus" in regression_kws:
-                x_plus = regression_kws["x_plus"]
-            else:
-                x_plus = 0
-            if "BGR_color" in regression_kws:
-                BGR_color = regression_kws["BGR_color"]
-            else:
-                BGR_color = (0, 0, 255)
-            if "line_thickness" in regression_kws:
-                line_thickness = regression_kws["line_thickness"]
-            else:
-                line_thickness = 5
-
             # Applying mean poly regression
             poly_coef_mean = np.polyfit(
                 points_mean[:, 1], points_mean[:, 2], deg=poly_deg
@@ -996,27 +1005,6 @@ class PLUME:
 
         # TO DO: Update regression method
         if regression_method == "sinusoid":
-            if "poly_deg" in regression_kws:
-                poly_deg = regression_kws["poly_deg"]
-            else:
-                poly_deg = 2
-            if "x_less" in regression_kws:
-                x_less = regression_kws["x_less"]
-            else:
-                x_less = 600
-            if "x_plus" in regression_kws:
-                x_plus = regression_kws["x_plus"]
-            else:
-                x_plus = 0
-            if "BGR_color" in regression_kws:
-                BGR_color = regression_kws["BGR_color"]
-            else:
-                BGR_color = (0, 0, 255)
-            if "line_thickness" in regression_kws:
-                line_thickness = regression_kws["line_thickness"]
-            else:
-                line_thickness = 5
-
             # Use poly regression for mean path
             # TO DO: subtract original center from here - DONE in concentric_circle
             poly_coef_mean = np.polyfit(
@@ -1116,6 +1104,84 @@ class PLUME:
             img = cv2.addWeighted(img, 1, curve_img, 1, 0)
 
             # Get regressions parameters Asin(wx-gamma t) + Bx
+            poly_coef_var1 = (0, 0, 0)
+            poly_coef_var2 = (0, 0, 0)
+
+            return (
+                poly_coef_mean,
+                poly_coef_var1,
+                poly_coef_var2,
+                img,
+                var1_dist,
+                var2_dist,
+            )
+        if regression_method == "parametric":
+            # print("regression method:", regression_method)
+            r_x_arr = points_mean[:, 0:2]
+            r_y_arr = points_mean[:, [0, -1]]
+
+            x_poly_coef_mean = np.polyfit(r_x_arr[:, 0], r_x_arr[:, 1], deg=poly_deg)
+
+            y_poly_coeff_mean = np.polyfit(r_y_arr[:, 0], r_y_arr[:, 1], deg=poly_deg)
+            max_r = max(points_mean[:, 0])
+            r = np.linspace(0, max_r, 100)
+
+            def x_func(r):
+                return np.polyval(x_poly_coef_mean, r)
+
+            def y_func(r):
+                return np.polyval(y_poly_coeff_mean, r)
+
+            x = x_func(r) + orig_center[0]
+            y = y_func(r) + orig_center[1]
+
+            curve_img = np.zeros_like(img)
+            curve_points = np.column_stack((x, y)).astype(np.int32)
+            cv2.polylines(
+                curve_img,
+                [curve_points],
+                isClosed=False,
+                color=BGR_color,
+                thickness=line_thickness,
+            )
+
+            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
+
+            # convert (x,y) to (r,d) for var 1
+            var1_dist = []
+            for point in points_var1:
+                r = point[0]
+
+                sol = np.array((x_func(r), y_func(r)))
+
+                for contour in selected_contours:
+                    if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
+                        dist_i = np.linalg.norm(point[1:] - sol)
+                        var1_dist.append([r, dist_i])
+                        translated_sol = sol + orig_center
+                        cv2.circle(
+                            img, translated_sol.astype(int), 8, (255, 255, 0), -1
+                        )
+
+            var1_dist = np.array(var1_dist)
+
+            var2_dist = []
+            for point in points_var2:
+                r = point[0]
+
+                sol = np.array((x_func(r), y_func(r)))
+
+                for contour in selected_contours:
+                    if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
+                        dist_i = np.linalg.norm(point[1:] - sol)
+                        var2_dist.append([r, dist_i])
+                        translated_sol = sol + orig_center
+                        cv2.circle(
+                            img, translated_sol.astype(int), 8, (255, 255, 0), -1
+                        )
+
+            # get regressions parameters
+            poly_coef_mean = np.hstack((x_poly_coef_mean, y_poly_coeff_mean))
             poly_coef_var1 = (0, 0, 0)
             poly_coef_var2 = (0, 0, 0)
 
