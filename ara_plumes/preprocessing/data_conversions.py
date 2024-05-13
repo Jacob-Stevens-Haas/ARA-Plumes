@@ -15,8 +15,8 @@ Channel = NewType("Channel", int)
 
 def convert_video_to_numpy_array(
     path_to_vid: str,
-    start_frame: Optional[int] = None,
-    end_frame: Optional[int] = None,
+    start_frame: Optional[int] = 0,
+    end_frame: Optional[int] = -1,
     gray: bool = True,
 ) -> Union[
     np.ndarray[tuple[Frame, Width, Height], np.dtype[np.uint8]],
@@ -34,7 +34,7 @@ def convert_video_to_numpy_array(
     end_frame : int, optional (default total frame)
         Ending frame index. If not provided, defaults to the last frame of the
         video.
-    gray : bool, optional
+    gray : bool, optional (default True)
         Flag to convert frames to grayscale. If True, frames will be converted
         to grayscale. Default is True.
 
@@ -52,15 +52,13 @@ def convert_video_to_numpy_array(
     tot_frame = int(vid_capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
     # ensure start_frames is positive int
-    if not start_frame:
-        start_frame = 0
-    elif not isinstance(start_frame, int) or start_frame < 0:
+    if start_frame < 0:
         raise ValueError("start_frame must be int greater than or equal to 0.")
 
     # ensure end_frame is positive int less than tot_frame
-    if not end_frame:
+    if end_frame == -1:
         end_frame = tot_frame
-    elif not isinstance(end_frame, int) or end_frame > tot_frame:
+    elif end_frame > tot_frame:
         raise ValueError(
             f"end_frame must be int less than or equal to tot_frame count: {tot_frame}"
         )
