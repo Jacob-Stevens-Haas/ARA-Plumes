@@ -893,10 +893,10 @@ class PLUME:
             degree of polynomial used for regression (either explicit or parametric)
 
         x_less: int (default 600)
-            buffer on linspace for plotting on original image
+            Amount of extra pixels to the left of data to extrapolate fitted trajectories
 
         x_plus: int (default 0)
-            buffer on linspace for plotting on original image
+            Amount of extra pixels to the right of data to extrapolate fitted trajectories
 
         BGR_color: tuple (default (0,0,255))
             color of polynomial lines plotted on image
