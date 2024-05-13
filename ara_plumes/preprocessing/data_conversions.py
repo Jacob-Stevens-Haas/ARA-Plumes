@@ -1,4 +1,9 @@
-from typing import Optional
+from typing import NewType, Optional, Union
+
+Frame = NewType("Frame", int)
+Width = NewType("Width", int)
+Height = NewType("Height", int)
+Channel = NewType("Channel", int)
 
 import cv2
 import numpy as np
