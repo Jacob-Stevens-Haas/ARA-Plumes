@@ -893,10 +893,12 @@ class PLUME:
             degree of polynomial used for regression (either explicit or parametric)
 
         x_less: int (default 600)
-            Amount of extra pixels to the left of data to extrapolate fitted trajectories
+            Amount of extra pixels to the left of data to extrapolate fitted
+            trajectories.
 
         x_plus: int (default 0)
-            Amount of extra pixels to the right of data to extrapolate fitted trajectories
+            Amount of extra pixels to the right of data to extrapolate fitted
+            trajectories.
 
         BGR_color: tuple (default (0,0,255))
             color of polynomial lines plotted on image
@@ -1321,63 +1323,6 @@ class PLUME:
         ]  # Might need to change if working with gray images
         c = np.round(np.sum(a * b, axis=0)).astype(np.uint8)
         return c
-
-    def clip_video(
-        self,
-        init_frame,
-        fin_frame,
-        extension: str = "mp4",
-        display_vid: bool = True,
-        save_path: str = "clipped_video",
-    ):
-        video = self.video_capture
-        print(type(video.read()))
-        ret, frame = video.read()
-        # return frame
-
-        # grab vieo info for saving new file
-        frame_width = int(video.get(3))
-        frame_height = int(video.get(4))
-        frame_rate = int(video.get(5))
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
-        # Possibly resave video
-        clip_title = save_path + "." + extension
-        out = cv2.VideoWriter(
-            clip_title, fourcc, frame_rate, (frame_width, frame_height), 0
-        )
-
-        if display_vid is True:
-            print("display_handle defined.")
-            display_handle = IPython.display.display(None, display_id=True)
-
-        # Loop results in the writing of B&W shortned video clip
-        k = 0
-        try:
-            while ret:
-                if k < fin_frame and k >= init_frame:
-                    # print("entered update")
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    out.write(frame)
-                    _, frame = cv2.imencode(".jpeg", frame)  # why is this jpeg?
-                    if display_vid is True:
-                        # print("update display")
-                        display_handle.update(
-                            IPython.display.Image(data=frame.tobytes())
-                        )
-                print("k:", k)
-                k += 1
-                ret, frame = video.read()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            print("finished")
-            # video.release()
-            out.release()
-            if display_vid is True:
-                display_handle.update(None)
-
-        return
 
     def train_variance(self, kernel_fit=False):
         """

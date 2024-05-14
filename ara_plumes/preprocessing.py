@@ -3,6 +3,7 @@ from typing import NewType
 from typing import Union
 
 import cv2
+import IPython
 import numpy as np
 from tqdm import tqdm
 
@@ -84,3 +85,84 @@ def convert_video_to_numpy_array(
         frames_as_arrays.append(frame_k)
 
     return np.array(frames_as_arrays)
+
+
+def clip_video(
+    video_path: str,
+    init_frame: int,
+    fin_frame: int,
+    extension: str = "mp4",
+    save_path: str = "clipped_video",
+    display_vid: bool = False,
+):
+    """
+    Clip starting and ending portions of video and save as a new video.
+
+    Parameters:
+    ----------
+    video_path: str
+        path to video
+
+    init_frame: int
+        Starting frame of video, or number of frames from beginning
+        to trim.
+
+    fin_frame: int
+        Ending frame, or last frame to keep in new video.
+        All frames after are to be trimmed.
+
+    extension: str (default 'mp4')
+        video type to save new video as.
+
+    save_path: str (default 'clipped_video')
+        name/path to save new video in/as.
+
+    display_vid: bool (default False)
+        Display frames as trimming is being applied.
+
+    """
+    video = cv2.VideoCapture(video_path)
+    print(type(video.read()))
+    ret, frame = video.read()
+    # return frame
+
+    # grab video info for saving new file
+    frame_width = int(video.get(3))
+    frame_height = int(video.get(4))
+    frame_rate = int(video.get(5))
+    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+
+    # Possibly resave video
+    clip_title = save_path + "." + extension
+    out = cv2.VideoWriter(
+        clip_title, fourcc, frame_rate, (frame_width, frame_height), 0
+    )
+
+    if display_vid:
+        print("display_handle defined.")
+        display_handle = IPython.display.display(None, display_id=True)
+
+    # Loop results in the writing of B&W shortned video clip
+    k = 0
+    try:
+        while ret:
+            if k < fin_frame and k >= init_frame:
+                # print("entered update")
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                out.write(frame)
+                _, frame = cv2.imencode(".jpeg", frame)  # why is this jpeg?
+                if display_vid:
+                    # print("update display")
+                    display_handle.update(IPython.display.Image(data=frame.tobytes()))
+            print("k:", k)
+            k += 1
+            ret, frame = video.read()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        print("finished")
+        # video.release()
+        out.release()
+        if display_vid:
+            display_handle.update(None)
+    return
