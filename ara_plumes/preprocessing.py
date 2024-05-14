@@ -1,6 +1,5 @@
 import warnings
 from typing import NewType
-from typing import Optional
 from typing import Union
 
 import cv2
@@ -15,8 +14,8 @@ Channel = NewType("Channel", int)
 
 def convert_video_to_numpy_array(
     path_to_vid: str,
-    start_frame: Optional[int] = 0,
-    end_frame: Optional[int] = -1,
+    start_frame: int = 0,
+    end_frame: int = -1,
     gray: bool = True,
 ) -> Union[
     np.ndarray[tuple[Frame, Width, Height], np.dtype[np.uint8]],
