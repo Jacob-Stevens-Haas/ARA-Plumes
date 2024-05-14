@@ -909,8 +909,14 @@ class PLUME:
             Amount of extra pixels to the left of data to extrapolate fitted trajectories
 =======
             Amount of extra pixels to the left of data to extrapolate fitted
+<<<<<<< HEAD
             trajectories
 >>>>>>> f8d2579 (cln: lint code)
+||||||| parent of cd66672 (cln: moved clip_video to preprocessing module)
+            trajectories
+=======
+            trajectories.
+>>>>>>> cd66672 (cln: moved clip_video to preprocessing module)
 
         x_plus: int (default 0)
 <<<<<<< HEAD
@@ -920,8 +926,14 @@ class PLUME:
             Amount of extra pixels to the right of data to extrapolate fitted trajectories
 =======
             Amount of extra pixels to the right of data to extrapolate fitted
+<<<<<<< HEAD
             trajectories
 >>>>>>> f8d2579 (cln: lint code)
+||||||| parent of cd66672 (cln: moved clip_video to preprocessing module)
+            trajectories
+=======
+            trajectories.
+>>>>>>> cd66672 (cln: moved clip_video to preprocessing module)
 
         BGR_color: tuple (default (0,0,255))
             color of polynomial lines plotted on image
