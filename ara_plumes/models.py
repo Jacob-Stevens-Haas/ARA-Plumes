@@ -662,7 +662,7 @@ class PLUME:
         )  # DONE: FIX THIS: NP.INSERT(0,0,SELF.ORIG_CENTER)
 
         # Plot first point on path
-        _, center = self.find_max_on_boundary(
+        _, center = self._find_max_on_boundary(
             img_gray, self.orig_center, r=radii, rtol=rtol, atol=atol
         )
         # print("center_1:", center)
@@ -694,7 +694,7 @@ class PLUME:
             # Get center of next point
             error_occured = False
             try:
-                _, center = self.find_next_center(
+                _, center = self._find_next_center(
                     array=img_gray,
                     orig_center=self.orig_center,
                     neig_center=center,
@@ -1196,7 +1196,7 @@ class PLUME:
                 var2_dist,
             )
 
-    def find_next_center(
+    def _find_next_center(
         self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
     ):
         # print("entered find_next_center")
@@ -1235,7 +1235,7 @@ class PLUME:
 
         return max_value, max_indices
 
-    def find_max_on_boundary(self, array, center, r, rtol=1e-3, atol=1e-6):
+    def _find_max_on_boundary(self, array, center, r, rtol=1e-3, atol=1e-6):
         col, row = center
         n, d = array.shape
 
