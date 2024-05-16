@@ -1,4 +1,5 @@
 import logging
+from typing import NewType
 from typing import Optional
 
 import cv2
@@ -14,6 +15,11 @@ from ara_plumes import utils
 # For displaying clips in Jupyter notebooks
 # from IPython.display import Image, display
 logger = logging.getLogger(__name__)
+
+Frame = NewType("Frame", int)
+Width = NewType("Width", int)
+Height = NewType("Height", int)
+Channel = NewType("Channel", int)
 
 
 class PLUME:
@@ -36,6 +42,9 @@ class PLUME:
         self.frame_height = int(self.video_capture.get(4))
         self.fps = int(self.video_capture.get(5))
         self.tot_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    def read_numpy_arr(self, numpy_frames):
+        self.numpy_frames = numpy_frames
 
     def display_frame(self, frame: int):
         cap = self.video_capture
@@ -1263,11 +1272,11 @@ class PLUME:
 
         return max_value, max_indices
 
-    def create_background_img(self, img_range):
+    def create_background_img(self, img_range: int | list):
         """
         Create background image for fixed subtraction method.
         Args:
-            img_range (list,int): Range of frames to create average image (list).
+            img_range (int,list): Range of frames to create average image (list).
             Or number of initial frames to create average image to subtract from
             frames (int).
         Returns:
@@ -1275,37 +1284,28 @@ class PLUME:
             grayscale).
         """
 
-        # Check if img_range is list of two int or singular int
-        if isinstance(img_range, list) and len(img_range) == 2:
-            ret, frame = self.video_capture.read()
-            for k in range(img_range[0]):
-                ret, frame = self.video_capture.read()
-            background_img_np = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(float)
-            img_count = img_range[-1] - img_range[0]
-        elif isinstance(img_range, int):
-            ret, frame = self.video_capture.read()
-            # print("ret:", ret)
-            background_img_np = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(float)
-            img_count = img_range
+        if isinstance(img_range, int):
+            start_frame = 0
+            end_frame = img_range
         else:
-            raise TypeError("img_range can either be int or 2-list or ints for range.")
+            start_frame, end_frame = img_range
 
-        k = 0
-        try:
-            while ret:
-                if k < img_count:
-                    background_img_np += cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(
-                        float
-                    )
-                k += 1
-                ret, frame = self.video_capture.read()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            self.video_capture.release()
-            # pass
+        if hasattr(self, "numpy_frames"):
+            background_img_np = create_average_image_from_numpy_array(
+                arr=self.numpy_frames[start_frame:end_frame]
+            )
 
-        background_img_np = (background_img_np / img_count).astype(np.uint8)
+        elif hasattr(self, "video_capture"):
+            background_img_np = create_average_image_from_video(
+                video_capture=self.video_capture,
+                start_frame=start_frame,
+                end_frame=end_frame,
+            )
+
+        else:
+            raise AttributeError(
+                "PLUME object must read in either video data or numpy array of frames."
+            )
 
         return background_img_np
 
@@ -1529,6 +1529,77 @@ class var_func_on_poly:
             for sol in sols:
                 if sol[1] <= self.poly_func(t, sol[0]):
                     return sol
+
+
+def create_average_image_from_numpy_array(
+    arr: np.ndarray[tuple[Frame, Width, Height], np.dtype[np.uint8]]
+) -> np.ndarray[tuple[Width, Height], np.dtype[np.uint8]]:
+    """
+    Creates average frame from numpy array ofr frames.
+    Parameters:
+    ----------
+    arr: np.ndarray
+        numpy array that contains all frames to average
+
+    Returns:
+    -------
+    np.ndarray:
+        average image created.
+    """
+    return (np.sum(arr, axis=0) / len(arr)).astype(np.uint8)
+
+
+def create_average_image_from_video(
+    video_capture: cv2.VideoCapture, start_frame: int = 0, end_frame: int = -1
+) -> np.ndarray[tuple[Width, Height], np.dtype[np.uint8]]:
+    """
+    Creates average image from a specified window of frames from video.
+    Parameters:
+    ----------
+    video_capture: cv2.VideoCapture
+        Object after reading video file using opencv.
+
+    start_frame: int (default 0)
+        starting frame to create average image from.
+
+    end_frame: int (default -1)
+        ending frame to create average image from.
+
+    Returns:
+    -------
+    background_img_np: (np.ndarray)
+        Numpy array of average image (in grayscale).
+    """
+    tot_frame = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+
+    if start_frame < 0:
+        raise ValueError("start_frame must be int greater than or equal to 0.")
+    if end_frame == -1:
+        end_frame = tot_frame
+    elif end_frame > tot_frame:
+        raise ValueError(
+            f"end_frame must be int less than or equal to tot_frame count: {tot_frame}"
+        )
+
+    for k in range(start_frame, end_frame):
+        video_capture.set(cv2.CAP_PROP_POS_FRAMES, k)
+        ret, frame_k = video_capture.read()
+
+        if not ret:
+            raise RuntimeError(f"Failed to read frame: {k}")
+
+        frame_k = cv2.cvtColor(frame_k, cv2.COLOR_BGR2GRAY)
+
+        if k == start_frame:
+            background_img_np = frame_k.astype(float)
+        elif k > start_frame:
+            background_img_np += frame_k.astype(float)
+
+    img_count = end_frame - start_frame
+
+    background_img_np = (background_img_np / img_count).astype(np.uint8)
+
+    return background_img_np
 
 
 def click_coordinates(
