@@ -2,10 +2,62 @@ import unittest
 from unittest.mock import MagicMock
 
 import numpy as np
+import pytest
 
+from .mock_video_utils import MockVideoCapture
+from ara_plumes import models
 from ara_plumes import regressions
 from ara_plumes import utils
+from ara_plumes.models import create_average_image_from_numpy_array
+from ara_plumes.models import create_average_image_from_video
 from ara_plumes.preprocessing import convert_video_to_numpy_array
+
+
+def test_create_background_img():
+    # test numpy array
+    plume = models.PLUME()
+    plume.numpy_frames = np.array(
+        [np.full((10, 10), i, dtype=np.uint8) for i in range(1, 11)]
+    )
+
+    expected_avg_img = np.full((10, 10), 5, dtype=np.uint8)
+    avg_img = plume.create_background_img(img_range=10)
+
+    np.testing.assert_array_equal(avg_img, expected_avg_img)
+
+    # test video
+    plume = models.PLUME()
+    plume.video_capture = MockVideoCapture()
+
+    expected_avg_img = np.full((480, 640), 14, dtype=np.uint8)
+    avg_img = plume.create_background_img(img_range=[10, 20])
+
+    np.testing.assert_array_equal(avg_img, expected_avg_img)
+
+    # test Attribute Error
+    plume = models.PLUME()
+    with pytest.raises(AttributeError):
+        plume.create_background_img(img_range=[10, 20])
+
+
+def test_create_average_image_from_video():
+    video_capture_mock = MockVideoCapture()
+    start_frame = 10
+    end_frame = 20
+    expected_avg_img = np.full((480, 640), 14, dtype=np.uint8)
+    avg_img = create_average_image_from_video(
+        video_capture_mock, start_frame, end_frame
+    )
+    np.testing.assert_array_equal(avg_img, expected_avg_img)
+
+
+def test_create_average_image_from_numpy_array():
+    expected_avg_img = np.full((10, 10), 5, dtype=np.uint8)
+    arr_of_frames = np.array(
+        [np.full((10, 10), i, dtype=np.uint8) for i in range(1, 11)]
+    )
+    avg_img = create_average_image_from_numpy_array(arr_of_frames)
+    np.testing.assert_array_equal(avg_img, expected_avg_img)
 
 
 def test_convert_video_to_numpy_array():
