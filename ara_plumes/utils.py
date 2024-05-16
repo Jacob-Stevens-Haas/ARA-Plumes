@@ -427,7 +427,7 @@ def create_vari_dist_movie(vari_dist, save_path=None):
     def generate_plot(frame):
         plt.clf()
         t, r_d_arr = vari_dist[frame]
-        plt.title(f"Var (r,d), t={t}")
+        plt.title(f"Var (r, d), t={t}")
         if len(r_d_arr) != 0:
             plt.scatter(r_d_arr[:, 0], r_d_arr[:, 1], c="blue")
         plt.xlim(0, max_r)
