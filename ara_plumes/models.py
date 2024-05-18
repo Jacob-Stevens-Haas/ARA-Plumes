@@ -902,38 +902,12 @@ class PLUME:
             degree of polynomial used for regression (either explicit or parametric)
 
         x_less: int (default 600)
-<<<<<<< HEAD
             Amount of extra pixels to the left of data to extrapolate fitted
-            trajectories.
-||||||| parent of f8d2579 (cln: lint code)
-            Amount of extra pixels to the left of data to extrapolate fitted trajectories
-=======
-            Amount of extra pixels to the left of data to extrapolate fitted
-<<<<<<< HEAD
             trajectories
->>>>>>> f8d2579 (cln: lint code)
-||||||| parent of cd66672 (cln: moved clip_video to preprocessing module)
-            trajectories
-=======
-            trajectories.
->>>>>>> cd66672 (cln: moved clip_video to preprocessing module)
 
         x_plus: int (default 0)
-<<<<<<< HEAD
             Amount of extra pixels to the right of data to extrapolate fitted
-            trajectories.
-||||||| parent of f8d2579 (cln: lint code)
-            Amount of extra pixels to the right of data to extrapolate fitted trajectories
-=======
-            Amount of extra pixels to the right of data to extrapolate fitted
-<<<<<<< HEAD
             trajectories
->>>>>>> f8d2579 (cln: lint code)
-||||||| parent of cd66672 (cln: moved clip_video to preprocessing module)
-            trajectories
-=======
-            trajectories.
->>>>>>> cd66672 (cln: moved clip_video to preprocessing module)
 
         BGR_color: tuple (default (0,0,255))
             color of polynomial lines plotted on image
