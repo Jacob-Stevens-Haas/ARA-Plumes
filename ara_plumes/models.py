@@ -155,46 +155,6 @@ class PLUME:
         else:
             raise AttributeError("PLUME object must read in a numpy array of frames.")
 
-        # Reread after releasing from create_bacground_img
-        self.video_capture = cv2.VideoCapture(self.video_path)
-
-        video = self.video_capture
-        ret, frame = video.read()
-        # print("first ret:", ret)
-
-        # grab vieo info for saving new file
-        frame_width = int(video.get(3))
-        frame_height = int(video.get(4))
-        frame_rate = int(video.get(5))
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
-        # Possibly resave video
-        if isinstance(save_path, str):
-            clip_title = save_path + "." + extension
-            color_true = 1
-            out = cv2.VideoWriter(
-                clip_title, fourcc, frame_rate, (frame_width, frame_height), color_true
-            )
-
-        if display_vid is True:
-            display_handle = IPython.display.display(None, display_id=True)
-
-        # Select desired video range
-        if isinstance(img_range, list) and len(img_range) == 2:
-            if img_range[1] >= self.tot_frames:
-                print("Img_range exceeds total number of frames...")
-                print(f"Using max frame count {self.tot_frames}")
-                init_frame = img_range[0]
-                fin_frame = self.tot_frames - 1
-            else:
-                init_frame, fin_frame = img_range
-        elif isinstance(img_range, int):
-            init_frame = img_range
-            fin_frame = self.tot_frames - 1
-        elif img_range is None:
-            init_frame = fixed_range
-            fin_frame = self.tot_frames - 1
-
         # Initialize poly arrays
         if "poly_deg" in regression_kws:
             poly_deg = regression_kws["poly_deg"]
@@ -228,26 +188,6 @@ class PLUME:
             gauss_time_weights /= np.sum(gauss_time_weights)
         else:
             buffer = 0
-
-        # Ignore first set of frames not in desired range
-        for _ in tqdm(range(init_frame - buffer)):
-            # print(i)
-            ret, frame = video.read()
-            _, frame = cv2.imencode(".jpeg", frame)
-            if display_vid is True:
-                display_handle.update(IPython.display.Image(data=frame.tobytes()))
-
-        i = 0
-        for _ in tqdm(range(2 * buffer)):
-            ret, frame = video.read()
-            # convert frame to gray
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            # Apply subtraction (still in gray)
-            frame = cv2.subtract(frame, background_img_np)
-            # Convert to BGR
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-            frames_to_average[i] = frame
-            i += 1
 
         for k in tqdm(range(fin_frame - init_frame)):
             ret, frame = video.read()
