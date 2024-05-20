@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
 
 from ara_plumes import models
 from ara_plumes import regressions
@@ -13,20 +12,30 @@ from ara_plumes.preprocessing import convert_video_to_numpy_array
 
 def test_create_background_img():
     # test numpy array
-    plume = models.PLUME()
-    plume.numpy_frames = np.array(
+    numpy_frames = np.array(
         [np.full((10, 10), i, dtype=np.uint8) for i in range(1, 11)]
     )
 
-    expected_avg_img = np.full((10, 10), 5, dtype=np.uint8)
-    avg_img = plume.create_background_img(img_range=10)
+    expected_avg_img = np.full((10, 10), 5.5)
+    avg_img = models._create_background_img(numpy_frames, img_range=(0, 10))
 
     np.testing.assert_array_equal(avg_img, expected_avg_img)
 
-    # test Attribute Error
-    plume = models.PLUME()
-    with pytest.raises(AttributeError):
-        plume.create_background_img(img_range=[10, 20])
+
+def test_background_subtract():
+    numpy_frames = np.array(
+        [np.full((10, 10), i, dtype=np.uint8) for i in range(1, 11)]
+    )
+    expected = np.concatenate(
+        (
+            np.zeros((5, 10, 10), dtype=np.uint8),
+            np.array([np.full((10, 10), i, dtype=np.uint8) for i in range(0, 5)]),
+        ),
+        axis=0,
+    )
+    result = models.background_subtract(numpy_frames, img_range=(0, 10))
+
+    np.testing.assert_array_equal(result, expected)
 
 
 def test_create_average_image_from_numpy_array():

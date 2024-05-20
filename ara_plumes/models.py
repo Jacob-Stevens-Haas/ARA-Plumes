@@ -6,6 +6,7 @@ import cv2
 import IPython
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NBitBase
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 
@@ -21,6 +22,10 @@ Width = NewType("Width", int)
 Height = NewType("Height", int)
 Channel = NewType("Channel", int)
 
+
+GrayImage = np.ndarray[tuple[Height, Width], np.dtype[np.uint8]]
+FloatImage = np.ndarray[tuple[Height, Width], np.dtype[np.floating[NBitBase]]]
+GrayVideo = np.ndarray[tuple[Frame, Height, Width], np.dtype[np.uint8]]
 
 ax_frame = -3
 ax_width = -2
@@ -145,7 +150,10 @@ class PLUME:
             along bottom path of plume.
 
         """
-        background_img_np = self.create_background_img(img_range=fixed_range)
+        if hasattr(self, "numpy_frames"):
+            clean_vid = background_subtract(self.numpy_frames, img_range)
+        else:
+            raise AttributeError("PLUME object must read in a numpy array of frames.")
 
         # Reread after releasing from create_bacground_img
         self.video_capture = cv2.VideoCapture(self.video_path)
@@ -1156,35 +1164,6 @@ class PLUME:
 
         return max_value, max_indices
 
-    def create_background_img(self, img_range: tuple[int, int]):
-        """
-        Create background image for fixed subtraction method.
-        Args:
-            img_range: Range of frames to create average image (list).
-            Or number of initial frames to create average image to subtract from
-            frames (int).
-        Returns:
-            background_img_np (np.ndarray): Numpy array of average image (in
-            grayscale).
-        """
-
-        if isinstance(img_range, int):
-            start_frame = 0
-            end_frame = img_range
-        else:
-            start_frame, end_frame = img_range
-
-        if hasattr(self, "numpy_frames"):
-            background_img_np = create_average_image_from_numpy_array(
-                arr=self.numpy_frames[start_frame:end_frame]
-            )
-        else:
-            raise AttributeError(
-                "PLUME object must read in either video data or numpy array of frames."
-            )
-
-        return background_img_np
-
     def BGRframes_dot_weights(self, frames, weights):
         """
         Takes list of numpy arrays (imgs) and dots them with vector of weights
@@ -1407,9 +1386,7 @@ class var_func_on_poly:
                     return sol
 
 
-def create_average_image_from_numpy_array(
-    arr: np.ndarray[tuple[Frame, Width, Height], np.dtype[np.uint8]]
-) -> np.ndarray[tuple[Width, Height], np.dtype[np.uint8]]:
+def create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:
     """
     Creates average frame from numpy array ofr frames.
     Parameters:
@@ -1422,7 +1399,7 @@ def create_average_image_from_numpy_array(
     np.ndarray:
         average image created.
     """
-    return (np.mean(arr, axis=ax_frame)).astype(np.uint8)
+    return np.mean(arr, axis=ax_frame)
 
 
 def click_coordinates(
@@ -1475,3 +1452,34 @@ def click_coordinates(
     if not selected_point:
         raise RuntimeError("Point not selected")
     return selected_point
+
+
+def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
+    """
+    Create background image for fixed subtraction method.
+    Args:
+        frames: Video to create background image
+        img_range: Range of frames to create average image (list).
+        Or number of initial frames to create average image to subtract from
+        frames (int).
+    Returns:
+        background_img_np (np.ndarray): Numpy array of average image (in
+        grayscale).
+    """
+
+    if isinstance(img_range, int):
+        start_frame = 0
+        end_frame = img_range
+    else:
+        start_frame, end_frame = img_range
+
+    background_img_np = create_average_image_from_numpy_array(
+        arr=frames[start_frame:end_frame]
+    )
+
+    return background_img_np
+
+
+def background_subtract(frames: GrayVideo, img_range: tuple[int, int]) -> GrayVideo:
+    background_img_np = _create_background_img(frames, img_range=img_range)
+    return np.maximum(0, frames - background_img_np).astype(np.uint8)
