@@ -22,6 +22,11 @@ Height = NewType("Height", int)
 Channel = NewType("Channel", int)
 
 
+ax_frame = -3
+ax_width = -2
+ax_height = -1
+
+
 class PLUME:
     def __init__(self):
         self.mean_poly = None
@@ -56,115 +61,6 @@ class PLUME:
             plt.axis("off")
             plt.show()
 
-    def background_subtract(
-        self,
-        fixed_range: int,
-        subtraction_method: str = "fixed",
-        img_range=None,
-        save_path: str = "subtraction",
-        extension: str = "mp4",
-        display_vid: bool = True,
-    ):
-
-        #####################
-        # Fixed Subtraction #
-        #####################
-
-        # Create background image
-        if subtraction_method == "fixed" and (
-            isinstance(fixed_range, int) or isinstance(fixed_range, list)
-        ):
-            print("Creating background image...")
-            background_img_np = self.create_background_img(img_range=fixed_range)
-            # print("back shape:", background_img_np.shape)
-            print("done.")
-        else:
-            raise TypeError(
-                "fixed_range must be a positive int for fixed subtraction method."
-            )
-
-        self.video_capture = cv2.VideoCapture(self.video_path)
-
-        video = self.video_capture
-
-        # grab video info for saving new file
-        frame_width = int(video.get(3))
-        frame_height = int(video.get(4))
-        frame_rate = int(video.get(5))
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
-        # Possibly resave video
-        if isinstance(save_path, str):
-            clip_title = save_path + "." + extension
-            color_true = 1
-            out = cv2.VideoWriter(
-                clip_title, fourcc, frame_rate, (frame_width, frame_height), color_true
-            )
-
-        if display_vid is True:
-            display_handle = IPython.display.display(None, display_id=True)
-
-        # Get image range to apply background subtraction
-        if isinstance(img_range, list) and len(img_range) == 2:
-            if img_range[-1] >= self.tot_frames:
-                print("img_range exceeds total number of frames...")
-                print(f"Using max frame count: {self.tot_frames}")
-                init_frame = img_range[0]
-                fin_frame = self.tot_frames - 1
-            else:
-                init_frame, fin_frame = img_range
-        elif isinstance(img_range, int):
-            init_frame = img_range
-            fin_frame = self.tot_frames - 1
-        elif img_range is None:
-            if isinstance(fixed_range, int):
-                init_frame = fixed_range
-                fin_frame = self.tot_frames - 1
-            elif isinstance(fixed_range, list) and len(fixed_range) == 2:
-                init_frame = fixed_range[-1]
-                fin_frame = self.tot_frames - 1
-        else:
-            raise TypeError(f"img_range does not support type {type(img_range)}.")
-
-        # Frames to ignore
-        for _ in range(init_frame):
-            _ = video.read()
-
-        # Frames to apply background subtraction too
-        for k in tqdm(range(init_frame, fin_frame)):
-            ret, frame = video.read()
-
-            if not ret:
-                print("break reached")
-                break
-
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            frame = cv2.subtract(frame, background_img_np)
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-
-            if isinstance(save_path, str):
-                out.write(frame)
-
-            _, frame = cv2.imencode(".jpeg", frame)
-
-            if display_vid is True:
-                display_handle.update(IPython.display.Image(data=frame.tobytes()))
-
-        if isinstance(save_path, str):
-            video.release()
-            out.release()
-
-        # if display_vid is True:
-        #     display_handle.update(None)
-
-        ###########################
-        # Moving Average Subtract #
-        ###########################
-        if subtraction_method == "moving_avg":
-            print()
-
-        return
-
     def set_center(self, frame: Optional[int] = None) -> None:
         """Set the plume source in the video"""
         self.orig_center = click_coordinates(self.video_capture, frame)
@@ -172,8 +68,7 @@ class PLUME:
     def train(
         self,
         img_range: list = None,
-        subtraction_method: str = "fixed",
-        fixed_range: int = None,
+        fixed_range: tuple[int, int] = (0, -1),
         gauss_space_blur=True,
         gauss_kernel_size=81,
         gauss_space_sigma=15,
@@ -200,10 +95,8 @@ class PLUME:
             concentric circles too. Default None uses remaining frames
             after declared fixed_range used to generated background
             image.
-        subtraction_method: str
-            Method used to apply background subtraction.
 
-        fixed_range: int
+        fixed_range:
             Range of images to use as background image for subtraction
             method.
 
@@ -252,16 +145,7 @@ class PLUME:
             along bottom path of plume.
 
         """
-        # Create background image
-        if subtraction_method == "fixed" and isinstance(fixed_range, int):
-            print("Creating background image...")
-            background_img_np = self.create_background_img(img_range=fixed_range)
-            # print("back shape:", background_img_np.shape)
-            print("done.")
-        else:
-            raise TypeError(
-                "fixed_range must be a positive int for fixed subtraction method."
-            )
+        background_img_np = self.create_background_img(img_range=fixed_range)
 
         # Reread after releasing from create_bacground_img
         self.video_capture = cv2.VideoCapture(self.video_path)
@@ -1272,11 +1156,11 @@ class PLUME:
 
         return max_value, max_indices
 
-    def create_background_img(self, img_range: int | list):
+    def create_background_img(self, img_range: tuple[int, int]):
         """
         Create background image for fixed subtraction method.
         Args:
-            img_range (int,list): Range of frames to create average image (list).
+            img_range: Range of frames to create average image (list).
             Or number of initial frames to create average image to subtract from
             frames (int).
         Returns:
@@ -1294,14 +1178,6 @@ class PLUME:
             background_img_np = create_average_image_from_numpy_array(
                 arr=self.numpy_frames[start_frame:end_frame]
             )
-
-        elif hasattr(self, "video_capture"):
-            background_img_np = create_average_image_from_video(
-                video_capture=self.video_capture,
-                start_frame=start_frame,
-                end_frame=end_frame,
-            )
-
         else:
             raise AttributeError(
                 "PLUME object must read in either video data or numpy array of frames."
@@ -1546,60 +1422,7 @@ def create_average_image_from_numpy_array(
     np.ndarray:
         average image created.
     """
-    return (np.sum(arr, axis=0) / len(arr)).astype(np.uint8)
-
-
-def create_average_image_from_video(
-    video_capture: cv2.VideoCapture, start_frame: int = 0, end_frame: int = -1
-) -> np.ndarray[tuple[Width, Height], np.dtype[np.uint8]]:
-    """
-    Creates average image from a specified window of frames from video.
-    Parameters:
-    ----------
-    video_capture: cv2.VideoCapture
-        Object after reading video file using opencv.
-
-    start_frame: int (default 0)
-        starting frame to create average image from.
-
-    end_frame: int (default -1)
-        ending frame to create average image from.
-
-    Returns:
-    -------
-    background_img_np: (np.ndarray)
-        Numpy array of average image (in grayscale).
-    """
-    tot_frame = int(video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
-
-    if start_frame < 0:
-        raise ValueError("start_frame must be int greater than or equal to 0.")
-    if end_frame == -1:
-        end_frame = tot_frame
-    elif end_frame > tot_frame:
-        raise ValueError(
-            f"end_frame must be int less than or equal to tot_frame count: {tot_frame}"
-        )
-
-    for k in range(start_frame, end_frame):
-        video_capture.set(cv2.CAP_PROP_POS_FRAMES, k)
-        ret, frame_k = video_capture.read()
-
-        if not ret:
-            raise RuntimeError(f"Failed to read frame: {k}")
-
-        frame_k = cv2.cvtColor(frame_k, cv2.COLOR_BGR2GRAY)
-
-        if k == start_frame:
-            background_img_np = frame_k.astype(float)
-        elif k > start_frame:
-            background_img_np += frame_k.astype(float)
-
-    img_count = end_frame - start_frame
-
-    background_img_np = (background_img_np / img_count).astype(np.uint8)
-
-    return background_img_np
+    return (np.mean(arr, axis=ax_frame)).astype(np.uint8)
 
 
 def click_coordinates(
