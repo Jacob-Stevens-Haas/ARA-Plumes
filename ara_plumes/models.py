@@ -1,13 +1,15 @@
 import logging
+from typing import List
 from typing import NewType
 from typing import Optional
 
 import cv2
-import IPython
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.typing import NBitBase
+from scipy.ndimage import convolve1d
 from scipy.ndimage import gaussian_filter
+from scipy.signal import gaussian
 from tqdm import tqdm
 
 from ara_plumes import regressions
@@ -22,14 +24,20 @@ Width = NewType("Width", int)
 Height = NewType("Height", int)
 Channel = NewType("Channel", int)
 
+Vertex = NewType("Vertex", int)
+Y_pos = NewType("Y_pos", int)
+X_pos = NewType("X_pos", int)
+Contour_List = List[np.ndarray[tuple[Vertex, Y_pos, X_pos]]]
+
 
 GrayImage = np.ndarray[tuple[Height, Width], np.dtype[np.uint8]]
+ColorImage = np.ndarray[tuple[Height, Width, Channel], np.dtype[np.uint8]]
 FloatImage = np.ndarray[tuple[Height, Width], np.dtype[np.floating[NBitBase]]]
 GrayVideo = np.ndarray[tuple[Frame, Height, Width], np.dtype[np.uint8]]
 
 ax_frame = -3
-ax_width = -2
-ax_height = -1
+ax_height = -2
+ax_width = -1
 
 
 class PLUME:
@@ -72,17 +80,14 @@ class PLUME:
 
     def train(
         self,
-        img_range: list = None,
+        img_range: tuple[int, int] = (0, -1),
         fixed_range: tuple[int, int] = (0, -1),
-        gauss_space_blur=True,
-        gauss_kernel_size=81,
-        gauss_space_sigma=15,
-        gauss_time_blur=True,
-        gauss_time_window=5,
-        gauss_time_sigma=1,
-        extension="mp4",
-        save_path=None,
-        display_vid=True,
+        gauss_space_blur: bool = True,
+        gauss_kernel_size: int = 81,
+        gauss_space_sigma: float = 15,
+        gauss_time_blur: bool = True,
+        gauss_time_window: bool = 5,
+        gauss_time_sigma: float = 1,
         regression_method="sinusoid",
         concentric_circle_kws={},
         regression_kws={},
@@ -151,9 +156,25 @@ class PLUME:
 
         """
         if hasattr(self, "numpy_frames"):
-            clean_vid = background_subtract(self.numpy_frames, img_range)
+            clean_vid = background_subtract(self.numpy_frames, fixed_range)
         else:
             raise AttributeError("PLUME object must read in a numpy array of frames.")
+
+        if gauss_time_blur:
+            clean_vid = apply_gauss_time_blur(
+                arr=clean_vid, kernel_size=gauss_time_window, sigma=gauss_time_sigma
+            )
+
+        if gauss_space_blur:
+            clean_vid = apply_gauss_space_blur(
+                arr=clean_vid,
+                kernel_size=(gauss_kernel_size, gauss_kernel_size),
+                sigma_x=gauss_space_sigma,
+                sigma_y=gauss_space_sigma,
+            )
+
+        for frame_i in tqdm(clean_vid[img_range[0], img_range[-1]]):
+            _, selected_contours = get_contour(frame_i, **get_contour_kws)
 
         # Initialize poly arrays
         if "poly_deg" in regression_kws:
@@ -171,59 +192,59 @@ class PLUME:
             var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
             var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
 
-        # Check for Gaussian Time Blur
-        if gauss_time_blur is True:
-            if not isinstance(gauss_time_window, int):
-                raise Exception("window must be a positive odd int.")
-            if not gauss_time_window % 2 == 1:
-                raise Exception("window must be a positive odd int.")
+            # # Check for Gaussian Time Blur
+            # if gauss_time_blur is True:
+            #     if not isinstance(gauss_time_window, int):
+            #         raise Exception("window must be a positive odd int.")
+            #     if not gauss_time_window % 2 == 1:
+            #         raise Exception("window must be a positive odd int.")
 
-            # Create gaussian_time_blur variables
-            buffer = int(gauss_time_window / 2)
-            frames_to_average = list(np.zeros(gauss_time_window))
-            gauss_time_weights = [
-                np.exp(-((x - buffer) ** 2) / (2 * gauss_time_sigma**2))
-                for x in range(gauss_time_window)
-            ]
-            gauss_time_weights /= np.sum(gauss_time_weights)
-        else:
-            buffer = 0
+            #     # Create gaussian_time_blur variables
+            #     buffer = int(gauss_time_window / 2)
+            #     frames_to_average = list(np.zeros(gauss_time_window))
+            #     gauss_time_weights = [
+            #         np.exp(-((x - buffer) ** 2) / (2 * gauss_time_sigma**2))
+            #         for x in range(gauss_time_window)
+            #     ]
+            #     gauss_time_weights /= np.sum(gauss_time_weights)
+            # else:
+            #     buffer = 0
 
-        for k in tqdm(range(fin_frame - init_frame)):
-            ret, frame = video.read()
-            # print(i)
+            # for k in tqdm(range(fin_frame - init_frame)):
+            #     ret, frame = video.read()
+            #     # print(i)
 
-            # Check if video_capture was read in correctly
-            if not ret:
-                break
+            #     # Check if video_capture was read in correctly
+            #     if not ret:
+            #         break
 
-            # convert frame to gray
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            #     # convert frame to gray
+            #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Apply subtraction
-            frame = cv2.subtract(frame, background_img_np)
+            #     # Apply subtraction
+            #     frame = cv2.subtract(frame, background_img_np)
 
-            # Convert to BGR
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            #     # Convert to BGR
+            #     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
 
-            if gauss_time_blur is True:
-                frames_to_average[i] = frame
-                # Apply gaussian filter over windows
-                frame = self.BGRframes_dot_weights(
-                    frames_to_average, gauss_time_weights
-                )
-                # Move frames over left
-                frames_to_average[:-1] = frames_to_average[1:]
-                i = -1
+            #     if gauss_time_blur is True:
+            #         frames_to_average[i] = frame
+            #         # Apply gaussian filter over windows
+            #         frame = self.BGRframes_dot_weights(
+            #             frames_to_average, gauss_time_weights
+            #         )
+            #         # Move frames over left
+            #         frames_to_average[:-1] = frames_to_average[1:]
+            #         i = -1
 
-            if gauss_space_blur is True:
-                kernel_size = (gauss_kernel_size, gauss_kernel_size)
-                sigma = gauss_space_sigma
+            #     if gauss_space_blur is True:
+            #         kernel_size = (gauss_kernel_size, gauss_kernel_size)
+            #         sigma = gauss_space_sigma
 
-                frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
+            #         frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
 
             # Apply contour detection
-            contour_img, selected_contours = self.get_contour(frame, **get_contour_kws)
+            # contour_img, selected_contours = self.get_contour(frame, **get_contour_kws)
 
             # Apply concentric circles to frame
             out_data = self.concentric_circle(
@@ -262,107 +283,26 @@ class PLUME:
                 self.var1_dist.append((k, var1_dist_k))
                 self.var2_dist.append((k, var2_dist_k))
 
-            if isinstance(save_path, str):
-                out.write(frame)
-            _, frame = cv2.imencode(".jpeg", frame)
+            # if isinstance(save_path, str):
+            #     out.write(frame)
+            # _, frame = cv2.imencode(".jpeg", frame)
 
-            if display_vid is True:
-                display_handle.update(IPython.display.Image(data=frame.tobytes()))
+            # if display_vid is True:
+            #     display_handle.update(IPython.display.Image(data=frame.tobytes()))
 
-        # video.release()
-        if isinstance(save_path, str):
-            video.release()
-            out.release()
+        # # video.release()
+        # if isinstance(save_path, str):
+        #     video.release()
+        #     out.release()
 
-        if display_vid is True:
-            display_handle.update(None)
+        # if display_vid is True:
+        #     display_handle.update(None)
 
         self.mean_poly = mean_array
         self.var1_poly = var1_array
         self.var2_poly = var2_array
 
         return mean_array, var1_array, var2_array
-
-    def get_contour(
-        self,
-        img,
-        threshold_method="OTSU",
-        num_of_contours=1,
-        contour_smoothing=False,
-        contour_smoothing_eps=50,
-    ):
-        """
-        Contour detection applied to single frame of background subtracted
-        video.
-
-        Parameters:
-        -----------
-        img: np.ndarray (gray or BGR)
-            image to apply contour detection too.
-
-        threshold_method: str (default "OTSU")
-            Opencv method used for applying thresholding.
-
-        num_of_contours: int (default 1)
-            Number of contours selected to be used (largest to smallest).
-
-        contour_smoothing: bool (default False)
-            Used cv2.approxPolyDP to apply additional smoothing to contours
-            selected contours.
-
-        contour_smoothing_eps: positive int (default 50)
-            hyperparater for tuning cv2.approxPolyDP in contour_smoothing.
-            Level of smoothing to be applied to plume detection contours.
-            Only used when contour_smoothing = True.
-
-        Returns:
-        --------
-        contour_img: np.ndarray
-            img with contours drawn on
-
-        selected_contours: list
-            Returns list of num_of_contours largest contours detected in image.
-        """
-
-        # convert image to gray
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # Apply thresholding
-        if threshold_method == "OTSU":
-            _, threshold = cv2.threshold(
-                img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-            )
-
-        # Find contours
-        contours, _ = cv2.findContours(
-            threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-
-        # Select n largest contours
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        selected_contours = contours[:num_of_contours]
-
-        # Apply contour smoothing
-        if contour_smoothing is True:
-            smoothed_contours = []
-
-            for contour in selected_contours:
-                smoothed_contours.append(
-                    cv2.approxPolyDP(contour, contour_smoothing_eps, True)
-                )
-
-            selected_contours = smoothed_contours
-
-        # Draw contours on image
-        green_color = (0, 255, 0)
-        red_color = (0, 0, 255)
-        # blue_color = (255, 0, 0)
-
-        contour_img = img.copy()
-        cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
-        cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
-
-        return (contour_img, selected_contours)
 
     def concentric_circle(
         self,
@@ -1326,7 +1266,91 @@ class var_func_on_poly:
                     return sol
 
 
-def create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:
+def get_contour(
+    img: GrayImage | ColorImage,
+    threshold_method: str = "OTSU",
+    num_of_contours: int = 1,
+    contour_smoothing: bool = False,
+    contour_smoothing_eps: int = 50,
+    contour_color: tuple[int, int, int] = (0, 255, 0),
+) -> tuple[ColorImage, Contour_List]:
+    """
+    Contour detection applied to single frame of background subtracted
+    video.
+
+    Parameters:
+    -----------
+    img: np.ndarray (gray or BGR)
+        image to apply contour detection too.
+
+    threshold_method: str (default "OTSU")
+        Opencv method used for applying thresholding.
+
+    num_of_contours: int (default 1)
+        Number of contours selected to be used (largest to smallest).
+
+    contour_smoothing: bool (default False)
+        Used cv2.approxPolyDP to apply additional smoothing to contours
+        selected contours.
+
+    contour_smoothing_eps: positive int (default 50)
+        hyperparater for tuning cv2.approxPolyDP in contour_smoothing.
+        Level of smoothing to be applied to plume detection contours.
+        Only used when contour_smoothing = True.
+
+    contour_color:
+        color of contour plotted on returned image.
+
+    Returns:
+    --------
+    contour_img:
+        img with contours drawn on
+
+    selected_contours:
+        Returns list of num_of_contours largest contours detected in image.
+    """
+
+    if len(img.shape) == 3:
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        contour_img = img.copy()
+    elif len(img.shape) == 2:
+        img_gray = img
+        contour_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    else:
+        raise TypeError("img must be either Gray or Color")
+
+    # Apply thresholding
+    if threshold_method == "OTSU":
+        _, threshold = cv2.threshold(
+            img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
+
+    # Find contours
+    contours, _ = cv2.findContours(
+        threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+    )
+
+    # Select n largest contours
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    selected_contours = contours[:num_of_contours]
+
+    # Apply contour smoothing
+    if contour_smoothing:
+        smoothed_contours = []
+
+        for contour in selected_contours:
+            smoothed_contours.append(
+                cv2.approxPolyDP(contour, contour_smoothing_eps, True)
+            )
+
+        selected_contours = smoothed_contours
+
+    cv2.drawContours(contour_img, selected_contours, -1, contour_color, 2)
+
+    return contour_img, selected_contours
+
+
+def _create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:
     """
     Creates average frame from numpy array ofr frames.
     Parameters:
@@ -1340,6 +1364,57 @@ def create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:
         average image created.
     """
     return np.mean(arr, axis=ax_frame)
+
+
+def apply_gauss_space_blur(
+    arr: GrayVideo,
+    kernel_size: tuple[int, int],
+    sigma_x: float,
+    sigma_y: float,
+) -> GrayVideo:
+    """
+    Apply openCV gaussianblur to series of frames
+
+    Parameters:
+    ----------
+    arr: np.ndarray
+    kernel_size:
+        Gaussian convolution width and height. int(s) must be positive and odd and
+        may differ.
+    sigma_x:
+    sigma_y:
+    """
+
+    return np.array(
+        [cv2.GaussianBlur(frame_i, kernel_size, sigma_x, sigma_y) for frame_i in arr]
+    )
+
+
+def apply_gauss_time_blur(
+    arr: GrayVideo,
+    kernel_size: int,
+    sigma: float,
+) -> GrayVideo:
+    """
+    Applying Gaussian blur across timeseries of frames.
+
+    Parameters:
+    ----------
+    arr:
+        np.ndarray containing black and white frames.
+    kernel_size:
+        Positive, odd, int specifying the size of kernel to convolve with arr.
+    sigma:
+        standard deviation for Gaussian weighting.
+
+    """
+    if kernel_size % 2 == 0:
+        raise TypeError("window for gaussian blur must be positive, odd int.")
+    gw = gaussian(kernel_size, sigma)
+
+    return (
+        convolve1d(arr, gw, axis=ax_frame, mode="constant", cval=0.0) / np.sum(gw)
+    ).astype(np.uint8)
 
 
 def click_coordinates(
@@ -1413,7 +1488,7 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
     else:
         start_frame, end_frame = img_range
 
-    background_img_np = create_average_image_from_numpy_array(
+    background_img_np = _create_average_image_from_numpy_array(
         arr=frames[start_frame:end_frame]
     )
 
