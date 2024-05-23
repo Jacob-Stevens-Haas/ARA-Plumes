@@ -178,6 +178,7 @@ def concentric_circle(
     if bool(new_points_mean):
         points_mean = np.array(new_points_mean).reshape(-1, 3)
 
+    points_mean = points_mean.astype(int)
     points_mean[:, 1:] -= orig_center
 
     poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
