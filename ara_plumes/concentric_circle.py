@@ -322,7 +322,7 @@ def _find_next_center(
 
 def _add_contours_on_img(
     img: GrayImage | ColorImage,
-    orig_center: tuple[int, int],
+    orig_center: Optional[tuple[X_pos, Y_pos]] = None,
     mean_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
     var1_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
     var2_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
@@ -364,7 +364,7 @@ def _add_contours_on_img(
     if selected_contours:
         cv2.drawContours(color_img, selected_contours, -1, contour_color, 2)
 
-    if radii and num_of_circs:
+    if radii and num_of_circs and orig_center:
         for step in range(1, num_of_circs + 1):
             radius_i = radii * step
 
