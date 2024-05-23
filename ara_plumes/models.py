@@ -161,7 +161,7 @@ class PLUME:
         for k in tqdm(range(img_range[0], img_range[-1])):
             frame_k = clean_vid[k]
 
-            _, selected_contours = get_contour(frame_k, **get_contour_kws)
+            selected_contours = get_contour(frame_k, **get_contour_kws)
 
             mean_k, var1_k, var2_k = concentric_circle(
                 frame_k,
@@ -777,10 +777,8 @@ def get_contour(
 
     if len(img.shape) == 3:
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        contour_img = img.copy()
     elif len(img.shape) == 2:
-        img_gray = img
-        contour_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        img_gray = img.copy()
     else:
         raise TypeError("img must be either Gray or Color")
 
@@ -810,9 +808,7 @@ def get_contour(
 
         selected_contours = smoothed_contours
 
-    cv2.drawContours(contour_img, selected_contours, -1, contour_color, 2)
-
-    return contour_img, selected_contours
+    return selected_contours
 
 
 def _create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:

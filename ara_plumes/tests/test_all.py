@@ -27,12 +27,12 @@ def test_get_contour():
     expected = np.array([[[100, 100]], [[100, 300]], [[300, 300]], [[300, 100]]])
 
     # gray test
-    _, selected_contour = get_contour(square_img)
+    selected_contour = get_contour(square_img)
     result = selected_contour[0]
     np.testing.assert_array_equal(expected, result)
 
     # color test
-    _, selected_contour = get_contour(square_img_color)
+    selected_contour = get_contour(square_img_color)
     result = selected_contour[0]
     np.testing.assert_array_equal(expected, result)
 
