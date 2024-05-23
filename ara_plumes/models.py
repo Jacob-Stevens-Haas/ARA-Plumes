@@ -737,8 +737,8 @@ def get_contour(
     num_of_contours: int = 1,
     contour_smoothing: bool = False,
     contour_smoothing_eps: int = 50,
-    contour_color: tuple[int, int, int] = (0, 255, 0),
-) -> tuple[ColorImage, Contour_List]:
+    find_contour_method: int = cv2.CHAIN_APPROX_NONE,
+) -> Contour_List:
     """
     Contour detection applied to single frame of background subtracted
     video.
@@ -763,8 +763,9 @@ def get_contour(
         Level of smoothing to be applied to plume detection contours.
         Only used when contour_smoothing = True.
 
-    contour_color:
-        color of contour plotted on returned image.
+    find_contour_method:
+        Method used by opencv to find contours. 1 is cv2.CHAIN_APPROX_NONE.
+        2 is cv2.CHAIN_APPROX_SIMPLE.
 
     Returns:
     --------
@@ -790,7 +791,7 @@ def get_contour(
 
     # Find contours
     contours, _ = cv2.findContours(
-        threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        threshold, cv2.RETR_EXTERNAL, method=find_contour_method
     )
 
     # Select n largest contours
