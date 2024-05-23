@@ -17,7 +17,7 @@ from .typing import Y_pos
 def concentric_circle(
     img: GrayImage | ColorImage,
     selected_contours: Contour_List,
-    orig_center: tuple[int, int],
+    orig_center: tuple[X_pos, Y_pos],
     radii: int = 50,
     num_of_circs: int = 30,
     interior_scale: float = 3 / 5,
@@ -97,7 +97,7 @@ def concentric_circle(
     """
 
     # convert image to gray
-    if len(img.shape) == 2:
+    if len(img.shape) == 3:
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     else:
         img_gray = img.copy()
