@@ -1,43 +1,29 @@
 import logging
-from typing import List
-from typing import NewType
 from typing import Optional
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.typing import NBitBase
 from scipy.ndimage import convolve1d
-from scipy.ndimage import gaussian_filter
 from scipy.signal import gaussian
 from tqdm import tqdm
 
-from ara_plumes import regressions
-from ara_plumes import utils
+from . import regressions
+from . import utils
+from .concentric_circle import concentric_circle
+from .typing import ax_frame
+from .typing import ColorImage
+from .typing import Contour_List
+from .typing import FloatImage
+from .typing import Frame
+from .typing import GrayImage
+from .typing import GrayVideo
+from .typing import List
+from .typing import PointsMean
+from .typing import PointsVar1
+from .typing import PointsVar2
 
-# For displaying clips in Jupyter notebooks
-# from IPython.display import Image, display
 logger = logging.getLogger(__name__)
-
-Frame = NewType("Frame", int)
-Width = NewType("Width", int)
-Height = NewType("Height", int)
-Channel = NewType("Channel", int)
-
-Vertex = NewType("Vertex", int)
-Y_pos = NewType("Y_pos", int)
-X_pos = NewType("X_pos", int)
-Contour_List = List[np.ndarray[tuple[Vertex, Y_pos, X_pos]]]
-
-
-GrayImage = np.ndarray[tuple[Height, Width], np.dtype[np.uint8]]
-ColorImage = np.ndarray[tuple[Height, Width, Channel], np.dtype[np.uint8]]
-FloatImage = np.ndarray[tuple[Height, Width], np.dtype[np.floating[NBitBase]]]
-GrayVideo = np.ndarray[tuple[Frame, Height, Width], np.dtype[np.uint8]]
-
-ax_frame = -3
-ax_height = -2
-ax_width = -1
 
 
 class PLUME:
@@ -88,11 +74,13 @@ class PLUME:
         gauss_time_blur: bool = True,
         gauss_time_window: bool = 5,
         gauss_time_sigma: float = 1,
-        regression_method="sinusoid",
         concentric_circle_kws={},
-        regression_kws={},
         get_contour_kws={},
-    ):
+    ) -> tuple[
+        List[tuple[Frame, PointsMean]],
+        List[tuple[Frame, PointsVar1]],
+        List[tuple[Frame, PointsVar2]],
+    ]:
         """
         Apply connetric circles to frames range
 
@@ -124,35 +112,25 @@ class PLUME:
 
         gauss_time_sigma: int (default 1)
 
-        extension: str (default mp4)
-            file format video is saved as.
+        concentric_circle_kws:
+            dictionary containing arguments for concentric_circle function.
 
-        save_path: str (default None)
-            Path/name of video. Default None will not save video.
-
-        display_vid: bool (default True)
-            Display concentric_circles in jupyter notebook window.
-
-        regression_method: str (default "poly")
-            Regression method to be applied to selected points in
-            concentric circle pipeline.
-
-        regression_kws: dict
-            Additional arguments for selected regression_method.
+        get_contour_kws:
+            dictionary contain arguments for get_contour function
 
         Returns:
         --------
-        mean_array: np.ndarray
-            Numpy array containing time series of learned regression coefficients
-            along mean path of plume.
+        mean_points:
+            List of tuples containing frame count, k, and mean points, (r(k),x(k),y(k)),
+            attained from frame k.
 
-        var1_array: np.ndarray
-            Numpy array containing time series of learned regression coefficvients
-            along top path of plume.
+        var1_points:
+            List of tuples containing frame count, k, and var1 points, (r(k),x(k),y(k)),
+            attained from frame k.
 
-        var2_array: np.ndarray
-            Numpy array containing time series of learned regression coefficvients
-            along bottom path of plume.
+        var2_points:
+            List of tuples containing frame count, k, and var2 points, (r(k),x(k),y(k)),
+            attained from frame k.
 
         """
         if hasattr(self, "numpy_frames"):
@@ -173,461 +151,30 @@ class PLUME:
                 sigma_y=gauss_space_sigma,
             )
 
-        for frame_i in tqdm(clean_vid[img_range[0], img_range[-1]]):
-            _, selected_contours = get_contour(frame_i, **get_contour_kws)
-
-        # Initialize poly arrays
-        if "poly_deg" in regression_kws:
-            poly_deg = regression_kws["poly_deg"]
-        else:
-            poly_deg = 2
-
-        if regression_method == "parametric":
-            mean_array = np.zeros((fin_frame - init_frame, (poly_deg + 1) * 2))
-            var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-            var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-
-        else:
-            mean_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-            var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-            var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-
-            # # Check for Gaussian Time Blur
-            # if gauss_time_blur is True:
-            #     if not isinstance(gauss_time_window, int):
-            #         raise Exception("window must be a positive odd int.")
-            #     if not gauss_time_window % 2 == 1:
-            #         raise Exception("window must be a positive odd int.")
-
-            #     # Create gaussian_time_blur variables
-            #     buffer = int(gauss_time_window / 2)
-            #     frames_to_average = list(np.zeros(gauss_time_window))
-            #     gauss_time_weights = [
-            #         np.exp(-((x - buffer) ** 2) / (2 * gauss_time_sigma**2))
-            #         for x in range(gauss_time_window)
-            #     ]
-            #     gauss_time_weights /= np.sum(gauss_time_weights)
-            # else:
-            #     buffer = 0
-
-            # for k in tqdm(range(fin_frame - init_frame)):
-            #     ret, frame = video.read()
-            #     # print(i)
-
-            #     # Check if video_capture was read in correctly
-            #     if not ret:
-            #         break
-
-            #     # convert frame to gray
-            #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            #     # Apply subtraction
-            #     frame = cv2.subtract(frame, background_img_np)
-
-            #     # Convert to BGR
-            #     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-
-            #     if gauss_time_blur is True:
-            #         frames_to_average[i] = frame
-            #         # Apply gaussian filter over windows
-            #         frame = self.BGRframes_dot_weights(
-            #             frames_to_average, gauss_time_weights
-            #         )
-            #         # Move frames over left
-            #         frames_to_average[:-1] = frames_to_average[1:]
-            #         i = -1
-
-            #     if gauss_space_blur is True:
-            #         kernel_size = (gauss_kernel_size, gauss_kernel_size)
-            #         sigma = gauss_space_sigma
-
-            #         frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
-
-            # Apply contour detection
-            # contour_img, selected_contours = self.get_contour(frame, **get_contour_kws)
-
-            # Apply concentric circles to frame
-            out_data = self.concentric_circle(
-                frame,
-                contour_img=contour_img,
-                selected_contours=selected_contours,
-                **concentric_circle_kws,
-            )
-            # DONE: FIX THIS: OUT_DATA[I][1:]
-            mean_points_k = out_data[0]
-            var1_points_k = out_data[1]
-            var2_points_k = out_data[2]
-            frame = out_data[3]
-
-            # Apply regression method to selected points
-            out_data = self.regression(
-                points_mean=mean_points_k,
-                points_var1=var1_points_k,
-                points_var2=var2_points_k,
-                img=frame,
-                orig_center=self.orig_center,
-                selected_contours=selected_contours,
-                regression_method=regression_method,
-                **regression_kws,
-            )
-
-            mean_array[k] = out_data[0]
-            var1_array[k] = out_data[1]
-            var2_array[k] = out_data[2]
-            frame = out_data[3]
-
-            if regression_method == "sinusoid" or regression_method == "parametric":
-                var1_dist_k = out_data[4]
-                var2_dist_k = out_data[5]
-
-                self.var1_dist.append((k, var1_dist_k))
-                self.var2_dist.append((k, var2_dist_k))
-
-            # if isinstance(save_path, str):
-            #     out.write(frame)
-            # _, frame = cv2.imencode(".jpeg", frame)
-
-            # if display_vid is True:
-            #     display_handle.update(IPython.display.Image(data=frame.tobytes()))
-
-        # # video.release()
-        # if isinstance(save_path, str):
-        #     video.release()
-        #     out.release()
-
-        # if display_vid is True:
-        #     display_handle.update(None)
-
-        self.mean_poly = mean_array
-        self.var1_poly = var1_array
-        self.var2_poly = var2_array
-
-        return mean_array, var1_array, var2_array
-
-    def concentric_circle(
-        self,
-        img,
-        contour_img,
-        selected_contours,
-        radii=50,
-        num_of_circs=30,
-        boundary_ring=True,
-        interior_ring=False,
-        interior_scale=3 / 5,
-        rtol=1e-2,
-        atol=1e-6,
-        poly_deg=2,
-        mean_smoothing=True,
-        mean_smoothing_sigma=2,
-        quiet=True,
-    ):
-        """
-        Applies concentric cirlces to a single frame (gray or BGR) from video
-
-        Creates new image and learned poly coef for mean line and variance line.
-
-        Parameters:
-        -----------
-        img: np.ndarray (gray or BGR)
-            image to apply concentric circle too.
-
-        contour_img: np.ndarray
-            frame with detected plume contours added.
-
-        selected_contours: list
-            List of contours learned from get_contour
-
-        radii: int, optional (default 50)
-            The radii used to step out in concentric circles method.
-
-        num_of_circles: int, optional (default 22)
-            number of circles and radii steps to take in concentric circles method.
-
-        fit_poly: bool, optional (default True)
-            For plotting and image return. Specify whether or not to include
-            learned polynomials in returned image.
-
-        interior_ring, boundary_ring: bools, optional (default False)
-            For plotting and image return. Specify whether or not to include the
-            concentric circle rings (boundary_ring)
-            and/or the focusing rings (interior_ring) in returned image.
-
-        interior_scale: float, optional (default 3/5)
-            Used to scale down the radii used on the focusing rings. Called in
-            find_next_center
-
-        rtol, atol: float, optional (default 1e-2, 1e-6)
-            Relative and absolute tolerances. Used in np.isclose function in
-            find_max_on_boundary and find_next_center functions.
-            Checks if points are close to selected radii.
-
-        poly_deg: int, optional (default 2)
-            Specifying degree of polynomail to learn on points selected from
-            concentric circle method.
-
-        x_less, x_plus: int, optional (default 600, 0)
-            For plotting and image return. Specifically to delegate more points
-            to plot learned polynomial on returned image.
-
-        mean_smoothing: bool, optional (default True)
-            Applying additional gaussian filter to learned concentric circle
-            points. Only in y direction
-
-        mean_smoothing_sigma: int, optional (default 2)
-        Sigma parameter to be passed into gaussian_filter function when
-        ``mean_smoothing = True``.
-
-        quiet: bool, default True
-        suppresses error output
-
-
-        Returns:
-        --------
-        points_mean: np.ndarray
-            Returns nx3 array containing observed points along mean path.
-            Where the kth entry is of the form [r(k), x(k), y(k)], i.e the
-            coordinate (x,y) of the highest value point along the concetric circle
-            with radii r(k).
-            Note: (x,y) coordinates are re-centered to origin (0,0).
-
-        points_var1: np.ndarray
-            Returns nx3 array containing observed points along upper envolope path,
-            i.e., above the mean path. The kth entry is of the form [r(k), x(k), y(k)],
-            i.e the coordinate (x,y) of the intersection with the plume contour along
-            the concentric circle with raddi r(k).
-
-        points_var2: list of floats
-            Returns nx3 array containing observed points along lower envolope path,
-            i.e., below the mean path. The kth entry is of the form [r(k), x(k), y(k)],
-            i.e the coordinate (x,y) of the intersection with the plume contour along
-            the concentric circle with raddi r(k).
-
-        contour_img: np.ndarray
-            Image with concentric circle method applied and plotting applied.
-        """
-        # Check that original center has been declared
-        if not isinstance(self.orig_center, tuple):
-            raise TypeError(
-                f"orig_center must be declared as {tuple}.\nPlease declare center or"
-                " use find_center function."
-            )
-
-        # convert image to gray
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # ##########################
-        # # Draw contours on image #
-        # ##########################
-        # green_color = (0, 255, 0)
-        red_color = (0, 0, 255)
-        blue_color = (255, 0, 0)
-
-        ############################
-        # Apply Concentric Circles #
-        ############################
-
-        # array of distance of each point on contour to original center
-        contour_dist_list = []
-        for contour in selected_contours:
-            a = contour.reshape(-1, 2)
-            b = np.array(self.orig_center)
-            contour_dist = np.sqrt(np.sum((a - b) ** 2, axis=1))
-            contour_dist_list.append(contour_dist)
-
-        # Initialize numpy array to store center
-        points_mean = np.zeros(
-            shape=(num_of_circs + 1, 3)
-        )  # DONE FIX THIS: 2 BECOMES 3
-        points_mean[0] = np.insert(
-            self.orig_center, 0, 0
-        )  # DONE: FIX THIS: NP.INSERT(0,0,SELF.ORIG_CENTER)
-
-        # Plot first point on path
-        _, center = self._find_max_on_boundary(
-            img_gray, self.orig_center, r=radii, rtol=rtol, atol=atol
-        )
-        # print("center_1:", center)
-        points_mean[1] = np.insert(
-            center, 0, radii
-        )  # DONE: FIX THIS: NP.INSERT(RADII,0,CENTER)
-
-        # draw rings if True
-        if boundary_ring is True:
-            # print("boundary_ring:", boundary_ring)
-            cv2.circle(
-                contour_img, self.orig_center, radii, red_color, 1, lineType=cv2.LINE_AA
-            )
-
-        for step in range(2, num_of_circs + 1):
-            radius = radii * step
-
-            # Draw interior_ring is True:
-            if interior_ring is True:
-                cv2.circle(
-                    contour_img,
-                    center=center,
-                    radius=int(radius * interior_scale),
-                    color=red_color,
-                    thickness=1,
-                    lineType=cv2.LINE_AA,
-                )
-
-            # Get center of next point
-            error_occured = False
-            try:
-                _, center = self._find_next_center(
-                    array=img_gray,
-                    orig_center=self.orig_center,
-                    neig_center=center,
-                    r=radius,
-                    scale=interior_scale,
-                    rtol=rtol,
-                    atol=atol,
-                )
-
-            except Exception as e:
-                if quiet is True:
-                    print(f"Error occurred: {e}")
-                error_occured = True
-
-            if error_occured is True:
-                break
-
-            points_mean[step] = np.insert(
-                center, 0, radius
-            )  # DONE: FIX THIS: NP.INSERT(RADIUS,0,CENTER)
-
-            # Draw boundary ring
-            if boundary_ring is True:
-                cv2.circle(
-                    contour_img,
-                    center=self.orig_center,
-                    radius=radius,
-                    color=blue_color,
-                    thickness=1,
-                    lineType=cv2.LINE_AA,
-                )
-
-        ##########################
-        # Apply poly fit to mean #
-        ##########################
-
-        # Apply gaussian filtering to points in y direction
-        if mean_smoothing is True:
-            smooth_x = points_mean[:, 1]
-            smooth_y = gaussian_filter(points_mean[:, 2], sigma=mean_smoothing_sigma)
-            points_mean[:, 1:] = np.column_stack((smooth_x, smooth_y))
-
-        #########################################
-        # Check if points fall within a contour #
-        #########################################
-
-        new_points_mean = []
-        for center in points_mean:
-            for contour in selected_contours:
-                # check if point lies within contour
-                if cv2.pointPolygonTest(contour, center[1:], False) == 1:
-                    new_points_mean.append(center)
-                    center[1:] = center[1:].round().astype(int)
-                    cv2.circle(contour_img, center[1:].astype(int), 7, red_color, -1)
-
-        if bool(new_points_mean):
-            points_mean = np.array(new_points_mean).reshape(-1, 3)
-
-        # We are going to learn two different polynomails that are paramertized in
-        # r -> (x(r),y(r))
-        # Also make sure orig center is still in there?
-        # might move where we add it to this line
-        # Create r line r_vals = [radii*i for i in range(len(points_mean))]
-
-        # Move this part of code? at least the plotting
-
-        # TO DO: Translate to origin - DONE
-        points_mean[:, 1:] -= self.orig_center
-
-        poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
-
-        f_mean = (
-            lambda x: poly_coef_mean[0] * x**2
-            + poly_coef_mean[1] * x
-            + poly_coef_mean[2]
-        )
-
-        ############################
-        # Checking Variance points #
-        ############################
-
-        # Initialize variance list to store points
+        mean_points = []
         var1_points = []
         var2_points = []
 
-        for step in range(1, num_of_circs + 1):
-            radius = step * radii
+        if img_range[-1] == -1:
+            img_range[-1] = len(clean_vid)
 
-            var_above = []
-            var_below = []
+        for k in tqdm(range(img_range[0], img_range[-1])):
+            frame_k = clean_vid[k]
 
-            intersection_points = []
-            for i in range(len(selected_contours)):
-                contour_dist = contour_dist_list[i]
-                contour = selected_contours[i]
+            _, selected_contours = get_contour(frame_k, **get_contour_kws)
 
-                # ISSUE PROBABLY IS HERE
-                dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
-                intersection_points_i = contour.reshape(-1, 2)[dist_mask]
-                intersection_points.append(intersection_points_i)
-
-            # TO DO: re translate these - DONE
-            for ip_i in intersection_points:
-                for point in ip_i:
-                    if (
-                        f_mean(point[0] - self.orig_center[0])
-                        <= point[1] - self.orig_center[1]
-                    ):
-                        var_above.append(point - self.orig_center)
-                    else:
-                        var_below.append(point - self.orig_center)
-
-            if bool(var_above):
-                # Average the selected variance points (if multiple selected)
-                avg_var1_i = np.array(var_above).mean(axis=0).round().astype(int)
-                # Insert associated radii
-                avg_var1_i = np.insert(avg_var1_i, 0, radius)
-                var1_points.append(list(avg_var1_i))
-
-            if bool(var_below):
-                # Average the selected variance points (if multiple selected)
-                avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
-                # Insert associated radii
-                avg_var2_i = np.insert(avg_var2_i, 0, radius)
-                var2_points.append(list(avg_var2_i))
-
-        # Concatenate original center to both lists
-        # TO DO: concatenate (0,0) to each list - DONE
-        if bool(var1_points):
-            points_var1 = np.vstack(
-                (np.array(var1_points), list(np.insert((0, 0), 0, 0)))
+            mean_k, var1_k, var2_k = concentric_circle(
+                frame_k,
+                selected_contours=selected_contours,
+                orig_center=self.orig_center,
+                **concentric_circle_kws,
             )
-        else:
-            points_var1 = np.insert((0, 0), 0, 0).reshape(1, -1)
 
-        if bool(var2_points):
-            points_var2 = np.vstack(
-                (np.array(var2_points), list(np.insert((0, 0), 0, 0)))
-            )
-        else:
-            points_var2 = np.insert((0, 0), 0, 0).reshape(1, -1)
+            mean_points.append((k, mean_k))
+            var1_points.append((k, var1_k))
+            var2_points.append((k, var2_k))
 
-        # Plotting points
-        # TO DO: re translate these - DONE
-        for point in points_var1:
-            cv2.circle(contour_img, point[1:] + self.orig_center, 7, blue_color, -1)
-
-        for point in points_var2:
-            cv2.circle(contour_img, point[1:] + self.orig_center, 7, blue_color, -1)
-
-        # TO DO: These points are now translated back to the origin - DONE
-        return (points_mean, points_var1, points_var2, contour_img)
+        return mean_points, var1_points, var2_points
 
     @staticmethod
     def regression(
@@ -976,88 +523,6 @@ class PLUME:
                 var1_dist,
                 var2_dist,
             )
-
-    def _find_next_center(
-        self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
-    ):
-        # print("entered find_next_center")
-        col, row = orig_center
-        n, d = array.shape
-
-        # generate grid of indices from array
-        xx, yy = np.meshgrid(np.arange(d), np.arange(n))
-
-        # Get array of distances
-        distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
-
-        # Create mask for points on boundary (distances == r)
-        boundary_mask = np.isclose(distances, r, rtol=rtol, atol=atol)
-
-        # Appply to neighboring point
-        col, row = neig_center
-
-        # get array of new distances from previous circle
-        distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
-
-        interior_mask = distances <= r * scale
-
-        search_mask = boundary_mask & interior_mask
-
-        search_subset = array[search_mask]
-
-        max_value = np.max(search_subset)
-
-        # find indices of max element
-        max_indices = np.argwhere(np.isclose(array, max_value) & search_mask)
-
-        row, col = max_indices[0]
-
-        max_indices = (col, row)
-
-        return max_value, max_indices
-
-    def _find_max_on_boundary(self, array, center, r, rtol=1e-3, atol=1e-6):
-        col, row = center
-        n, d = array.shape
-
-        # Generate a grid of indices for the array
-        xx, yy = np.meshgrid(np.arange(d), np.arange(n))
-
-        # Get Euclidean distance from each point on grid to center
-        distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
-
-        # Create mask for points on the boundary (distances == r)
-        boundary_mask = np.isclose(distances, r, rtol=rtol, atol=atol)
-
-        # Apply the boundary mask to the array to get the subset
-        boundary_subset = array[boundary_mask]
-
-        # Find the maximum value within the subset
-        max_value = np.max(boundary_subset)
-
-        # Find the indices of the maximum elements within the boundary
-        max_indices = np.argwhere(np.isclose(array, max_value) & boundary_mask)
-
-        row, col = max_indices[0]
-
-        max_indices = (col, row)
-
-        return max_value, max_indices
-
-    def BGRframes_dot_weights(self, frames, weights):
-        """
-        Takes list of numpy arrays (imgs) and dots them with vector of weights
-
-        Args:
-            frames (list): List of numpy ararys in BGR format
-            weights (np.ndarray): vector of weights summing to one
-        """
-        a = np.array(frames)
-        b = np.array(weights)[
-            :, np.newaxis, np.newaxis, np.newaxis
-        ]  # Might need to change if working with gray images
-        c = np.round(np.sum(a * b, axis=0)).astype(np.uint8)
-        return c
 
     def train_variance(self, kernel_fit=False):
         """
