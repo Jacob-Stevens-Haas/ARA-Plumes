@@ -81,7 +81,6 @@ def concentric_circle(
         Where the kth entry is of the form [r(k), x(k), y(k)], i.e the
         coordinate (x,y) of the highest value point along the concetric circle
         with radii r(k).
-        Note: (x,y) coordinates are re-centered to origin (0,0).
 
     points_var1:
         Returns nx3 array containing observed points along upper envolope path,
@@ -237,16 +236,16 @@ def concentric_circle(
     if bool(var1_points):
         points_var1 = np.vstack((np.array(var1_points), list(np.insert((0, 0), 0, 0))))
     else:
-        points_var1 = np.insert((0, 0), 0, 0).reshape(1, -1)
+        points_var1 = np.insert((0, 0), zero_index, 0).reshape(1, -1)
 
     if bool(var2_points):
         points_var2 = np.vstack((np.array(var2_points), list(np.insert((0, 0), 0, 0))))
     else:
-        points_var2 = np.insert((0, 0), 0, 0).reshape(1, -1)
+        points_var2 = np.insert((0, 0), zero_index, 0).reshape(1, -1)
 
-    points_mean += orig_center
-    points_var1 += orig_center
-    points_var2 += orig_center
+    points_mean[:, 1:] += orig_center
+    points_var1[:, 1:] += orig_center
+    points_var2[:, 1:] += orig_center
 
     return points_mean, points_var1, points_var2
 
