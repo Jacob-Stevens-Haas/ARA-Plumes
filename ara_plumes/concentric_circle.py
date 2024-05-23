@@ -168,7 +168,7 @@ def concentric_circle(
     #########################################
 
     new_points_mean = []
-    for center in points_mean:
+    for center in points_mean[1:]:
         for contour in selected_contours:
             # check if point lies within contour
             if cv2.pointPolygonTest(contour, center[1:], False) == 1:
@@ -177,6 +177,7 @@ def concentric_circle(
 
     if bool(new_points_mean):
         points_mean = np.array(new_points_mean).reshape(-1, 3)
+        points_mean = np.vstack((np.insert(orig_center, zero_index, 0), points_mean))
 
     points_mean = points_mean.astype(int)
     points_mean[:, 1:] -= orig_center
@@ -236,12 +237,12 @@ def concentric_circle(
     # Concatenate original center to both lists
     # TO DO: concatenate (0,0) to each list - DONE
     if bool(var1_points):
-        points_var1 = np.vstack((np.array(var1_points), list(np.insert((0, 0), 0, 0))))
+        points_var1 = np.vstack((list(np.insert((0, 0), 0, 0)), np.array(var1_points)))
     else:
         points_var1 = np.insert((0, 0), zero_index, 0).reshape(1, -1)
 
     if bool(var2_points):
-        points_var2 = np.vstack((np.array(var2_points), list(np.insert((0, 0), 0, 0))))
+        points_var2 = np.vstack((list(np.insert((0, 0), 0, 0)), np.array(var2_points)))
     else:
         points_var2 = np.insert((0, 0), zero_index, 0).reshape(1, -1)
 
