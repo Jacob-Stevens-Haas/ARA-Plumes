@@ -332,7 +332,7 @@ def _add_contours_on_img(
     interior_scale: Optional[float] = None,
     scatter_color=(0, 0, 255),
     ring_color=(255, 0, 0),
-    interior_ring_color=(255, 0, 0),
+    interior_ring_color=(0, 0, 255),
     contour_color=(0, 255, 0),
 ) -> ColorImage:
     """
@@ -351,15 +351,15 @@ def _add_contours_on_img(
 
     if mean_scatter is not None:
         for x_y in mean_scatter:
-            cv2.circle(color_img, x_y, 7, scatter_color, -1)
+            cv2.circle(color_img, x_y.astype(np.uint8), 7, scatter_color, -1)
 
     if var1_scatter is not None:
         for x_y in var1_scatter:
-            cv2.circle(color_img, x_y, 7, scatter_color, -1)
+            cv2.circle(color_img, x_y.astype(np.uint8), 7, scatter_color, -1)
 
     if var2_scatter is not None:
         for x_y in var2_scatter:
-            cv2.circle(color_img, x_y, 7, scatter_color, -1)
+            cv2.circle(color_img, x_y.astype(np.uint8), 7, scatter_color, -1)
 
     if selected_contours:
         cv2.drawContours(color_img, selected_contours, -1, contour_color, 2)
@@ -382,7 +382,7 @@ def _add_contours_on_img(
             radius_i = radii * i
             cv2.circle(
                 color_img,
-                center=point,
+                center=point.astype(np.uint8),
                 radius=int(radius_i * interior_scale),
                 color=interior_ring_color,
                 thickness=1,
