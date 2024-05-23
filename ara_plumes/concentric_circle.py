@@ -1,3 +1,5 @@
+from typing import Optional
+
 import cv2
 import numpy as np
 from scipy.ndimage import gaussian_filter
@@ -5,7 +7,6 @@ from scipy.ndimage import gaussian_filter
 from .typing import ColorImage
 from .typing import Contour_List
 from .typing import GrayImage
-from .typing import Optional
 from .typing import PointsMean
 from .typing import PointsVar1
 from .typing import PointsVar2
