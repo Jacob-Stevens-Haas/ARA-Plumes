@@ -223,14 +223,14 @@ def concentric_circle(
             # Average the selected variance points (if multiple selected)
             avg_var1_i = np.array(var_above).mean(axis=0).round().astype(int)
             # Insert associated radii
-            avg_var1_i = np.insert(avg_var1_i, 0, radius)
+            avg_var1_i = np.insert(avg_var1_i, zero_index, radius)
             var1_points.append(list(avg_var1_i))
 
         if bool(var_below):
             # Average the selected variance points (if multiple selected)
             avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
             # Insert associated radii
-            avg_var2_i = np.insert(avg_var2_i, 0, radius)
+            avg_var2_i = np.insert(avg_var2_i, zero_index, radius)
             var2_points.append(list(avg_var2_i))
 
     # Concatenate original center to both lists
@@ -331,7 +331,9 @@ def _add_contours_on_img(
     radii: Optional[int] = None,
     num_of_circs: Optional[int] = None,
     interior_scale: Optional[float] = None,
-    scatter_color=(0, 0, 255),
+    mean_scatter_color=(0, 0, 255),
+    var1_scatter_color=(255, 0, 0),
+    var2_scatter_color=(255, 0, 255),
     ring_color=(255, 0, 0),
     interior_ring_color=(0, 0, 255),
     contour_color=(0, 255, 0),
@@ -352,15 +354,15 @@ def _add_contours_on_img(
 
     if mean_scatter is not None:
         for x_y in mean_scatter:
-            cv2.circle(color_img, x_y.astype(np.uint8), 7, scatter_color, -1)
+            cv2.circle(color_img, x_y.astype(int), 7, mean_scatter_color, -1)
 
     if var1_scatter is not None:
         for x_y in var1_scatter:
-            cv2.circle(color_img, x_y.astype(np.uint8), 7, scatter_color, -1)
+            cv2.circle(color_img, x_y.astype(int), 7, var1_scatter_color, -1)
 
     if var2_scatter is not None:
         for x_y in var2_scatter:
-            cv2.circle(color_img, x_y.astype(np.uint8), 7, scatter_color, -1)
+            cv2.circle(color_img, x_y.astype(int), 7, var2_scatter_color, -1)
 
     if selected_contours:
         cv2.drawContours(color_img, selected_contours, -1, contour_color, 2)
