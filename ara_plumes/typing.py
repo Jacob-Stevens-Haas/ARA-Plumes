@@ -13,6 +13,7 @@ GrayImage = np.ndarray[tuple[Height, Width], np.dtype[np.uint8]]
 ColorImage = np.ndarray[tuple[Height, Width, Channel], np.dtype[np.uint8]]
 FloatImage = np.ndarray[tuple[Height, Width], np.dtype[np.floating[NBitBase]]]
 GrayVideo = np.ndarray[tuple[Frame, Height, Width], np.dtype[np.uint8]]
+ColorVideo = np.ndarray[tuple[Frame, Height, Width, Channel], np.dtype[np.uint8]]
 
 Vertex = NewType("Vertex", int)
 Y_pos = NewType("Y_pos", int)

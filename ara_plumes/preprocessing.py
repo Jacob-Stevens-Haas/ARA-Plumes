@@ -1,5 +1,4 @@
 import warnings
-from typing import NewType
 from typing import Union
 
 import cv2
@@ -7,10 +6,9 @@ import IPython
 import numpy as np
 from tqdm import tqdm
 
-Frame = NewType("Frame", int)
-Width = NewType("Width", int)
-Height = NewType("Height", int)
-Channel = NewType("Channel", int)
+from .typing import ColorVideo
+from .typing import GrayImage
+from .typing import GrayVideo
 
 
 def convert_video_to_numpy_array(
@@ -18,10 +16,7 @@ def convert_video_to_numpy_array(
     start_frame: int = 0,
     end_frame: int = -1,
     gray: bool = True,
-) -> Union[
-    np.ndarray[tuple[Frame, Width, Height], np.dtype[np.uint8]],
-    np.ndarray[tuple[Frame, Width, Height, Channel], np.dtype[np.uint8]],
-]:
+) -> Union[GrayVideo, ColorVideo]:
     """
     Convert a video file to a NumPy array of frames.
 
@@ -170,7 +165,7 @@ def clip_video(
 
 def _create_average_image_from_video(
     video_capture: cv2.VideoCapture, start_frame: int = 0, end_frame: int = -1
-) -> np.ndarray[tuple[Width, Height], np.dtype[np.uint8]]:
+) -> GrayImage:
     """
     Creates average image from a specified window of frames from video.
     Parameters:
