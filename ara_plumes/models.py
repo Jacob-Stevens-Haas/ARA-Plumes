@@ -5,7 +5,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import convolve1d
-from scipy.signal import gaussian
+from scipy.signal.windows import gaussian
 from tqdm import tqdm
 
 from . import regressions
