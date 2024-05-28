@@ -132,6 +132,9 @@ class PLUME:
 
         """
         if hasattr(self, "numpy_frames"):
+            if len(self.numpy_frames.shape) == 4:
+                raise TypeError("numpy_frames must be be in gray.")
+
             clean_vid = background_subtract(self.numpy_frames, fixed_range)
         else:
             raise AttributeError("PLUME object must read in a numpy array of frames.")
