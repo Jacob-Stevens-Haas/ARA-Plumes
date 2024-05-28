@@ -1,19 +1,28 @@
 import logging
+from typing import Any
 from typing import Optional
 
 import cv2
 import IPython
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.typing import NBitBase
 from scipy.ndimage import gaussian_filter
 from tqdm import tqdm
 
+from .regressions import regress_mean_points_k
 from ara_plumes import regressions
 from ara_plumes import utils
 
 # For displaying clips in Jupyter notebooks
 # from IPython.display import Image, display
 logger = logging.getLogger(__name__)
+
+NpFlt = np.dtype[np.floating[NBitBase]]
+Float1D = np.ndarray[tuple[int], NpFlt]
+Float2D = np.ndarray[tuple[int, int], NpFlt]
+Float3D = np.ndarray[tuple[int, int, int], NpFlt]
+FloatND = np.ndarray[Any, NpFlt]
 
 
 class PLUME:
@@ -441,6 +450,51 @@ class PLUME:
         self.var2_poly = var2_array
 
         return mean_array, var1_array, var2_array
+
+    def get_coef_from_mean_points(mean_points, regression_method, poly_deg) -> Float2D:
+        """
+        Converts plumepoitns into timeseries of regressed coefficients.
+
+        Parameters:
+        ----------
+        mean_points:
+            List of tuples returned from PLUME.train()
+
+            regression_method:
+                Regression methods to apply to arr.
+                'linear':    Applies explicit linear regression to (x,y)
+                'poly':      Applies explicit polynomial regression to (x,y) with degree
+                            up to poly_deg
+                'poly_inv':  Applies explcity polynomial regression to (y,x) with degree
+                            up to poly_deg
+                'poly_para': Applies parametric poly regression to (r,x) and (r,y) with
+                            degree up to poly_deg
+            poly_deg:
+                degree of regression for all poly methods. Note 'linear' ignores this
+                argument.
+
+        Returns:
+        -------
+        coef_time_series:
+            Returns np.ndarray of regressed coefficients.
+        """
+        n = len(mean_points)
+
+        if regression_method == "poly_para":
+            d = 2 * (poly_deg + 1)
+        elif regression_method == "linear":
+            d = 2
+        else:
+            d = poly_deg + 1
+
+        coef_time_series = np.zeros((n, d))
+
+        for i, tup in tqdm(enumerate(mean_points)):
+            coef_time_series[i] = regress_mean_points_k(
+                tup[1], regression_method, poly_deg
+            )
+
+        return coef_time_series
 
     def get_contour(
         self,

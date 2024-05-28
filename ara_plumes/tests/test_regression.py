@@ -1,9 +1,35 @@
 import numpy as np
 
+from ..models import PLUME
 from ..regressions import do_parametric_regression
 from ..regressions import do_polynomial_regression
 from ..regressions import do_sinusoid_regression
 from ..regressions import regress_mean_points_k
+
+
+def test_get_coef_from_mean_points():
+    get_coef_from_mean_points = PLUME.get_coef_from_mean_points
+    expected = np.array([[1, 2, 3, 4], [4, 3, 2, 1]])
+    a, b, c, d = expected[0]
+    e, f, g, h = expected[1]
+
+    def poly1(t):
+        return a * t**3 + b * t**2 + c * t + d
+
+    def poly2(t):
+        return e * t**3 + f * t**2 + g * t + h
+
+    slice = 4
+    R = np.linspace(0, 1, 101)
+
+    mean_points_1 = np.vstack((R, R, poly1(R))).T
+    mean_points_2 = np.vstack((R, R, poly2(R))).T
+
+    mean_points = [(1, mean_points_1[::slice, :]), (2, mean_points_2[::slice, :])]
+
+    result = get_coef_from_mean_points(mean_points, "poly", 3)
+
+    np.testing.assert_array_almost_equal(expected, result)
 
 
 def test_regress_mean_points_k():
