@@ -2,17 +2,25 @@ import logging
 from typing import Optional
 
 import cv2
-import IPython
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import convolve1d
+from scipy.signal.windows import gaussian
 from tqdm import tqdm
 
-from ara_plumes import regressions
-from ara_plumes import utils
+from . import regressions
+from . import utils
+from .concentric_circle import concentric_circle
+from .typing import AX_FRAME
+from .typing import ColorImage
+from .typing import Contour_List
+from .typing import FloatImage
+from .typing import Frame
+from .typing import GrayImage
+from .typing import GrayVideo
+from .typing import List
+from .typing import PlumePoints
 
-# For displaying clips in Jupyter notebooks
-# from IPython.display import Image, display
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +45,9 @@ class PLUME:
         self.fps = int(self.video_capture.get(5))
         self.tot_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
 
+    def read_numpy_arr(self, numpy_frames):
+        self.numpy_frames = numpy_frames
+
     def display_frame(self, frame: int):
         cap = self.video_capture
         cap.set(cv2.CAP_PROP_POS_FRAMES, frame)
@@ -47,142 +58,29 @@ class PLUME:
             plt.axis("off")
             plt.show()
 
-    def background_subtract(
-        self,
-        fixed_range: int,
-        subtraction_method: str = "fixed",
-        img_range=None,
-        save_path: str = "subtraction",
-        extension: str = "mp4",
-        display_vid: bool = True,
-    ):
-
-        #####################
-        # Fixed Subtraction #
-        #####################
-
-        # Create background image
-        if subtraction_method == "fixed" and (
-            isinstance(fixed_range, int) or isinstance(fixed_range, list)
-        ):
-            print("Creating background image...")
-            background_img_np = self.create_background_img(img_range=fixed_range)
-            # print("back shape:", background_img_np.shape)
-            print("done.")
-        else:
-            raise TypeError(
-                "fixed_range must be a positive int for fixed subtraction method."
-            )
-
-        self.video_capture = cv2.VideoCapture(self.video_path)
-
-        video = self.video_capture
-
-        # grab video info for saving new file
-        frame_width = int(video.get(3))
-        frame_height = int(video.get(4))
-        frame_rate = int(video.get(5))
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
-        # Possibly resave video
-        if isinstance(save_path, str):
-            clip_title = save_path + "." + extension
-            color_true = 1
-            out = cv2.VideoWriter(
-                clip_title, fourcc, frame_rate, (frame_width, frame_height), color_true
-            )
-
-        if display_vid is True:
-            display_handle = IPython.display.display(None, display_id=True)
-
-        # Get image range to apply background subtraction
-        if isinstance(img_range, list) and len(img_range) == 2:
-            if img_range[-1] >= self.tot_frames:
-                print("img_range exceeds total number of frames...")
-                print(f"Using max frame count: {self.tot_frames}")
-                init_frame = img_range[0]
-                fin_frame = self.tot_frames - 1
-            else:
-                init_frame, fin_frame = img_range
-        elif isinstance(img_range, int):
-            init_frame = img_range
-            fin_frame = self.tot_frames - 1
-        elif img_range is None:
-            if isinstance(fixed_range, int):
-                init_frame = fixed_range
-                fin_frame = self.tot_frames - 1
-            elif isinstance(fixed_range, list) and len(fixed_range) == 2:
-                init_frame = fixed_range[-1]
-                fin_frame = self.tot_frames - 1
-        else:
-            raise TypeError(f"img_range does not support type {type(img_range)}.")
-
-        # Frames to ignore
-        for _ in range(init_frame):
-            _ = video.read()
-
-        # Frames to apply background subtraction too
-        for k in tqdm(range(init_frame, fin_frame)):
-            ret, frame = video.read()
-
-            if not ret:
-                print("break reached")
-                break
-
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            frame = cv2.subtract(frame, background_img_np)
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-
-            if isinstance(save_path, str):
-                out.write(frame)
-
-            _, frame = cv2.imencode(".jpeg", frame)
-
-            if display_vid is True:
-                display_handle.update(IPython.display.Image(data=frame.tobytes()))
-
-        if isinstance(save_path, str):
-            video.release()
-            out.release()
-
-        # if display_vid is True:
-        #     display_handle.update(None)
-
-        ###########################
-        # Moving Average Subtract #
-        ###########################
-        if subtraction_method == "moving_avg":
-            print()
-
-        return
-
     def set_center(self, frame: Optional[int] = None) -> None:
         """Set the plume source in the video"""
         self.orig_center = click_coordinates(self.video_capture, frame)
 
     def train(
         self,
-        img_range: list = None,
-        subtraction_method: str = "fixed",
-        fixed_range: int = None,
-        gauss_space_blur=True,
-        gauss_kernel_size=81,
-        gauss_space_sigma=15,
-        gauss_time_blur=True,
-        gauss_time_window=5,
-        gauss_time_sigma=1,
-        extension="mp4",
-        save_path=None,
-        display_vid=True,
-        regression_method="sinusoid",
+        img_range: tuple[int, int] = (0, -1),
+        fixed_range: tuple[int, int] = (0, -1),
+        gauss_space_blur: bool = True,
+        gauss_kernel_size: int = 81,
+        gauss_space_sigma: float = 15,
+        gauss_time_blur: bool = True,
+        gauss_time_window: bool = 5,
+        gauss_time_sigma: float = 1,
         concentric_circle_kws={},
-        regression_kws={},
         get_contour_kws={},
-    ):
+    ) -> tuple[
+        List[tuple[Frame, PlumePoints]],
+        List[tuple[Frame, PlumePoints]],
+        List[tuple[Frame, PlumePoints]],
+    ]:
         """
-        Apply connetric circles to frames range
-
-        Provides timeseries of learned polynomials.
+        Apply connetric circles to frames range.
 
         Parameters:
         -----------
@@ -191,10 +89,8 @@ class PLUME:
             concentric circles too. Default None uses remaining frames
             after declared fixed_range used to generated background
             image.
-        subtraction_method: str
-            Method used to apply background subtraction.
 
-        fixed_range: int
+        fixed_range:
             Range of images to use as background image for subtraction
             method.
 
@@ -212,641 +108,72 @@ class PLUME:
 
         gauss_time_sigma: int (default 1)
 
-        extension: str (default mp4)
-            file format video is saved as.
+        concentric_circle_kws:
+            dictionary containing arguments for concentric_circle function.
 
-        save_path: str (default None)
-            Path/name of video. Default None will not save video.
-
-        display_vid: bool (default True)
-            Display concentric_circles in jupyter notebook window.
-
-        regression_method: str (default "poly")
-            Regression method to be applied to selected points in
-            concentric circle pipeline.
-
-        regression_kws: dict
-            Additional arguments for selected regression_method.
+        get_contour_kws:
+            dictionary contain arguments for get_contour function
 
         Returns:
         --------
-        mean_array: np.ndarray
-            Numpy array containing time series of learned regression coefficients
-            along mean path of plume.
+        mean_points:
+            List of tuples containing frame count, k, and mean points, (r(k),x(k),y(k)),
+            attained from frame k.
 
-        var1_array: np.ndarray
-            Numpy array containing time series of learned regression coefficvients
-            along top path of plume.
+        var1_points:
+            List of tuples containing frame count, k, and var1 points, (r(k),x(k),y(k)),
+            attained from frame k.
 
-        var2_array: np.ndarray
-            Numpy array containing time series of learned regression coefficvients
-            along bottom path of plume.
+        var2_points:
+            List of tuples containing frame count, k, and var2 points, (r(k),x(k),y(k)),
+            attained from frame k.
 
         """
-        # Create background image
-        if subtraction_method == "fixed" and isinstance(fixed_range, int):
-            print("Creating background image...")
-            background_img_np = self.create_background_img(img_range=fixed_range)
-            # print("back shape:", background_img_np.shape)
-            print("done.")
+        if hasattr(self, "numpy_frames"):
+            if len(self.numpy_frames.shape) == 4:
+                raise TypeError("numpy_frames must be be in gray.")
+
+            clean_vid = background_subtract(self.numpy_frames, fixed_range)
         else:
-            raise TypeError(
-                "fixed_range must be a positive int for fixed subtraction method."
+            raise AttributeError("PLUME object must read in a numpy array of frames.")
+
+        if gauss_time_blur:
+            clean_vid = apply_gauss_time_blur(
+                arr=clean_vid, kernel_size=gauss_time_window, sigma=gauss_time_sigma
             )
 
-        # Reread after releasing from create_bacground_img
-        self.video_capture = cv2.VideoCapture(self.video_path)
-
-        video = self.video_capture
-        ret, frame = video.read()
-        # print("first ret:", ret)
-
-        # grab vieo info for saving new file
-        frame_width = int(video.get(3))
-        frame_height = int(video.get(4))
-        frame_rate = int(video.get(5))
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
-        # Possibly resave video
-        if isinstance(save_path, str):
-            clip_title = save_path + "." + extension
-            color_true = 1
-            out = cv2.VideoWriter(
-                clip_title, fourcc, frame_rate, (frame_width, frame_height), color_true
+        if gauss_space_blur:
+            clean_vid = apply_gauss_space_blur(
+                arr=clean_vid,
+                kernel_size=(gauss_kernel_size, gauss_kernel_size),
+                sigma_x=gauss_space_sigma,
+                sigma_y=gauss_space_sigma,
             )
 
-        if display_vid is True:
-            display_handle = IPython.display.display(None, display_id=True)
-
-        # Select desired video range
-        if isinstance(img_range, list) and len(img_range) == 2:
-            if img_range[1] >= self.tot_frames:
-                print("Img_range exceeds total number of frames...")
-                print(f"Using max frame count {self.tot_frames}")
-                init_frame = img_range[0]
-                fin_frame = self.tot_frames - 1
-            else:
-                init_frame, fin_frame = img_range
-        elif isinstance(img_range, int):
-            init_frame = img_range
-            fin_frame = self.tot_frames - 1
-        elif img_range is None:
-            init_frame = fixed_range
-            fin_frame = self.tot_frames - 1
-
-        # Initialize poly arrays
-        if "poly_deg" in regression_kws:
-            poly_deg = regression_kws["poly_deg"]
-        else:
-            poly_deg = 2
-
-        if regression_method == "parametric":
-            mean_array = np.zeros((fin_frame - init_frame, (poly_deg + 1) * 2))
-            var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-            var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-
-        else:
-            mean_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-            var1_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-            var2_array = np.zeros((fin_frame - init_frame, poly_deg + 1))
-
-        # Check for Gaussian Time Blur
-        if gauss_time_blur is True:
-            if not isinstance(gauss_time_window, int):
-                raise Exception("window must be a positive odd int.")
-            if not gauss_time_window % 2 == 1:
-                raise Exception("window must be a positive odd int.")
-
-            # Create gaussian_time_blur variables
-            buffer = int(gauss_time_window / 2)
-            frames_to_average = list(np.zeros(gauss_time_window))
-            gauss_time_weights = [
-                np.exp(-((x - buffer) ** 2) / (2 * gauss_time_sigma**2))
-                for x in range(gauss_time_window)
-            ]
-            gauss_time_weights /= np.sum(gauss_time_weights)
-        else:
-            buffer = 0
-
-        # Ignore first set of frames not in desired range
-        for _ in tqdm(range(init_frame - buffer)):
-            # print(i)
-            ret, frame = video.read()
-            _, frame = cv2.imencode(".jpeg", frame)
-            if display_vid is True:
-                display_handle.update(IPython.display.Image(data=frame.tobytes()))
-
-        i = 0
-        for _ in tqdm(range(2 * buffer)):
-            ret, frame = video.read()
-            # convert frame to gray
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            # Apply subtraction (still in gray)
-            frame = cv2.subtract(frame, background_img_np)
-            # Convert to BGR
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-            frames_to_average[i] = frame
-            i += 1
-
-        for k in tqdm(range(fin_frame - init_frame)):
-            ret, frame = video.read()
-            # print(i)
-
-            # Check if video_capture was read in correctly
-            if not ret:
-                break
-
-            # convert frame to gray
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            # Apply subtraction
-            frame = cv2.subtract(frame, background_img_np)
-
-            # Convert to BGR
-            frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
-
-            if gauss_time_blur is True:
-                frames_to_average[i] = frame
-                # Apply gaussian filter over windows
-                frame = self.BGRframes_dot_weights(
-                    frames_to_average, gauss_time_weights
-                )
-                # Move frames over left
-                frames_to_average[:-1] = frames_to_average[1:]
-                i = -1
-
-            if gauss_space_blur is True:
-                kernel_size = (gauss_kernel_size, gauss_kernel_size)
-                sigma = gauss_space_sigma
-
-                frame = cv2.GaussianBlur(frame, kernel_size, sigma, sigma)
-
-            # Apply contour detection
-            contour_img, selected_contours = self.get_contour(frame, **get_contour_kws)
-
-            # Apply concentric circles to frame
-            out_data = self.concentric_circle(
-                frame,
-                contour_img=contour_img,
-                selected_contours=selected_contours,
-                **concentric_circle_kws,
-            )
-            # DONE: FIX THIS: OUT_DATA[I][1:]
-            mean_points_k = out_data[0]
-            var1_points_k = out_data[1]
-            var2_points_k = out_data[2]
-            frame = out_data[3]
-
-            # Apply regression method to selected points
-            out_data = self.regression(
-                points_mean=mean_points_k,
-                points_var1=var1_points_k,
-                points_var2=var2_points_k,
-                img=frame,
-                orig_center=self.orig_center,
-                selected_contours=selected_contours,
-                regression_method=regression_method,
-                **regression_kws,
-            )
-
-            mean_array[k] = out_data[0]
-            var1_array[k] = out_data[1]
-            var2_array[k] = out_data[2]
-            frame = out_data[3]
-
-            if regression_method == "sinusoid" or regression_method == "parametric":
-                var1_dist_k = out_data[4]
-                var2_dist_k = out_data[5]
-
-                self.var1_dist.append((k, var1_dist_k))
-                self.var2_dist.append((k, var2_dist_k))
-
-            if isinstance(save_path, str):
-                out.write(frame)
-            _, frame = cv2.imencode(".jpeg", frame)
-
-            if display_vid is True:
-                display_handle.update(IPython.display.Image(data=frame.tobytes()))
-
-        # video.release()
-        if isinstance(save_path, str):
-            video.release()
-            out.release()
-
-        if display_vid is True:
-            display_handle.update(None)
-
-        self.mean_poly = mean_array
-        self.var1_poly = var1_array
-        self.var2_poly = var2_array
-
-        return mean_array, var1_array, var2_array
-
-    def get_contour(
-        self,
-        img,
-        threshold_method="OTSU",
-        num_of_contours=1,
-        contour_smoothing=False,
-        contour_smoothing_eps=50,
-    ):
-        """
-        Contour detection applied to single frame of background subtracted
-        video.
-
-        Parameters:
-        -----------
-        img: np.ndarray (gray or BGR)
-            image to apply contour detection too.
-
-        threshold_method: str (default "OTSU")
-            Opencv method used for applying thresholding.
-
-        num_of_contours: int (default 1)
-            Number of contours selected to be used (largest to smallest).
-
-        contour_smoothing: bool (default False)
-            Used cv2.approxPolyDP to apply additional smoothing to contours
-            selected contours.
-
-        contour_smoothing_eps: positive int (default 50)
-            hyperparater for tuning cv2.approxPolyDP in contour_smoothing.
-            Level of smoothing to be applied to plume detection contours.
-            Only used when contour_smoothing = True.
-
-        Returns:
-        --------
-        contour_img: np.ndarray
-            img with contours drawn on
-
-        selected_contours: list
-            Returns list of num_of_contours largest contours detected in image.
-        """
-
-        # convert image to gray
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # Apply thresholding
-        if threshold_method == "OTSU":
-            _, threshold = cv2.threshold(
-                img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-            )
-
-        # Find contours
-        contours, _ = cv2.findContours(
-            threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-
-        # Select n largest contours
-        contours = sorted(contours, key=cv2.contourArea, reverse=True)
-        selected_contours = contours[:num_of_contours]
-
-        # Apply contour smoothing
-        if contour_smoothing is True:
-            smoothed_contours = []
-
-            for contour in selected_contours:
-                smoothed_contours.append(
-                    cv2.approxPolyDP(contour, contour_smoothing_eps, True)
-                )
-
-            selected_contours = smoothed_contours
-
-        # Draw contours on image
-        green_color = (0, 255, 0)
-        red_color = (0, 0, 255)
-        # blue_color = (255, 0, 0)
-
-        contour_img = img.copy()
-        cv2.drawContours(contour_img, selected_contours, -1, green_color, 2)
-        cv2.circle(contour_img, self.orig_center, 8, red_color, -1)
-
-        return (contour_img, selected_contours)
-
-    def concentric_circle(
-        self,
-        img,
-        contour_img,
-        selected_contours,
-        radii=50,
-        num_of_circs=30,
-        boundary_ring=True,
-        interior_ring=False,
-        interior_scale=3 / 5,
-        rtol=1e-2,
-        atol=1e-6,
-        poly_deg=2,
-        mean_smoothing=True,
-        mean_smoothing_sigma=2,
-        quiet=True,
-    ):
-        """
-        Applies concentric cirlces to a single frame (gray or BGR) from video
-
-        Creates new image and learned poly coef for mean line and variance line.
-
-        Parameters:
-        -----------
-        img: np.ndarray (gray or BGR)
-            image to apply concentric circle too.
-
-        contour_img: np.ndarray
-            frame with detected plume contours added.
-
-        selected_contours: list
-            List of contours learned from get_contour
-
-        radii: int, optional (default 50)
-            The radii used to step out in concentric circles method.
-
-        num_of_circles: int, optional (default 22)
-            number of circles and radii steps to take in concentric circles method.
-
-        fit_poly: bool, optional (default True)
-            For plotting and image return. Specify whether or not to include
-            learned polynomials in returned image.
-
-        interior_ring, boundary_ring: bools, optional (default False)
-            For plotting and image return. Specify whether or not to include the
-            concentric circle rings (boundary_ring)
-            and/or the focusing rings (interior_ring) in returned image.
-
-        interior_scale: float, optional (default 3/5)
-            Used to scale down the radii used on the focusing rings. Called in
-            find_next_center
-
-        rtol, atol: float, optional (default 1e-2, 1e-6)
-            Relative and absolute tolerances. Used in np.isclose function in
-            find_max_on_boundary and find_next_center functions.
-            Checks if points are close to selected radii.
-
-        poly_deg: int, optional (default 2)
-            Specifying degree of polynomail to learn on points selected from
-            concentric circle method.
-
-        x_less, x_plus: int, optional (default 600, 0)
-            For plotting and image return. Specifically to delegate more points
-            to plot learned polynomial on returned image.
-
-        mean_smoothing: bool, optional (default True)
-            Applying additional gaussian filter to learned concentric circle
-            points. Only in y direction
-
-        mean_smoothing_sigma: int, optional (default 2)
-        Sigma parameter to be passed into gaussian_filter function when
-        ``mean_smoothing = True``.
-
-        quiet: bool, default True
-        suppresses error output
-
-
-        Returns:
-        --------
-        points_mean: np.ndarray
-            Returns nx3 array containing observed points along mean path.
-            Where the kth entry is of the form [r(k), x(k), y(k)], i.e the
-            coordinate (x,y) of the highest value point along the concetric circle
-            with radii r(k).
-            Note: (x,y) coordinates are re-centered to origin (0,0).
-
-        points_var1: np.ndarray
-            Returns nx3 array containing observed points along upper envolope path,
-            i.e., above the mean path. The kth entry is of the form [r(k), x(k), y(k)],
-            i.e the coordinate (x,y) of the intersection with the plume contour along
-            the concentric circle with raddi r(k).
-
-        points_var2: list of floats
-            Returns nx3 array containing observed points along lower envolope path,
-            i.e., below the mean path. The kth entry is of the form [r(k), x(k), y(k)],
-            i.e the coordinate (x,y) of the intersection with the plume contour along
-            the concentric circle with raddi r(k).
-
-        contour_img: np.ndarray
-            Image with concentric circle method applied and plotting applied.
-        """
-        # Check that original center has been declared
-        if not isinstance(self.orig_center, tuple):
-            raise TypeError(
-                f"orig_center must be declared as {tuple}.\nPlease declare center or"
-                " use find_center function."
-            )
-
-        # convert image to gray
-        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-        # ##########################
-        # # Draw contours on image #
-        # ##########################
-        # green_color = (0, 255, 0)
-        red_color = (0, 0, 255)
-        blue_color = (255, 0, 0)
-
-        ############################
-        # Apply Concentric Circles #
-        ############################
-
-        # array of distance of each point on contour to original center
-        contour_dist_list = []
-        for contour in selected_contours:
-            a = contour.reshape(-1, 2)
-            b = np.array(self.orig_center)
-            contour_dist = np.sqrt(np.sum((a - b) ** 2, axis=1))
-            contour_dist_list.append(contour_dist)
-
-        # Initialize numpy array to store center
-        points_mean = np.zeros(
-            shape=(num_of_circs + 1, 3)
-        )  # DONE FIX THIS: 2 BECOMES 3
-        points_mean[0] = np.insert(
-            self.orig_center, 0, 0
-        )  # DONE: FIX THIS: NP.INSERT(0,0,SELF.ORIG_CENTER)
-
-        # Plot first point on path
-        _, center = self.find_max_on_boundary(
-            img_gray, self.orig_center, r=radii, rtol=rtol, atol=atol
-        )
-        # print("center_1:", center)
-        points_mean[1] = np.insert(
-            center, 0, radii
-        )  # DONE: FIX THIS: NP.INSERT(RADII,0,CENTER)
-
-        # draw rings if True
-        if boundary_ring is True:
-            # print("boundary_ring:", boundary_ring)
-            cv2.circle(
-                contour_img, self.orig_center, radii, red_color, 1, lineType=cv2.LINE_AA
-            )
-
-        for step in range(2, num_of_circs + 1):
-            radius = radii * step
-
-            # Draw interior_ring is True:
-            if interior_ring is True:
-                cv2.circle(
-                    contour_img,
-                    center=center,
-                    radius=int(radius * interior_scale),
-                    color=red_color,
-                    thickness=1,
-                    lineType=cv2.LINE_AA,
-                )
-
-            # Get center of next point
-            error_occured = False
-            try:
-                _, center = self.find_next_center(
-                    array=img_gray,
-                    orig_center=self.orig_center,
-                    neig_center=center,
-                    r=radius,
-                    scale=interior_scale,
-                    rtol=rtol,
-                    atol=atol,
-                )
-
-            except Exception as e:
-                if quiet is True:
-                    print(f"Error occurred: {e}")
-                error_occured = True
-
-            if error_occured is True:
-                break
-
-            points_mean[step] = np.insert(
-                center, 0, radius
-            )  # DONE: FIX THIS: NP.INSERT(RADIUS,0,CENTER)
-
-            # Draw boundary ring
-            if boundary_ring is True:
-                cv2.circle(
-                    contour_img,
-                    center=self.orig_center,
-                    radius=radius,
-                    color=blue_color,
-                    thickness=1,
-                    lineType=cv2.LINE_AA,
-                )
-
-        ##########################
-        # Apply poly fit to mean #
-        ##########################
-
-        # Apply gaussian filtering to points in y direction
-        if mean_smoothing is True:
-            smooth_x = points_mean[:, 1]
-            smooth_y = gaussian_filter(points_mean[:, 2], sigma=mean_smoothing_sigma)
-            points_mean[:, 1:] = np.column_stack((smooth_x, smooth_y))
-
-        #########################################
-        # Check if points fall within a contour #
-        #########################################
-
-        new_points_mean = []
-        for center in points_mean:
-            for contour in selected_contours:
-                # check if point lies within contour
-                if cv2.pointPolygonTest(contour, center[1:], False) == 1:
-                    new_points_mean.append(center)
-                    center[1:] = center[1:].round().astype(int)
-                    cv2.circle(contour_img, center[1:].astype(int), 7, red_color, -1)
-
-        if bool(new_points_mean):
-            points_mean = np.array(new_points_mean).reshape(-1, 3)
-
-        # We are going to learn two different polynomails that are paramertized in
-        # r -> (x(r),y(r))
-        # Also make sure orig center is still in there?
-        # might move where we add it to this line
-        # Create r line r_vals = [radii*i for i in range(len(points_mean))]
-
-        # Move this part of code? at least the plotting
-
-        # TO DO: Translate to origin - DONE
-        points_mean[:, 1:] -= self.orig_center
-
-        poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
-
-        f_mean = (
-            lambda x: poly_coef_mean[0] * x**2
-            + poly_coef_mean[1] * x
-            + poly_coef_mean[2]
-        )
-
-        ############################
-        # Checking Variance points #
-        ############################
-
-        # Initialize variance list to store points
+        mean_points = []
         var1_points = []
         var2_points = []
 
-        for step in range(1, num_of_circs + 1):
-            radius = step * radii
+        if img_range[-1] == -1:
+            img_range[-1] = len(clean_vid)
 
-            var_above = []
-            var_below = []
+        for k in tqdm(range(img_range[0], img_range[-1])):
+            frame_k = clean_vid[k]
 
-            intersection_points = []
-            for i in range(len(selected_contours)):
-                contour_dist = contour_dist_list[i]
-                contour = selected_contours[i]
+            selected_contours = get_contour(frame_k, **get_contour_kws)
 
-                # ISSUE PROBABLY IS HERE
-                dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
-                intersection_points_i = contour.reshape(-1, 2)[dist_mask]
-                intersection_points.append(intersection_points_i)
-
-            # TO DO: re translate these - DONE
-            for ip_i in intersection_points:
-                for point in ip_i:
-                    if (
-                        f_mean(point[0] - self.orig_center[0])
-                        <= point[1] - self.orig_center[1]
-                    ):
-                        var_above.append(point - self.orig_center)
-                    else:
-                        var_below.append(point - self.orig_center)
-
-            if bool(var_above):
-                # Average the selected variance points (if multiple selected)
-                avg_var1_i = np.array(var_above).mean(axis=0).round().astype(int)
-                # Insert associated radii
-                avg_var1_i = np.insert(avg_var1_i, 0, radius)
-                var1_points.append(list(avg_var1_i))
-
-            if bool(var_below):
-                # Average the selected variance points (if multiple selected)
-                avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
-                # Insert associated radii
-                avg_var2_i = np.insert(avg_var2_i, 0, radius)
-                var2_points.append(list(avg_var2_i))
-
-        # Concatenate original center to both lists
-        # TO DO: concatenate (0,0) to each list - DONE
-        if bool(var1_points):
-            points_var1 = np.vstack(
-                (np.array(var1_points), list(np.insert((0, 0), 0, 0)))
+            mean_k, var1_k, var2_k = concentric_circle(
+                frame_k,
+                selected_contours=selected_contours,
+                orig_center=self.orig_center,
+                **concentric_circle_kws,
             )
-        else:
-            points_var1 = np.insert((0, 0), 0, 0).reshape(1, -1)
 
-        if bool(var2_points):
-            points_var2 = np.vstack(
-                (np.array(var2_points), list(np.insert((0, 0), 0, 0)))
-            )
-        else:
-            points_var2 = np.insert((0, 0), 0, 0).reshape(1, -1)
+            mean_points.append((k, mean_k))
+            var1_points.append((k, var1_k))
+            var2_points.append((k, var2_k))
 
-        # Plotting points
-        # TO DO: re translate these - DONE
-        for point in points_var1:
-            cv2.circle(contour_img, point[1:] + self.orig_center, 7, blue_color, -1)
-
-        for point in points_var2:
-            cv2.circle(contour_img, point[1:] + self.orig_center, 7, blue_color, -1)
-
-        # TO DO: These points are now translated back to the origin - DONE
-        return (points_mean, points_var1, points_var2, contour_img)
+        return mean_points, var1_points, var2_points
 
     @staticmethod
     def regression(
@@ -1196,191 +523,6 @@ class PLUME:
                 var2_dist,
             )
 
-    def find_next_center(
-        self, array, orig_center, neig_center, r, scale=3 / 5, rtol=1e-3, atol=1e-6
-    ):
-        # print("entered find_next_center")
-        col, row = orig_center
-        n, d = array.shape
-
-        # generate grid of indices from array
-        xx, yy = np.meshgrid(np.arange(d), np.arange(n))
-
-        # Get array of distances
-        distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
-
-        # Create mask for points on boundary (distances == r)
-        boundary_mask = np.isclose(distances, r, rtol=rtol, atol=atol)
-
-        # Appply to neighboring point
-        col, row = neig_center
-
-        # get array of new distances from previous circle
-        distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
-
-        interior_mask = distances <= r * scale
-
-        search_mask = boundary_mask & interior_mask
-
-        search_subset = array[search_mask]
-
-        max_value = np.max(search_subset)
-
-        # find indices of max element
-        max_indices = np.argwhere(np.isclose(array, max_value) & search_mask)
-
-        row, col = max_indices[0]
-
-        max_indices = (col, row)
-
-        return max_value, max_indices
-
-    def find_max_on_boundary(self, array, center, r, rtol=1e-3, atol=1e-6):
-        col, row = center
-        n, d = array.shape
-
-        # Generate a grid of indices for the array
-        xx, yy = np.meshgrid(np.arange(d), np.arange(n))
-
-        # Get Euclidean distance from each point on grid to center
-        distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
-
-        # Create mask for points on the boundary (distances == r)
-        boundary_mask = np.isclose(distances, r, rtol=rtol, atol=atol)
-
-        # Apply the boundary mask to the array to get the subset
-        boundary_subset = array[boundary_mask]
-
-        # Find the maximum value within the subset
-        max_value = np.max(boundary_subset)
-
-        # Find the indices of the maximum elements within the boundary
-        max_indices = np.argwhere(np.isclose(array, max_value) & boundary_mask)
-
-        row, col = max_indices[0]
-
-        max_indices = (col, row)
-
-        return max_value, max_indices
-
-    def create_background_img(self, img_range):
-        """
-        Create background image for fixed subtraction method.
-        Args:
-            img_range (list,int): Range of frames to create average image (list).
-            Or number of initial frames to create average image to subtract from
-            frames (int).
-        Returns:
-            background_img_np (np.ndarray): Numpy array of average image (in
-            grayscale).
-        """
-
-        # Check if img_range is list of two int or singular int
-        if isinstance(img_range, list) and len(img_range) == 2:
-            ret, frame = self.video_capture.read()
-            for k in range(img_range[0]):
-                ret, frame = self.video_capture.read()
-            background_img_np = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(float)
-            img_count = img_range[-1] - img_range[0]
-        elif isinstance(img_range, int):
-            ret, frame = self.video_capture.read()
-            # print("ret:", ret)
-            background_img_np = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(float)
-            img_count = img_range
-        else:
-            raise TypeError("img_range can either be int or 2-list or ints for range.")
-
-        k = 0
-        try:
-            while ret:
-                if k < img_count:
-                    background_img_np += cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY).astype(
-                        float
-                    )
-                k += 1
-                ret, frame = self.video_capture.read()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            self.video_capture.release()
-            # pass
-
-        background_img_np = (background_img_np / img_count).astype(np.uint8)
-
-        return background_img_np
-
-    def BGRframes_dot_weights(self, frames, weights):
-        """
-        Takes list of numpy arrays (imgs) and dots them with vector of weights
-
-        Args:
-            frames (list): List of numpy ararys in BGR format
-            weights (np.ndarray): vector of weights summing to one
-        """
-        a = np.array(frames)
-        b = np.array(weights)[
-            :, np.newaxis, np.newaxis, np.newaxis
-        ]  # Might need to change if working with gray images
-        c = np.round(np.sum(a * b, axis=0)).astype(np.uint8)
-        return c
-
-    def clip_video(
-        self,
-        init_frame,
-        fin_frame,
-        extension: str = "mp4",
-        display_vid: bool = True,
-        save_path: str = "clipped_video",
-    ):
-        video = self.video_capture
-        print(type(video.read()))
-        ret, frame = video.read()
-        # return frame
-
-        # grab vieo info for saving new file
-        frame_width = int(video.get(3))
-        frame_height = int(video.get(4))
-        frame_rate = int(video.get(5))
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-
-        # Possibly resave video
-        clip_title = save_path + "." + extension
-        out = cv2.VideoWriter(
-            clip_title, fourcc, frame_rate, (frame_width, frame_height), 0
-        )
-
-        if display_vid is True:
-            print("display_handle defined.")
-            display_handle = IPython.display.display(None, display_id=True)
-
-        # Loop results in the writing of B&W shortned video clip
-        k = 0
-        try:
-            while ret:
-                if k < fin_frame and k >= init_frame:
-                    # print("entered update")
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                    out.write(frame)
-                    _, frame = cv2.imencode(".jpeg", frame)  # why is this jpeg?
-                    if display_vid is True:
-                        # print("update display")
-                        display_handle.update(
-                            IPython.display.Image(data=frame.tobytes())
-                        )
-                print("k:", k)
-                k += 1
-                ret, frame = video.read()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            print("finished")
-            # video.release()
-            out.release()
-            if display_vid is True:
-                display_handle.update(None)
-
-        return
-
     def train_variance(self, kernel_fit=False):
         """
         Learned sinusoid coefficients (A_opt, w_opt, g_opt, B_opt) for variance data
@@ -1588,6 +730,151 @@ class var_func_on_poly:
                     return sol
 
 
+def get_contour(
+    img: GrayImage | ColorImage,
+    threshold_method: str = "OTSU",
+    num_of_contours: int = 1,
+    contour_smoothing: bool = False,
+    contour_smoothing_eps: int = 50,
+    find_contour_method: int = cv2.CHAIN_APPROX_NONE,
+) -> Contour_List:
+    """
+    Contour detection applied to single frame of background subtracted
+    video.
+
+    Parameters:
+    -----------
+    img: np.ndarray (gray or BGR)
+        image to apply contour detection too.
+
+    threshold_method: str (default "OTSU")
+        Opencv method used for applying thresholding.
+
+    num_of_contours: int (default 1)
+        Number of contours selected to be used (largest to smallest).
+
+    contour_smoothing: bool (default False)
+        Used cv2.approxPolyDP to apply additional smoothing to contours
+        selected contours.
+
+    contour_smoothing_eps: positive int (default 50)
+        hyperparater for tuning cv2.approxPolyDP in contour_smoothing.
+        Level of smoothing to be applied to plume detection contours.
+        Only used when contour_smoothing = True.
+
+    find_contour_method:
+        Method used by opencv to find contours. 1 is cv2.CHAIN_APPROX_NONE.
+        2 is cv2.CHAIN_APPROX_SIMPLE.
+
+    Returns:
+    --------
+    selected_contours:
+        Returns list of num_of_contours largest contours detected in image.
+    """
+
+    if len(img.shape) == 3:
+        img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    elif len(img.shape) == 2:
+        img_gray = img.copy()
+    else:
+        raise TypeError("img must be either Gray or Color")
+
+    # Apply thresholding
+    if threshold_method == "OTSU":
+        _, threshold = cv2.threshold(
+            img_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+        )
+
+    # Find contours
+    contours, _ = cv2.findContours(
+        threshold, cv2.RETR_EXTERNAL, method=find_contour_method
+    )
+
+    # Select n largest contours
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)
+    selected_contours = contours[:num_of_contours]
+
+    # Apply contour smoothing
+    if contour_smoothing:
+        smoothed_contours = []
+
+        for contour in selected_contours:
+            smoothed_contours.append(
+                cv2.approxPolyDP(contour, contour_smoothing_eps, True)
+            )
+
+        selected_contours = smoothed_contours
+
+    return selected_contours
+
+
+def _create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:
+    """
+    Creates average frame from numpy array ofr frames.
+    Parameters:
+    ----------
+    arr: np.ndarray
+        numpy array that contains all frames to average
+
+    Returns:
+    -------
+    np.ndarray:
+        average image created.
+    """
+    return np.mean(arr, axis=AX_FRAME)
+
+
+def apply_gauss_space_blur(
+    arr: GrayVideo,
+    kernel_size: tuple[int, int],
+    sigma_x: float,
+    sigma_y: float,
+) -> GrayVideo:
+    """
+    Apply openCV gaussianblur to series of frames
+
+    Parameters:
+    ----------
+    arr: np.ndarray
+    kernel_size:
+        Gaussian convolution width and height. int(s) must be positive and odd and
+        may differ.
+    sigma_x:
+    sigma_y:
+    """
+
+    return np.array(
+        [cv2.GaussianBlur(frame_i, kernel_size, sigma_x, sigma_y) for frame_i in arr]
+    )
+
+
+def apply_gauss_time_blur(
+    arr: GrayVideo,
+    kernel_size: int,
+    sigma: float,
+) -> GrayVideo:
+    """
+    Applying Gaussian blur across timeseries of frames.
+
+    Parameters:
+    ----------
+    arr:
+        np.ndarray containing black and white frames.
+    kernel_size:
+        Positive, odd, int specifying the size of kernel to convolve with arr.
+    sigma:
+        standard deviation for Gaussian weighting.
+
+    """
+    if kernel_size % 2 == 0:
+        raise TypeError("window for gaussian blur must be positive, odd int.")
+    gw = gaussian(kernel_size, sigma)
+
+    return (
+        convolve1d(arr, gw, axis=AX_FRAME, mode="constant", cval=0.0) / np.sum(gw)
+    ).astype(np.uint8)
+
+
 def click_coordinates(
     vid: cv2.VideoCapture, frame: Optional[int] = None
 ) -> tuple[float, float]:
@@ -1638,3 +925,34 @@ def click_coordinates(
     if not selected_point:
         raise RuntimeError("Point not selected")
     return selected_point
+
+
+def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
+    """
+    Create background image for fixed subtraction method.
+    Args:
+        frames: Video to create background image
+        img_range: Range of frames to create average image (list).
+        Or number of initial frames to create average image to subtract from
+        frames (int).
+    Returns:
+        background_img_np (np.ndarray): Numpy array of average image (in
+        grayscale).
+    """
+
+    if isinstance(img_range, int):
+        start_frame = 0
+        end_frame = img_range
+    else:
+        start_frame, end_frame = img_range
+
+    background_img_np = _create_average_image_from_numpy_array(
+        arr=frames[start_frame:end_frame]
+    )
+
+    return background_img_np
+
+
+def background_subtract(frames: GrayVideo, img_range: tuple[int, int]) -> GrayVideo:
+    background_img_np = _create_background_img(frames, img_range=img_range)
+    return np.maximum(0, frames - background_img_np).astype(np.uint8)

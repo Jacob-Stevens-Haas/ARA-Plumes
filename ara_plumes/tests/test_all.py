@@ -1,11 +1,158 @@
 import unittest
 from unittest.mock import MagicMock
 
+import cv2
 import numpy as np
 
+from ..concentric_circle import concentric_circle
+from ara_plumes import models
 from ara_plumes import regressions
 from ara_plumes import utils
+from ara_plumes.models import _create_average_image_from_numpy_array
+from ara_plumes.models import apply_gauss_space_blur
+from ara_plumes.models import apply_gauss_time_blur
+from ara_plumes.models import get_contour
 from ara_plumes.preprocessing import convert_video_to_numpy_array
+
+
+test_numpy_frames = np.array(
+    [np.full((10, 10), i, dtype=np.uint8) for i in range(1, 11)]
+)
+
+
+def test_concentric_circle():
+    # create data
+    scale = 4
+    orig_center = (50, 200)
+    height, width = 400, 400
+    bw_img = np.zeros((height, width), dtype=np.uint8)
+
+    bw_img[25:376, 50] = 255 // scale
+    bw_img[25, 50:251] = 255 / scale
+    bw_img[375, 50:251] = 255 // scale
+    bw_img[25:376, 250] = 255 // scale
+
+    num_of_circs = 3
+    r = 50
+    for i in range(num_of_circs):
+        i += 2
+        bw_img[200, r * i] = 255
+
+    rectangle_plume = bw_img.copy()
+
+    # get result
+    selected_contours = get_contour(rectangle_plume)
+    result_mean, result_var1, result_var2 = concentric_circle(
+        rectangle_plume,
+        selected_contours=selected_contours,
+        orig_center=orig_center,
+        radii=r,
+        num_of_circs=num_of_circs,
+    )
+
+    # expected data
+    expected_mean = np.array(
+        [[0, 50, 200], [50, 100, 200], [100, 150, 200], [150, 200, 200]]
+    )
+    expected_var1 = np.array(
+        [[0, 50, 200], [50, 50, 250], [100, 50, 300], [150, 50, 350]]
+    )
+    expected_var2 = np.array(
+        [[0, 50, 200], [50, 50, 150], [100, 50, 100], [150, 50, 50]]
+    )
+
+    np.testing.assert_array_equal(expected_mean, result_mean)
+    np.testing.assert_array_equal(expected_var1, result_var1)
+    np.testing.assert_array_equal(expected_var2, result_var2)
+
+
+def test_get_contour():
+    width, height = 400, 400
+    square_img = np.zeros((width, height), dtype=np.uint8)
+    square_img[100:301, 100:301] = 255
+    square_img_color = cv2.cvtColor(square_img, cv2.COLOR_GRAY2BGR)
+    expected = np.array([[[100, 100]], [[100, 300]], [[300, 300]], [[300, 100]]])
+
+    # gray test
+    selected_contour = get_contour(square_img, find_contour_method=2)
+    result = selected_contour[0]
+    np.testing.assert_array_equal(expected, result)
+
+    # color test
+    selected_contour = get_contour(square_img_color, find_contour_method=2)
+    result = selected_contour[0]
+    np.testing.assert_array_equal(expected, result)
+
+
+def test_gauss_space_blur():
+    expected = test_numpy_frames
+    result = apply_gauss_space_blur(
+        test_numpy_frames, kernel_size=(3, 3), sigma_x=1, sigma_y=1
+    )
+    np.testing.assert_array_equal(expected, result)
+
+
+def test_gauss_time_blur():
+    ksize = 3
+    n_frames = 10
+    result = apply_gauss_time_blur(test_numpy_frames, kernel_size=ksize, sigma=np.inf)
+
+    def expected_seq(k, ksize=ksize, n_frames=n_frames):
+        def sum_int_i_to_j(i, j):
+            def sum_n(n):
+                return n * (n + 1) / 2
+
+            return sum_n(j) - sum_n(i - 1)
+
+        r = int(ksize / 2)
+        i = k - r
+        j = k + r
+
+        if j > n_frames:
+            j = n_frames
+        if i > n_frames:
+            i = n_frames + 1
+        if j <= 0:
+            j = 1
+        if i <= 0:
+            i = 1
+
+        return sum_int_i_to_j(i, j) * 1 / ksize
+
+    expected = np.array(
+        [np.full((10, 10), expected_seq(i), dtype=np.uint8) for i in range(1, 11)]
+    )
+    np.testing.assert_array_equal(expected, result)
+
+
+def test_create_background_img():
+    # test numpy array
+    expected_avg_img = np.full((10, 10), 5.5)
+    avg_img = models._create_background_img(test_numpy_frames, img_range=(0, 10))
+
+    np.testing.assert_array_equal(avg_img, expected_avg_img)
+
+
+def test_background_subtract():
+    expected = np.concatenate(
+        (
+            np.zeros((5, 10, 10), dtype=np.uint8),
+            np.array([np.full((10, 10), i, dtype=np.uint8) for i in range(0, 5)]),
+        ),
+        axis=0,
+    )
+    result = models.background_subtract(test_numpy_frames, img_range=(0, 10))
+
+    np.testing.assert_array_equal(result, expected)
+
+
+def test_create_average_image_from_numpy_array():
+    expected_avg_img = np.full((10, 10), 5.5)
+    # arr_of_frames = np.array(
+    #     [np.full((10, 10), i, dtype=np.uint8) for i in range(1, 11)]
+    # )
+    avg_img = _create_average_image_from_numpy_array(test_numpy_frames)
+    np.testing.assert_array_equal(avg_img, expected_avg_img)
 
 
 def test_convert_video_to_numpy_array():

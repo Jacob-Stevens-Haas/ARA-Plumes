@@ -1,5 +1,6 @@
 import glob
 import os
+from typing import Optional
 
 import cv2
 import imageio
@@ -9,6 +10,12 @@ from matplotlib.animation import FuncAnimation
 from moviepy.editor import VideoFileClip
 from PIL import Image
 from tqdm import tqdm
+
+from .typing import ColorImage
+from .typing import Contour_List
+from .typing import GrayImage
+from .typing import X_pos
+from .typing import Y_pos
 
 
 ##################
@@ -22,6 +29,7 @@ def circle_intersection(x0, y0, r0, x1, y1, r1):
     source:
     https://math.stackexchange.com/questions/256100/how-can-i-find-the-points-at-which-two-circles-intersect
     """
+
     d = np.sqrt((x0 - x1) ** 2 + (y0 - y1) ** 2)
     L = (r0**2 - r1**2 + d**2) / (2 * d)
     h = np.sqrt(r0**2 - L**2)
@@ -470,3 +478,77 @@ def create_ROM_plume_movie(
             save_path += ".mp4"
         ani.save(save_path, writer="ffmpeg", fps=15)
         plt.show()
+
+
+def _add_contours_on_img(
+    img: GrayImage | ColorImage,
+    orig_center: Optional[tuple[X_pos, Y_pos]] = None,
+    mean_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
+    var1_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
+    var2_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
+    selected_contours: Contour_List = None,
+    radii: Optional[int] = None,
+    num_of_circs: Optional[int] = None,
+    interior_scale: Optional[float] = None,
+    mean_scatter_color=(0, 0, 255),
+    var1_scatter_color=(255, 0, 0),
+    var2_scatter_color=(255, 0, 255),
+    ring_color=(255, 0, 0),
+    interior_ring_color=(0, 0, 255),
+    contour_color=(0, 255, 0),
+) -> ColorImage:
+    """
+    Apply optional contour plotting to img.
+
+    Returns:
+    -------
+    color_img:
+        Colored frame with contour plotting applied.
+    """
+
+    if len(img.shape) == 2:
+        color_img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    elif len(img.shape) == 3:
+        color_img = img.copy()
+
+    if mean_scatter is not None:
+        for x_y in mean_scatter:
+            cv2.circle(color_img, x_y.astype(int), 7, mean_scatter_color, -1)
+
+    if var1_scatter is not None:
+        for x_y in var1_scatter:
+            cv2.circle(color_img, x_y.astype(int), 7, var1_scatter_color, -1)
+
+    if var2_scatter is not None:
+        for x_y in var2_scatter:
+            cv2.circle(color_img, x_y.astype(int), 7, var2_scatter_color, -1)
+
+    if selected_contours:
+        cv2.drawContours(color_img, selected_contours, -1, contour_color, 2)
+
+    if radii and num_of_circs and orig_center:
+        for step in range(1, num_of_circs + 1):
+            radius_i = radii * step
+
+            cv2.circle(
+                color_img,
+                center=orig_center,
+                radius=radius_i,
+                color=ring_color,
+                thickness=1,
+                lineType=cv2.LINE_AA,
+            )
+    if interior_scale and mean_scatter is not None:
+        for i, point in enumerate(mean_scatter[1:]):
+            i += 2
+            radius_i = radii * i
+            cv2.circle(
+                color_img,
+                center=point.astype(np.uint8),
+                radius=int(radius_i * interior_scale),
+                color=interior_ring_color,
+                thickness=1,
+                lineType=cv2.LINE_AA,
+            )
+
+    return color_img
