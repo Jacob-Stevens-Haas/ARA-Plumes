@@ -1,7 +1,6 @@
 import itertools
 from typing import Any
 from typing import cast
-from typing import List
 from typing import Literal
 
 import matplotlib.pyplot as plt
@@ -16,14 +15,70 @@ from tqdm import tqdm
 NpFlt = np.dtype[np.floating[NBitBase]]
 Float1D = np.ndarray[tuple[int], NpFlt]
 Float2D = np.ndarray[tuple[int, int], NpFlt]
+Float3D = np.ndarray[tuple[int, int, int], NpFlt]
 FloatND = np.ndarray[Any, NpFlt]
+
+
+def regress_mean_points_k(
+    arr: Float3D,
+    method: str,
+    poly_deg: int = 2,
+) -> Float1D:
+    """
+    Regressed mean_points from PLUME.train().
+
+    Parameters:
+    ----------
+    arr:
+        array of mean points from frame. [r(k), x(k), y(k)]
+
+    method:
+        Regression methods to apply to arr.
+        'linear':    Applies explicit linear regression to (x,y)
+        'poly':      Applies explicit polynomial regression to (x,y) with degree
+                     up to poly_deg
+        'poly_inv':  Applies explcity polynomial regression to (y,x) with degree
+                     up to poly_deg
+        'poly_para': Applies parametric poly regression to (r,x) and (r,y) with
+                     degree up to poly_deg
+    poly_deg:
+        degree of regression for all poly methods. Note 'linear' ignores this argument.
+
+    Returns:
+    -------
+    coef:
+        tuple containing coefficients, in decesing order in terms of highest degree,
+        of regressed function. For 'poly_para' returns concatenated results.
+    """
+
+    if method == "linear":
+        X = arr[:, 1]
+        Y = arr[:, 2]
+        coef = do_polynomial_regression(X, Y, poly_deg=1)
+
+    if method == "poly":
+        X = arr[:, 1]
+        Y = arr[:, 2]
+        coef = do_polynomial_regression(X, Y, poly_deg)
+
+    if method == "poly_inv":
+        X = arr[:, 2]
+        Y = arr[:, 1]
+        coef = do_polynomial_regression(X, Y, poly_deg)
+
+    if method == "poly_para":
+        X = arr[:, 0]
+        Y = arr[:, 1:]
+        coef = do_parametric_regression(X, Y, poly_deg)
+
+    return coef
 
 
 def do_polynomial_regression(
     X: np.ndarray,
     Y: np.ndarray,
-    poly_deg: int,
-) -> np.ndarray[float]:
+    poly_deg: int = 2,
+) -> Float1D:
     """Return regressed poly coefficients"""
     coef = np.polyfit(X, Y, deg=poly_deg)
     return coef
@@ -33,7 +88,7 @@ def do_sinusoid_regression(
     X: np.ndarray,
     Y: np.ndarray,
     initial_guess: tuple[float, float, float, float] = (1, 1, 1, 1),
-) -> np.ndarray[float]:
+) -> Float1D:
     """
     Return regressed sinusoid coefficients (a,w,g,t) to function
     d(t,r) = a*sin(w*r - g*t) + b*r
@@ -50,13 +105,13 @@ def do_sinusoid_regression(
 def do_parametric_regression(
     X: np.ndarray[int],
     Y: np.ndarray,
-    poly_deg: int,
-) -> List[np.ndarray[float]]:
+    poly_deg: int = 2,
+) -> Float1D:
     """Learn parametric poly coefficients"""
-    coef_list = []
+    coef = []
     for i in range(len(Y.T)):
-        coef_list.append(do_polynomial_regression(X, Y[:, i], poly_deg=poly_deg))
-    return coef_list
+        coef = np.append(coef, do_polynomial_regression(X, Y[:, i], poly_deg=poly_deg))
+    return coef
 
 
 ####################
