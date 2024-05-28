@@ -80,7 +80,7 @@ class PLUME:
         List[tuple[Frame, PlumePoints]],
     ]:
         """
-        Apply connetric circles to frames range
+        Apply connetric circles to frames range.
 
         Parameters:
         -----------
