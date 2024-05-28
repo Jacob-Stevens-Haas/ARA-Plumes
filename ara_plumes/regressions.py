@@ -25,7 +25,7 @@ def regress_mean_points_k(
     poly_deg: int = 2,
 ) -> Float1D:
     """
-    Regressed mean_points from PLUME.train().
+    Regressed mean_points from concentric_circle().
 
     Parameters:
     ----------
