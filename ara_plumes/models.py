@@ -82,8 +82,6 @@ class PLUME:
         """
         Apply connetric circles to frames range
 
-        Provides timeseries of learned polynomials.
-
         Parameters:
         -----------
         img_range: list (default None)
