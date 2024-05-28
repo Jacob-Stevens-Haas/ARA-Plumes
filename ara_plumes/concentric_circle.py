@@ -5,9 +5,7 @@ from scipy.ndimage import gaussian_filter
 from .typing import ColorImage
 from .typing import Contour_List
 from .typing import GrayImage
-from .typing import PointsMean
-from .typing import PointsVar1
-from .typing import PointsVar2
+from .typing import PlumePoints
 from .typing import X_pos
 from .typing import Y_pos
 
@@ -25,7 +23,7 @@ def concentric_circle(
     mean_smoothing: bool = True,
     mean_smoothing_sigma: int = 2,
     quiet: bool = True,
-) -> tuple[PointsMean, PointsVar1, PointsVar2]:
+) -> tuple[PlumePoints, PlumePoints, PlumePoints]:
     """
     Applies concentric cirlces to a single frame (gray or BGR) from video
 

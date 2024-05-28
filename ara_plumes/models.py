@@ -11,7 +11,7 @@ from tqdm import tqdm
 from . import regressions
 from . import utils
 from .concentric_circle import concentric_circle
-from .typing import ax_frame
+from .typing import AX_FRAME
 from .typing import ColorImage
 from .typing import Contour_List
 from .typing import FloatImage
@@ -19,9 +19,7 @@ from .typing import Frame
 from .typing import GrayImage
 from .typing import GrayVideo
 from .typing import List
-from .typing import PointsMean
-from .typing import PointsVar1
-from .typing import PointsVar2
+from .typing import PlumePoints
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +75,9 @@ class PLUME:
         concentric_circle_kws={},
         get_contour_kws={},
     ) -> tuple[
-        List[tuple[Frame, PointsMean]],
-        List[tuple[Frame, PointsVar1]],
-        List[tuple[Frame, PointsVar2]],
+        List[tuple[Frame, PlumePoints]],
+        List[tuple[Frame, PlumePoints]],
+        List[tuple[Frame, PlumePoints]],
     ]:
         """
         Apply connetric circles to frames range
@@ -769,9 +767,6 @@ def get_contour(
 
     Returns:
     --------
-    contour_img:
-        img with contours drawn on
-
     selected_contours:
         Returns list of num_of_contours largest contours detected in image.
     """
@@ -825,7 +820,7 @@ def _create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:
     np.ndarray:
         average image created.
     """
-    return np.mean(arr, axis=ax_frame)
+    return np.mean(arr, axis=AX_FRAME)
 
 
 def apply_gauss_space_blur(
@@ -875,7 +870,7 @@ def apply_gauss_time_blur(
     gw = gaussian(kernel_size, sigma)
 
     return (
-        convolve1d(arr, gw, axis=ax_frame, mode="constant", cval=0.0) / np.sum(gw)
+        convolve1d(arr, gw, axis=AX_FRAME, mode="constant", cval=0.0) / np.sum(gw)
     ).astype(np.uint8)
 
 
