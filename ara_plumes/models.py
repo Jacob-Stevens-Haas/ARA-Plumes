@@ -22,6 +22,8 @@ from .typing import GrayImage
 from .typing import GrayVideo
 from .typing import List
 from .typing import PlumePoints
+from .typing import X_pos
+from .typing import Y_pos
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,7 @@ class PLUME:
         mean_points: List[tuple[Frame, PlumePoints]],
         regression_method: str,
         poly_deg: int = 2,
+        decenter: Optional[tuple[X_pos, Y_pos]] = None,
     ) -> Float2D:
         """
         Converts plumepoints into timeseries of regressed coefficients.
@@ -91,6 +94,9 @@ class PLUME:
             degree of regression for all poly methods. Note 'linear' ignores this
             argument.
 
+        decenter:
+            Tuple to optionally subtract from from points prior to regression
+
         Returns:
         -------
         coef_time_series:
@@ -108,6 +114,10 @@ class PLUME:
         coef_time_series = np.zeros((n_frames, n_coef))
 
         for i, (_, frame_points) in tqdm(enumerate(mean_points)):
+
+            if decenter:
+                frame_points[:, 1:] -= decenter
+
             coef_time_series[i] = regress_frame_mean(
                 frame_points, regression_method, poly_deg
             )

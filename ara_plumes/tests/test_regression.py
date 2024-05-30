@@ -8,7 +8,7 @@ from ..regressions import regress_frame_mean
 
 
 def test_regress_multiframe_mean():
-    get_coef_from_mean_points = PLUME.regress_multiframe_mean
+    regress_multiframe_mean = PLUME.regress_multiframe_mean
     expected = np.array([[1, 2, 3, 4], [4, 3, 2, 1]])
     a, b, c, d = expected[0]
     e, f, g, h = expected[1]
@@ -27,8 +27,17 @@ def test_regress_multiframe_mean():
 
     mean_points = [(1, mean_points_1[::slice, :]), (2, mean_points_2[::slice, :])]
 
-    result = get_coef_from_mean_points(mean_points, "poly", 3)
+    result = regress_multiframe_mean(mean_points, "poly", 3)
 
+    np.testing.assert_array_almost_equal(expected, result)
+
+    # test decenter
+    origin = (10, 10)
+    mean_points_1[:, 1:] += origin
+    mean_points_2[:, 1:] += origin
+    mean_points = [(1, mean_points_1[::slice, :]), (2, mean_points_2[::slice, :])]
+
+    result = regress_multiframe_mean(mean_points, "poly", 3, decenter=origin)
     np.testing.assert_array_almost_equal(expected, result)
 
 
