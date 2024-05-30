@@ -64,9 +64,14 @@ class PLUME:
         """Set the plume source in the video"""
         self.orig_center = click_coordinates(self.video_capture, frame)
 
-    def get_coef_from_mean_points(mean_points, regression_method, poly_deg) -> Float2D:
+    @staticmethod
+    def regress_multiframes(
+        mean_points: List[tuple[Frame, PlumePoints]],
+        regression_method: str,
+        poly_deg: int = 2,
+    ) -> Float2D:
         """
-        Converts plumepoitns into timeseries of regressed coefficients.
+        Converts plumepoints into timeseries of regressed coefficients.
 
         Parameters:
         ----------
