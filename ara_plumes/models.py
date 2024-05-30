@@ -96,20 +96,20 @@ class PLUME:
         coef_time_series:
             Returns np.ndarray of regressed coefficients.
         """
-        n = len(mean_points)
+        n_frames = len(mean_points)
 
         if regression_method == "poly_para":
-            d = 2 * (poly_deg + 1)
+            n_coef = 2 * (poly_deg + 1)
         elif regression_method == "linear":
-            d = 2
+            n_coef = 2
         else:
-            d = poly_deg + 1
+            n_coef = poly_deg + 1
 
-        coef_time_series = np.zeros((n, d))
+        coef_time_series = np.zeros((n_frames, n_coef))
 
-        for i, tup in tqdm(enumerate(mean_points)):
+        for i, (_, frame_points) in tqdm(enumerate(mean_points)):
             coef_time_series[i] = regress_mean_points_k(
-                tup[1], regression_method, poly_deg
+                frame_points, regression_method, poly_deg
             )
 
         return coef_time_series
