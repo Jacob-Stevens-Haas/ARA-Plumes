@@ -114,7 +114,7 @@ def do_parametric_regression(
 ####################
 
 
-def regression(
+def edge_regression(
     X: np.ndarray,
     Y: np.ndarray,
     regression_method: str,
@@ -358,7 +358,7 @@ def var_ensemble_train(
         Xi = X[indices]
         Yi = Y[indices]
         try:
-            A_i, w_i, g_i, B_i = regression(
+            A_i, w_i, g_i, B_i = edge_regression(
                 X=Xi, Y=Yi, regression_method="sinusoid", initial_guess=initial_guess
             )
 
