@@ -65,7 +65,7 @@ class PLUME:
         self.orig_center = click_coordinates(self.video_capture, frame)
 
     @staticmethod
-    def regress_multiframes_mean(
+    def regress_multiframe_mean(
         mean_points: List[tuple[Frame, PlumePoints]],
         regression_method: str,
         poly_deg: int = 2,

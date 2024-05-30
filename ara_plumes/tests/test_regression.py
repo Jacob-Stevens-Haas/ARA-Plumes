@@ -7,8 +7,8 @@ from ..regressions import do_sinusoid_regression
 from ..regressions import regress_frame_mean
 
 
-def test_regress_multiframes_mean():
-    get_coef_from_mean_points = PLUME.regress_multiframes_mean
+def test_regress_multiframe_mean():
+    get_coef_from_mean_points = PLUME.regress_multiframe_mean
     expected = np.array([[1, 2, 3, 4], [4, 3, 2, 1]])
     a, b, c, d = expected[0]
     e, f, g, h = expected[1]
