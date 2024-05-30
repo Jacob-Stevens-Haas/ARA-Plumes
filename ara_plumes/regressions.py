@@ -1,26 +1,21 @@
 import itertools
-from typing import Any
 from typing import cast
 from typing import Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy.typing import NBitBase
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks
 from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
 
-
-NpFlt = np.dtype[np.floating[NBitBase]]
-Float1D = np.ndarray[tuple[int], NpFlt]
-Float2D = np.ndarray[tuple[int, int], NpFlt]
-Float3D = np.ndarray[tuple[int, int, int], NpFlt]
-FloatND = np.ndarray[Any, NpFlt]
+from .typing import Float1D
+from .typing import Float2D
+from .typing import NpFlt
 
 
-def regress_mean_points_k(
-    arr: Float3D,
+def regress_frame_mean(
+    arr: Float2D,
     method: str,
     poly_deg: int = 2,
 ) -> Float1D:

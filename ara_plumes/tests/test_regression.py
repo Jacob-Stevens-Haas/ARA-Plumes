@@ -4,11 +4,11 @@ from ..models import PLUME
 from ..regressions import do_parametric_regression
 from ..regressions import do_polynomial_regression
 from ..regressions import do_sinusoid_regression
-from ..regressions import regress_mean_points_k
+from ..regressions import regress_frame_mean
 
 
-def test_regress_multiframes():
-    get_coef_from_mean_points = PLUME.regress_multiframes
+def test_regress_multiframes_mean():
+    get_coef_from_mean_points = PLUME.regress_multiframes_mean
     expected = np.array([[1, 2, 3, 4], [4, 3, 2, 1]])
     a, b, c, d = expected[0]
     e, f, g, h = expected[1]
@@ -39,7 +39,7 @@ def test_regress_mean_points_k():
     mean_points = np.vstack((R, R, R)).T
 
     expected = (1, 0)
-    result = regress_mean_points_k(mean_points[::slice, :], method="linear")
+    result = regress_frame_mean(mean_points[::slice, :], method="linear")
     np.testing.assert_array_almost_equal(expected, result)
 
     # poly
@@ -52,14 +52,14 @@ def test_regress_mean_points_k():
     R = np.linspace(0, 1, 101)
     mean_points = np.vstack((R, R, poly_func(R))).T
 
-    result = regress_mean_points_k(mean_points[::slice, :], method="poly")
+    result = regress_frame_mean(mean_points[::slice, :], method="poly")
 
     np.testing.assert_array_almost_equal(expected, result)
 
     # poly_inv
     mean_points = np.vstack((R, poly_func(R), R)).T
 
-    result = regress_mean_points_k(mean_points[::slice, :], method="poly_inv")
+    result = regress_frame_mean(mean_points[::slice, :], method="poly_inv")
 
     np.testing.assert_array_almost_equal(expected, result)
 
@@ -78,9 +78,7 @@ def test_regress_mean_points_k():
 
     mean_points = np.vstack((R, poly1(R), poly2(R))).T
 
-    result = regress_mean_points_k(
-        mean_points[::slice, :], method="poly_para", poly_deg=3
-    )
+    result = regress_frame_mean(mean_points[::slice, :], method="poly_para", poly_deg=3)
 
     np.testing.assert_array_almost_equal(expected, result)
 

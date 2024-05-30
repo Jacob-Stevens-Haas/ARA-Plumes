@@ -11,7 +11,7 @@ from tqdm import tqdm
 from . import regressions
 from . import utils
 from .concentric_circle import concentric_circle
-from .regressions import regress_mean_points_k
+from .regressions import regress_frame_mean
 from .typing import AX_FRAME
 from .typing import ColorImage
 from .typing import Contour_List
@@ -65,7 +65,7 @@ class PLUME:
         self.orig_center = click_coordinates(self.video_capture, frame)
 
     @staticmethod
-    def regress_multiframes(
+    def regress_multiframes_mean(
         mean_points: List[tuple[Frame, PlumePoints]],
         regression_method: str,
         poly_deg: int = 2,
@@ -108,7 +108,7 @@ class PLUME:
         coef_time_series = np.zeros((n_frames, n_coef))
 
         for i, (_, frame_points) in tqdm(enumerate(mean_points)):
-            coef_time_series[i] = regress_mean_points_k(
+            coef_time_series[i] = regress_frame_mean(
                 frame_points, regression_method, poly_deg
             )
 
