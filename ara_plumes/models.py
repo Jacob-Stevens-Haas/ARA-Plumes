@@ -78,18 +78,18 @@ class PLUME:
         mean_points:
             List of tuples returned from PLUME.train()
 
-            regression_method:
-                Regression methods to apply to arr.
-                'linear':    Applies explicit linear regression to (x,y)
-                'poly':      Applies explicit polynomial regression to (x,y) with degree
-                            up to poly_deg
-                'poly_inv':  Applies explcity polynomial regression to (y,x) with degree
-                            up to poly_deg
-                'poly_para': Applies parametric poly regression to (r,x) and (r,y) with
-                            degree up to poly_deg
-            poly_deg:
-                degree of regression for all poly methods. Note 'linear' ignores this
-                argument.
+        regression_method:
+            Regression methods to apply to arr.
+            'linear':    Applies explicit linear regression to (x,y)
+            'poly':      Applies explicit polynomial regression to (x,y) with degree
+                        up to poly_deg
+            'poly_inv':  Applies explcity polynomial regression to (y,x) with degree
+                        up to poly_deg
+            'poly_para': Applies parametric poly regression to (r,x) and (r,y) with
+                        degree up to poly_deg
+        poly_deg:
+            degree of regression for all poly methods. Note 'linear' ignores this
+            argument.
 
         Returns:
         -------
