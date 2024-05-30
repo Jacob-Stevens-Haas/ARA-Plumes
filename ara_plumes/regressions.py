@@ -70,8 +70,8 @@ def regress_frame_mean(
 
 
 def do_polynomial_regression(
-    X: np.ndarray,
-    Y: np.ndarray,
+    X: Float1D,
+    Y: Float1D,
     poly_deg: int = 2,
 ) -> Float1D:
     """Return regressed poly coefficients"""
@@ -80,8 +80,8 @@ def do_polynomial_regression(
 
 
 def do_sinusoid_regression(
-    X: np.ndarray,
-    Y: np.ndarray,
+    X: Float1D,
+    Y: Float1D,
     initial_guess: tuple[float, float, float, float] = (1, 1, 1, 1),
 ) -> Float1D:
     """
@@ -98,8 +98,8 @@ def do_sinusoid_regression(
 
 
 def do_parametric_regression(
-    X: np.ndarray[int],
-    Y: np.ndarray,
+    X: Float1D,
+    Y: Float2D,
     poly_deg: int = 2,
 ) -> Float1D:
     """Learn parametric poly coefficients"""

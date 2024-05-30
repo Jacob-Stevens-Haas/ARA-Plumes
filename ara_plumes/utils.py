@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 from .typing import ColorImage
 from .typing import Contour_List
+from .typing import Float2D
 from .typing import GrayImage
 from .typing import X_pos
 from .typing import Y_pos
@@ -483,9 +484,9 @@ def create_ROM_plume_movie(
 def _add_contours_on_img(
     img: GrayImage | ColorImage,
     orig_center: Optional[tuple[X_pos, Y_pos]] = None,
-    mean_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
-    var1_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
-    var2_scatter: Optional[np.ndarray[tuple[X_pos, Y_pos]]] = None,
+    mean_scatter: Optional[Float2D] = None,
+    var1_scatter: Optional[Float2D] = None,
+    var2_scatter: Optional[Float2D] = None,
     selected_contours: Contour_List = None,
     radii: Optional[int] = None,
     num_of_circs: Optional[int] = None,

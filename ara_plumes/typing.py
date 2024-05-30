@@ -1,5 +1,6 @@
 from typing import Any
 from typing import List
+from typing import Literal
 from typing import NewType
 
 import numpy as np
@@ -16,15 +17,13 @@ FloatImage = np.ndarray[tuple[Height, Width], np.dtype[np.floating[NBitBase]]]
 GrayVideo = np.ndarray[tuple[Frame, Height, Width], np.dtype[np.uint8]]
 ColorVideo = np.ndarray[tuple[Frame, Height, Width, Channel], np.dtype[np.uint8]]
 
+NpFlt = np.dtype[np.floating[NBitBase]]
+
 Y_pos = NewType("Y_pos", int)
 X_pos = NewType("X_pos", int)
-Contour_List = List[np.ndarray[tuple[Y_pos, X_pos], np.dtype[Any]]]
+Contour_List = List[np.ndarray[tuple[int, Literal[2]], np.dtype[Any]]]
+PlumePoints = np.ndarray[tuple[int, Literal[3]], NpFlt]
 
-Radius = NewType("Radius", int)
-
-PlumePoints = np.ndarray[tuple[Radius, X_pos, Y_pos], np.dtype[np.floating[NBitBase]]]
-
-NpFlt = np.dtype[np.floating[NBitBase]]
 Float1D = np.ndarray[tuple[int], NpFlt]
 Float2D = np.ndarray[tuple[int, int], NpFlt]
 Float3D = np.ndarray[tuple[int, int, int], NpFlt]
