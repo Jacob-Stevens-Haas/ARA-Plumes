@@ -660,6 +660,9 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
     else:
         start_frame, end_frame = img_range
 
+    if end_frame == -1:
+        end_frame = len(frames)
+
     background_img_np = _create_average_image_from_numpy_array(
         arr=frames[start_frame:end_frame]
     )
@@ -668,5 +671,20 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
 
 
 def background_subtract(frames: GrayVideo, img_range: tuple[int, int]) -> GrayVideo:
-    background_img_np = _create_background_img(frames, img_range=img_range)
-    return np.maximum(0, frames - background_img_np).astype(np.uint8)
+    background_img_np = _create_background_img(frames, img_range=img_range).astype(
+        np.uint8
+    )
+
+    start_frame, end_frame = img_range
+    if end_frame == -1:
+        end_frame = len(frames)
+
+    clean_vid = np.empty(
+        shape=(end_frame - start_frame, frames[0].shape[0], frames[0].shape[1]),
+        dtype=frames[0].dtype,
+    )
+
+    for i in range(start_frame, end_frame):
+        clean_vid[i - start_frame] = cv2.subtract(frames[i], background_img_np)
+
+    return clean_vid

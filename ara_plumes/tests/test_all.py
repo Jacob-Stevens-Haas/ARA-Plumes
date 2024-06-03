@@ -137,7 +137,7 @@ def test_background_subtract():
     expected = np.concatenate(
         (
             np.zeros((5, 10, 10), dtype=np.uint8),
-            np.array([np.full((10, 10), i, dtype=np.uint8) for i in range(0, 5)]),
+            np.array([np.full((10, 10), i, dtype=np.uint8) for i in range(1, 6)]),
         ),
         axis=0,
     )
