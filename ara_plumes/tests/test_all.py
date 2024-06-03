@@ -141,7 +141,7 @@ def test_background_subtract():
         ),
         axis=0,
     )
-    result = models.background_subtract(test_numpy_frames, img_range=(0, 10))
+    result = models.background_subtract(test_numpy_frames, fixed_range=(0, 10))
 
     np.testing.assert_array_equal(result, expected)
 

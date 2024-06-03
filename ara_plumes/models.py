@@ -194,34 +194,41 @@ class PLUME:
         if hasattr(self, "numpy_frames"):
             if len(self.numpy_frames.shape) == 4:
                 raise TypeError("numpy_frames must be be in gray.")
-
-            clean_vid = background_subtract(self.numpy_frames, fixed_range)
+            print("applying background subtract")
+            clean_vid = background_subtract(
+                frames=self.numpy_frames, fixed_range=fixed_range, img_range=img_range
+            )
+            print("subtraction done.\n")
         else:
             raise AttributeError("PLUME object must read in a numpy array of frames.")
 
         if gauss_time_blur:
+            print("applying time blur")
             clean_vid = apply_gauss_time_blur(
                 arr=clean_vid, kernel_size=gauss_time_window, sigma=gauss_time_sigma
             )
+            print("time blur done.\n")
 
         if gauss_space_blur:
+            print("applying space blur")
             clean_vid = apply_gauss_space_blur(
                 arr=clean_vid,
                 kernel_size=(gauss_kernel_size, gauss_kernel_size),
                 sigma_x=gauss_space_sigma,
                 sigma_y=gauss_space_sigma,
             )
+            print("space blur done.\n")
 
         mean_points = []
         var1_points = []
         var2_points = []
 
-        if img_range[-1] == -1:
-            img_range[-1] = len(clean_vid)
+        start_frame, end_frame = img_range
+        if end_frame == -1:
+            end_frame = len(clean_vid)
 
-        for k in tqdm(range(img_range[0], img_range[-1])):
-            frame_k = clean_vid[k]
-
+        for k, frame_k in enumerate(tqdm(clean_vid)):
+            k += start_frame
             selected_contours = get_contour(frame_k, **get_contour_kws)
 
             mean_k, var1_k, var2_k = concentric_circle(
@@ -557,6 +564,13 @@ def apply_gauss_space_blur(
     sigma_y:
     """
 
+    # blur_video = np.empty_like(arr)
+
+    # for i, frame in enumerate(arr):
+    #     blur_video[i] = cv2.GaussianBlur(frame, kernel_size,sigma_x,sigma_y)
+
+    # return blur_videogit
+
     return np.array(
         [cv2.GaussianBlur(frame_i, kernel_size, sigma_x, sigma_y) for frame_i in arr]
     )
@@ -670,17 +684,45 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
     return background_img_np
 
 
-def background_subtract(frames: GrayVideo, img_range: tuple[int, int]) -> GrayVideo:
-    background_img_np = _create_background_img(frames, img_range=img_range).astype(
+def background_subtract(
+    frames: GrayVideo,
+    fixed_range: tuple[int, int],
+    img_range: tuple[int, int] = (0, -1),
+) -> GrayVideo:
+    """
+    Applies fixed background subtraction to series of frames.
+
+    Parameters:
+    ----------
+    frames:
+        frames to use for subtraction method and generating background img.
+
+    fixed_range:
+        index slice to use on frames arg to create background img used for
+        subtraction.
+
+    img_range:
+        index slice to use on frames arg to apply subtraction to.
+
+    Returns:
+    -------
+    clean_vid:
+        Series of frames with background subtraction applied.
+    """
+    background_img_np = _create_background_img(frames, img_range=fixed_range).astype(
         np.uint8
     )
 
+    start_frame, end_frame = img_range
+    if end_frame == -1:
+        end_frame = len(frames)
+
     clean_vid = np.empty(
-        shape=(len(frames), frames[0].shape[0], frames[0].shape[1]),
+        shape=(end_frame - start_frame, frames[0].shape[0], frames[0].shape[1]),
         dtype=frames[0].dtype,
     )
 
-    for i, frame in enumerate(frames):
+    for i, frame in enumerate(frames[start_frame:end_frame]):
         clean_vid[i] = cv2.subtract(frame, background_img_np)
 
     return clean_vid
