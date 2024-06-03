@@ -564,16 +564,12 @@ def apply_gauss_space_blur(
     sigma_y:
     """
 
-    # blur_video = np.empty_like(arr)
+    blur_video = np.empty_like(arr)
 
-    # for i, frame in enumerate(arr):
-    #     blur_video[i] = cv2.GaussianBlur(frame, kernel_size,sigma_x,sigma_y)
+    for i, frame in enumerate(arr):
+        blur_video[i] = cv2.GaussianBlur(frame, kernel_size, sigma_x, sigma_y)
 
-    # return blur_videogit
-
-    return np.array(
-        [cv2.GaussianBlur(frame_i, kernel_size, sigma_x, sigma_y) for frame_i in arr]
-    )
+    return blur_video
 
 
 def apply_gauss_time_blur(
