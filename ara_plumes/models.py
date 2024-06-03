@@ -675,16 +675,12 @@ def background_subtract(frames: GrayVideo, img_range: tuple[int, int]) -> GrayVi
         np.uint8
     )
 
-    start_frame, end_frame = img_range
-    if end_frame == -1:
-        end_frame = len(frames)
-
     clean_vid = np.empty(
-        shape=(end_frame - start_frame, frames[0].shape[0], frames[0].shape[1]),
+        shape=(len(frames), frames[0].shape[0], frames[0].shape[1]),
         dtype=frames[0].dtype,
     )
 
-    for i in range(start_frame, end_frame):
-        clean_vid[i - start_frame] = cv2.subtract(frames[i], background_img_np)
+    for i, frame in enumerate(frames):
+        clean_vid[i] = cv2.subtract(frame, background_img_np)
 
     return clean_vid
