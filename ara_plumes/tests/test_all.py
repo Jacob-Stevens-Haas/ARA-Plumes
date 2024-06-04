@@ -86,16 +86,26 @@ def test_get_contour():
 
 def test_gauss_space_blur():
     expected = test_numpy_frames
-    result = apply_gauss_space_blur(
-        test_numpy_frames, kernel_size=(3, 3), sigma_x=1, sigma_y=1
+    result_iter = apply_gauss_space_blur(
+        test_numpy_frames, kernel_size=(3, 3), sigma_x=1, sigma_y=1, iterative=True
     )
+    result = apply_gauss_space_blur(
+        test_numpy_frames, kernel_size=(3, 3), sigma_x=1, sigma_y=1, iterative=False
+    )
+
+    np.testing.assert_array_equal(expected, result_iter)
     np.testing.assert_array_equal(expected, result)
 
 
 def test_gauss_time_blur():
     ksize = 3
     n_frames = 10
-    result = apply_gauss_time_blur(test_numpy_frames, kernel_size=ksize, sigma=np.inf)
+    result_iter = apply_gauss_time_blur(
+        test_numpy_frames, kernel_size=ksize, sigma=np.inf, iterative=True
+    )
+    result = apply_gauss_time_blur(
+        test_numpy_frames, kernel_size=ksize, sigma=np.inf, iterative=False
+    )
 
     def expected_seq(k, ksize=ksize, n_frames=n_frames):
         def sum_int_i_to_j(i, j):
@@ -123,6 +133,7 @@ def test_gauss_time_blur():
         [np.full((10, 10), expected_seq(i), dtype=np.uint8) for i in range(1, 11)]
     )
     np.testing.assert_array_equal(expected, result)
+    np.testing.assert_array_equal(expected, result_iter)
 
 
 def test_create_background_img():

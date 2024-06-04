@@ -129,13 +129,11 @@ class PLUME:
         img_range: tuple[int, int] = (0, -1),
         fixed_range: tuple[int, int] = (0, -1),
         gauss_space_blur: bool = True,
-        gauss_kernel_size: int = 81,
-        gauss_space_sigma: float = 15,
         gauss_time_blur: bool = True,
-        gauss_time_window: bool = 5,
-        gauss_time_sigma: float = 1,
-        concentric_circle_kws={},
-        get_contour_kws={},
+        gauss_space_kws: dict = {},
+        gauss_time_kws: dict = {},
+        concentric_circle_kws: dict = {},
+        get_contour_kws: dict = {},
     ) -> tuple[
         List[tuple[Frame, PlumePoints]],
         List[tuple[Frame, PlumePoints]],
@@ -159,16 +157,14 @@ class PLUME:
         gauss_space_blur: bool (default True)
             Apply GaussianBlur in space.
 
-        gauss_kernel_size: odd int (default 81)
-            Size of kernel for GaussianBlur. Must be odd int.
-
-        gauss_space_sigma: int (default 15)
-
         gauss_time_blur: bool (default True)
+            Apply Gaussian blur across time series
 
-        gauss_time_window: int (default 5)
+        gauss_space_kws:
+            dictionary for keyword arguments for apply_gauss_space_blur function.
 
-        gauss_time_sigma: int (default 1)
+        gauss_time_kws:
+            dictionary for keyword arguments for apply_gauss_time_blur function.
 
         concentric_circle_kws:
             dictionary containing arguments for concentric_circle function.
@@ -194,30 +190,22 @@ class PLUME:
         if hasattr(self, "numpy_frames"):
             if len(self.numpy_frames.shape) == 4:
                 raise TypeError("numpy_frames must be be in gray.")
-            print("applying background subtract")
+
+            print("applying background subtract:")
             clean_vid = background_subtract(
                 frames=self.numpy_frames, fixed_range=fixed_range, img_range=img_range
             )
-            print("subtraction done.\n")
+
         else:
             raise AttributeError("PLUME object must read in a numpy array of frames.")
 
-        if gauss_time_blur:
-            print("applying time blur")
-            clean_vid = apply_gauss_time_blur(
-                arr=clean_vid, kernel_size=gauss_time_window, sigma=gauss_time_sigma
-            )
-            print("time blur done.\n")
-
         if gauss_space_blur:
-            print("applying space blur")
-            clean_vid = apply_gauss_space_blur(
-                arr=clean_vid,
-                kernel_size=(gauss_kernel_size, gauss_kernel_size),
-                sigma_x=gauss_space_sigma,
-                sigma_y=gauss_space_sigma,
-            )
-            print("space blur done.\n")
+            print("applying space blur:")
+            clean_vid = apply_gauss_space_blur(arr=clean_vid, **gauss_space_kws)
+
+        if gauss_time_blur:
+            print("applying time blur:")
+            clean_vid = apply_gauss_time_blur(arr=clean_vid, **gauss_time_kws)
 
         mean_points = []
         var1_points = []
@@ -227,6 +215,7 @@ class PLUME:
         if end_frame == -1:
             end_frame = len(clean_vid)
 
+        print("applying concentric circles:")
         for k, frame_k in enumerate(tqdm(clean_vid)):
             k += start_frame
             selected_contours = get_contour(frame_k, **get_contour_kws)
@@ -241,6 +230,11 @@ class PLUME:
             mean_points.append((k, mean_k))
             var1_points.append((k, var1_k))
             var2_points.append((k, var2_k))
+
+        self.clean_vid = clean_vid
+        self.mean_points = mean_points
+        self.var1_points = var1_points
+        self.var2_points = var2_points
 
         return mean_points, var1_points, var2_points
 
@@ -547,9 +541,10 @@ def _create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:
 
 def apply_gauss_space_blur(
     arr: GrayVideo,
-    kernel_size: tuple[int, int],
-    sigma_x: float,
-    sigma_y: float,
+    kernel_size: tuple[int, int] = (81, 81),
+    sigma_x: float = 15,
+    sigma_y: float = 15,
+    iterative: bool = True,
 ) -> GrayVideo:
     """
     Apply openCV gaussianblur to series of frames
@@ -564,18 +559,25 @@ def apply_gauss_space_blur(
     sigma_y:
     """
 
-    blur_video = np.empty_like(arr)
+    if iterative:
+        blurred_arr = np.empty_like(arr)
 
-    for i, frame in enumerate(arr):
-        blur_video[i] = cv2.GaussianBlur(frame, kernel_size, sigma_x, sigma_y)
+        for i, frame in enumerate(tqdm(arr)):
+            blurred_arr[i] = cv2.GaussianBlur(frame, kernel_size, sigma_x, sigma_y)
 
-    return blur_video
+    else:
+        blurred_arr = np.array(
+            [
+                cv2.GaussianBlur(frame_i, kernel_size, sigma_x, sigma_y)
+                for frame_i in arr
+            ]
+        )
+
+    return blurred_arr
 
 
 def apply_gauss_time_blur(
-    arr: GrayVideo,
-    kernel_size: int,
-    sigma: float,
+    arr: GrayVideo, kernel_size: int = 5, sigma: float = 1, iterative: bool = True
 ) -> GrayVideo:
     """
     Applying Gaussian blur across timeseries of frames.
@@ -591,12 +593,39 @@ def apply_gauss_time_blur(
 
     """
     if kernel_size % 2 == 0:
-        raise TypeError("window for gaussian blur must be positive, odd int.")
-    gw = gaussian(kernel_size, sigma)
+        raise ValueError(
+            "Kernel size for Gaussian blur must be a positive, odd integer."
+        )
 
-    return (
-        convolve1d(arr, gw, axis=AX_FRAME, mode="constant", cval=0.0) / np.sum(gw)
-    ).astype(np.uint8)
+    if iterative:
+        gw = gaussian(kernel_size, sigma)
+
+        blurred_arr = np.zeros_like(arr, dtype=np.uint8)
+
+        for i in tqdm(range(arr.shape[AX_FRAME])):
+
+            start_idx = max(i - kernel_size // 2, 0)
+            end_idx = min(i + kernel_size // 2 + 1, arr.shape[AX_FRAME])
+
+            slice_arr = arr[start_idx:end_idx]
+            convolved_slice = (
+                convolve1d(slice_arr, gw, axis=AX_FRAME, mode="constant", cval=0.0)
+                / np.sum(gw)
+            ).astype(np.uint8)
+
+            slice_index = min(kernel_size // 2, len(convolved_slice))
+            if i < kernel_size:
+                slice_index = -1 * (slice_index + 1)
+
+            blurred_arr[i] = convolved_slice[slice_index]
+
+    else:
+        gw = gaussian(kernel_size, sigma)
+        blurred_arr = (
+            convolve1d(arr, gw, axis=AX_FRAME, mode="constant", cval=0.0) / np.sum(gw)
+        ).astype(np.uint8)
+
+    return blurred_arr
 
 
 def click_coordinates(
@@ -718,7 +747,7 @@ def background_subtract(
         dtype=frames[0].dtype,
     )
 
-    for i, frame in enumerate(frames[start_frame:end_frame]):
+    for i, frame in enumerate(tqdm(frames[start_frame:end_frame])):
         clean_vid[i] = cv2.subtract(frame, background_img_np)
 
     return clean_vid
