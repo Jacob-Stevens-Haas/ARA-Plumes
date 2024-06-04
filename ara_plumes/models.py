@@ -11,15 +11,19 @@ from tqdm import tqdm
 from . import regressions
 from . import utils
 from .concentric_circle import concentric_circle
+from .regressions import regress_frame_mean
 from .typing import AX_FRAME
 from .typing import ColorImage
 from .typing import Contour_List
+from .typing import Float2D
 from .typing import FloatImage
 from .typing import Frame
 from .typing import GrayImage
 from .typing import GrayVideo
 from .typing import List
 from .typing import PlumePoints
+from .typing import X_pos
+from .typing import Y_pos
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +65,64 @@ class PLUME:
     def set_center(self, frame: Optional[int] = None) -> None:
         """Set the plume source in the video"""
         self.orig_center = click_coordinates(self.video_capture, frame)
+
+    @staticmethod
+    def regress_multiframe_mean(
+        mean_points: List[tuple[Frame, PlumePoints]],
+        regression_method: str,
+        poly_deg: int = 2,
+        decenter: Optional[tuple[X_pos, Y_pos]] = None,
+    ) -> Float2D:
+        """
+        Converts plumepoints into timeseries of regressed coefficients.
+
+        Parameters:
+        ----------
+        mean_points:
+            List of tuples returned from PLUME.train()
+
+        regression_method:
+            Regression methods to apply to arr.
+            'linear':    Applies explicit linear regression to (x,y)
+            'poly':      Applies explicit polynomial regression to (x,y) with degree
+                        up to poly_deg
+            'poly_inv':  Applies explcity polynomial regression to (y,x) with degree
+                        up to poly_deg
+            'poly_para': Applies parametric poly regression to (r,x) and (r,y) with
+                        degree up to poly_deg
+        poly_deg:
+            degree of regression for all poly methods. Note 'linear' ignores this
+            argument.
+
+        decenter:
+            Tuple to optionally subtract from from points prior to regression
+
+        Returns:
+        -------
+        coef_time_series:
+            Returns np.ndarray of regressed coefficients.
+        """
+        n_frames = len(mean_points)
+
+        if regression_method == "poly_para":
+            n_coef = 2 * (poly_deg + 1)
+        elif regression_method == "linear":
+            n_coef = 2
+        else:
+            n_coef = poly_deg + 1
+
+        coef_time_series = np.zeros((n_frames, n_coef))
+
+        for i, (_, frame_points) in tqdm(enumerate(mean_points)):
+
+            if decenter:
+                frame_points[:, 1:] -= decenter
+
+            coef_time_series[i] = regress_frame_mean(
+                frame_points, regression_method, poly_deg
+            )
+
+        return coef_time_series
 
     def train(
         self,
@@ -174,354 +236,6 @@ class PLUME:
             var2_points.append((k, var2_k))
 
         return mean_points, var1_points, var2_points
-
-    @staticmethod
-    def regression(
-        points_mean,
-        points_var1,
-        points_var2,
-        img,
-        orig_center=None,
-        selected_contours=None,
-        regression_method="poly",
-        poly_deg=2,
-        x_less=600,
-        x_plus=0,
-        BGR_color=(0, 0, 255),
-        line_thickness=5,
-    ):
-        """
-        Apply selected regression method to learned points from concentric_circle.
-
-        Parameters:
-        -----------
-        points_mean: np.ndarray
-            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
-            and radii of concentric circle associated with point on mean path of plume.
-
-        poitns_var1: np.ndarray
-            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
-            and radii of concentric circle associated with 'above' edge of plume.
-            Points that are above the mean scatter points.
-
-        poitns_var2: np.ndarray
-            nx3 numpy array with cartesian coordinates (r,x,y) of scatter points
-            and raddi of concentric circle associated with 'below' edge of plume.
-            Points that are above the mean scatter points.
-
-        img: np.ndarary
-            nxd numpy array of single frame of plume. Used to plot learned regression
-            paths.
-
-        regression_method: str (default "poly")
-            Regression method used to predict path of plume.
-
-        poly_deg: int (default 2)
-            degree of polynomial used for regression (either explicit or parametric)
-
-        x_less: int (default 600)
-            Amount of extra pixels to the left of data to extrapolate fitted
-            trajectories
-
-        x_plus: int (default 0)
-            Amount of extra pixels to the right of data to extrapolate fitted
-            trajectories
-
-        BGR_color: tuple (default (0,0,255))
-            color of polynomial lines plotted on image
-
-        line_thickness: int (default 5)
-            thickeness of polynomials plotted on image
-
-        Returns:
-        --------
-        poly_coef_mean: np.ndarray
-            learned coefficients for mean regression.
-
-        poly_coef_var1: np.ndarray
-            learned coefficients for var1 regression.
-
-        poly_coef_var2: np.ndarray
-            learned coefficients for var2 regression.
-
-        img: np.ndarray
-            plume frame with plotting regression paths.
-        """
-
-        if regression_method == "poly":
-            # Applying mean poly regression
-            poly_coef_mean = np.polyfit(
-                points_mean[:, 1], points_mean[:, 2], deg=poly_deg
-            )
-
-            # Plotting mean poly
-            f_mean = (
-                lambda x: poly_coef_mean[0] * x**2
-                + poly_coef_mean[1] * x
-                + poly_coef_mean[2]
-            )
-
-            x = np.linspace(
-                np.min(points_mean[:, 1]) - x_less,
-                np.max(points_mean[:, 1]) + x_plus,
-                100,
-            )
-
-            y = f_mean(x) + orig_center[1]
-            curve_img = np.zeros_like(img)
-            curve_points = np.column_stack((x + orig_center[0], y)).astype(np.int32)
-
-            cv2.polylines(
-                curve_img,
-                [curve_points],
-                isClosed=False,
-                color=BGR_color,
-                thickness=line_thickness,
-            )
-
-            # Variance 1 poly regression
-            poly_coef_var1 = np.polyfit(
-                points_var1[:, 1], points_var1[:, 2], deg=poly_deg
-            )
-
-            x = np.linspace(
-                np.min(points_var1[:, 1]) - x_less,
-                np.max(points_var1[:, 1]) + x_plus,
-                100,
-            )
-
-            y = poly_coef_var1[0] * x**2 + poly_coef_var1[1] * x + poly_coef_var1[2]
-
-            curve_points = np.column_stack(
-                (x + orig_center[0], y + orig_center[1])
-            ).astype(np.int32)
-
-            cv2.polylines(
-                curve_img,
-                [curve_points],
-                isClosed=False,
-                color=(255, 0, 0),
-                thickness=line_thickness,
-            )
-
-            # Variance 2 poly regression
-            poly_coef_var2 = np.polyfit(
-                points_var2[:, 1], points_var2[:, 2], deg=poly_deg
-            )
-
-            x = np.linspace(
-                np.min(points_var2[:, 1]) - x_less,
-                np.max(points_var2[:, 1]) + x_plus,
-                100,
-            )
-            y = poly_coef_var2[0] * x**2 + poly_coef_var2[1] * x + poly_coef_var2[2]
-
-            curve_points = np.column_stack(
-                (x + orig_center[0], y + orig_center[1])
-            ).astype(np.int32)
-
-            cv2.polylines(
-                curve_img,
-                [curve_points],
-                isClosed=False,
-                color=(255, 0, 0),
-                thickness=line_thickness,
-            )
-
-            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
-
-            return (poly_coef_mean, poly_coef_var1, poly_coef_var2, img)
-
-        # TO DO: Update regression method
-        if regression_method == "sinusoid":
-            # Use poly regression for mean path
-            # TO DO: subtract original center from here - DONE in concentric_circle
-            poly_coef_mean = np.polyfit(
-                points_mean[:, 1], points_mean[:, 2], deg=poly_deg
-            )
-            f_mean = (
-                lambda x: poly_coef_mean[0] * x**2
-                + poly_coef_mean[1] * x
-                + poly_coef_mean[2]
-            )
-
-            col, row = orig_center
-
-            # convert (x,y) to (r,d) for var 1
-            # TO DO: Will have to think about how to modify this - DONE
-            var1_dist = []
-            for point in points_var1:
-                r = point[0]
-                # TO DO: Change x0 and y0 to zero - DONE
-                sols = utils.circle_poly_intersection(
-                    r=r,
-                    x0=0,
-                    y0=0,
-                    a=poly_coef_mean[0],
-                    b=poly_coef_mean[1],
-                    c=poly_coef_mean[2],
-                )
-
-                # Check if point falls in contour
-                # TO DO: sol + [original center] - DONE
-                for sol in sols:
-                    for contour in selected_contours:
-                        if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
-                            dist_i = np.linalg.norm(
-                                point[1:] - sol
-                            )  # TO DO: done bc var is not translated back to origin
-                            # by concentric_circle
-                            var1_dist.append([r, dist_i])
-                            # TO DO: sol + [original center] - DONE
-                            translated_sol = sol + orig_center
-                            cv2.circle(
-                                img, translated_sol.astype(int), 8, (255, 255, 0), -1
-                            )
-
-            var1_dist = np.array(var1_dist)
-
-            # var2: convert (x,y) to (r,d) for var 2
-            # TO DO: will also have to think about how to modify this - DONE
-            var2_dist = []
-            for point in points_var2:
-                r = point[0]
-
-                # TO DO: x0 = y0 = 0 - DONE
-                sols = utils.circle_poly_intersection(
-                    r=r,
-                    x0=0,
-                    y0=0,
-                    a=poly_coef_mean[0],
-                    b=poly_coef_mean[1],
-                    c=poly_coef_mean[2],
-                )
-
-                # check if points fall in contour
-                # TO DO: sol + [original center] - DONE
-                for sol in sols:
-                    for contour in selected_contours:
-                        if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
-                            dist_i = np.linalg.norm(point[1:] - sol)
-                            var2_dist.append([r, dist_i])
-                            # TO DO: translate back for plotting
-                            translated_sol = sol + orig_center
-                            cv2.circle(
-                                img, translated_sol.astype(int), 8, (255, 255, 0), -1
-                            )
-            var2_dist = np.array(var2_dist)
-
-            # Plotting polynomial on plot
-            x = np.linspace(
-                np.min(points_mean[:, 1]) - x_less,
-                np.max(points_mean[:, 1]) + x_plus,
-                100,
-            )
-
-            # Plotting
-            # TO DO: New translated function? - DONE??
-            y = f_mean(x) + orig_center[1]
-            curve_img = np.zeros_like(img)
-            curve_points = np.column_stack((x + orig_center[0], y)).astype(np.int32)
-            cv2.polylines(
-                curve_img,
-                [curve_points],
-                isClosed=False,
-                color=BGR_color,
-                thickness=line_thickness,
-            )
-
-            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
-
-            # Get regressions parameters Asin(wx-gamma t) + Bx
-            poly_coef_var1 = (0, 0, 0)
-            poly_coef_var2 = (0, 0, 0)
-
-            return (
-                poly_coef_mean,
-                poly_coef_var1,
-                poly_coef_var2,
-                img,
-                var1_dist,
-                var2_dist,
-            )
-        if regression_method == "parametric":
-            # print("regression method:", regression_method)
-            r_x_arr = points_mean[:, 0:2]
-            r_y_arr = points_mean[:, [0, -1]]
-
-            x_poly_coef_mean = np.polyfit(r_x_arr[:, 0], r_x_arr[:, 1], deg=poly_deg)
-
-            y_poly_coeff_mean = np.polyfit(r_y_arr[:, 0], r_y_arr[:, 1], deg=poly_deg)
-            max_r = max(points_mean[:, 0])
-            r = np.linspace(0, max_r, 100)
-
-            def x_func(r):
-                return np.polyval(x_poly_coef_mean, r)
-
-            def y_func(r):
-                return np.polyval(y_poly_coeff_mean, r)
-
-            x = x_func(r) + orig_center[0]
-            y = y_func(r) + orig_center[1]
-
-            curve_img = np.zeros_like(img)
-            curve_points = np.column_stack((x, y)).astype(np.int32)
-            cv2.polylines(
-                curve_img,
-                [curve_points],
-                isClosed=False,
-                color=BGR_color,
-                thickness=line_thickness,
-            )
-
-            img = cv2.addWeighted(img, 1, curve_img, 1, 0)
-
-            # convert (x,y) to (r,d) for var 1
-            var1_dist = []
-            for point in points_var1:
-                r = point[0]
-
-                sol = np.array((x_func(r), y_func(r)))
-
-                for contour in selected_contours:
-                    if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
-                        dist_i = np.linalg.norm(point[1:] - sol)
-                        var1_dist.append([r, dist_i])
-                        translated_sol = sol + orig_center
-                        cv2.circle(
-                            img, translated_sol.astype(int), 8, (255, 255, 0), -1
-                        )
-
-            var1_dist = np.array(var1_dist)
-
-            var2_dist = []
-            for point in points_var2:
-                r = point[0]
-
-                sol = np.array((x_func(r), y_func(r)))
-
-                for contour in selected_contours:
-                    if cv2.pointPolygonTest(contour, sol + orig_center, False) == 1:
-                        dist_i = np.linalg.norm(point[1:] - sol)
-                        var2_dist.append([r, dist_i])
-                        translated_sol = sol + orig_center
-                        cv2.circle(
-                            img, translated_sol.astype(int), 8, (255, 255, 0), -1
-                        )
-
-            # get regressions parameters
-            poly_coef_mean = np.hstack((x_poly_coef_mean, y_poly_coeff_mean))
-            poly_coef_var1 = (0, 0, 0)
-            poly_coef_var2 = (0, 0, 0)
-
-            return (
-                poly_coef_mean,
-                poly_coef_var1,
-                poly_coef_var2,
-                img,
-                var1_dist,
-                var2_dist,
-            )
 
     def train_variance(self, kernel_fit=False):
         """
@@ -946,6 +660,9 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
     else:
         start_frame, end_frame = img_range
 
+    if end_frame == -1:
+        end_frame = len(frames)
+
     background_img_np = _create_average_image_from_numpy_array(
         arr=frames[start_frame:end_frame]
     )
@@ -954,5 +671,16 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
 
 
 def background_subtract(frames: GrayVideo, img_range: tuple[int, int]) -> GrayVideo:
-    background_img_np = _create_background_img(frames, img_range=img_range)
-    return np.maximum(0, frames - background_img_np).astype(np.uint8)
+    background_img_np = _create_background_img(frames, img_range=img_range).astype(
+        np.uint8
+    )
+
+    clean_vid = np.empty(
+        shape=(len(frames), frames[0].shape[0], frames[0].shape[1]),
+        dtype=frames[0].dtype,
+    )
+
+    for i, frame in enumerate(frames):
+        clean_vid[i] = cv2.subtract(frame, background_img_np)
+
+    return clean_vid

@@ -137,7 +137,7 @@ def test_background_subtract():
     expected = np.concatenate(
         (
             np.zeros((5, 10, 10), dtype=np.uint8),
-            np.array([np.full((10, 10), i, dtype=np.uint8) for i in range(0, 5)]),
+            np.array([np.full((10, 10), i, dtype=np.uint8) for i in range(1, 6)]),
         ),
         axis=0,
     )
@@ -198,8 +198,8 @@ def test_circle_poly_intersection_complex():
     np.testing.assert_array_almost_equal(result, expected)
 
 
-def test_regression_sinusoid():
-    regression_func = regressions.regression
+def test_edge_regression_sinusoid():
+    regression_func = regressions.edge_regression
 
     # Generate data
     A, w, g, B = (-0.1, 10, 4.14159265, 1)
@@ -218,8 +218,8 @@ def test_regression_sinusoid():
     np.testing.assert_almost_equal(expected, result)
 
 
-def test_regression_poly():
-    regression_func = regressions.regression
+def test_edge_regression_poly():
+    regression_func = regressions.edge_regression
 
     def poly_func(x):
         return x**2
