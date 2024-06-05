@@ -7,7 +7,6 @@ import numpy as np
 from ara_plumes import models
 from ara_plumes import regressions
 from ara_plumes import utils
-from ara_plumes.models import _create_average_image_from_numpy_array
 from ara_plumes.models import apply_gauss_space_blur
 from ara_plumes.models import apply_gauss_time_blur
 from ara_plumes.models import get_contour
@@ -124,15 +123,6 @@ def test_background_subtract():
     result = models.background_subtract(test_numpy_frames, fixed_range=(0, 10))
 
     np.testing.assert_array_equal(result, expected)
-
-
-def test_create_average_image_from_numpy_array():
-    expected_avg_img = np.full((10, 10), 5.5)
-    # arr_of_frames = np.array(
-    #     [np.full((10, 10), i, dtype=np.uint8) for i in range(1, 11)]
-    # )
-    avg_img = _create_average_image_from_numpy_array(test_numpy_frames)
-    np.testing.assert_array_equal(avg_img, expected_avg_img)
 
 
 def test_convert_video_to_numpy_array():
