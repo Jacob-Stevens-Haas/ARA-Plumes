@@ -16,7 +16,6 @@ from .typing import AX_FRAME
 from .typing import ColorImage
 from .typing import Contour_List
 from .typing import Float2D
-from .typing import FloatImage
 from .typing import Frame
 from .typing import GrayImage
 from .typing import GrayVideo
@@ -262,6 +261,64 @@ class PLUME:
             var2_points.append((k, var2_k))
 
         return mean_points, var1_points, var2_points
+
+    @staticmethod
+    def regress_multiframe_mean(
+        mean_points: List[tuple[Frame, PlumePoints]],
+        regression_method: str,
+        poly_deg: int = 2,
+        decenter: Optional[tuple[X_pos, Y_pos]] = None,
+    ) -> Float2D:
+        """
+        Converts plumepoints into timeseries of regressed coefficients.
+
+        Parameters:
+        ----------
+        mean_points:
+            List of tuples returned from PLUME.train()
+
+        regression_method:
+            Regression methods to apply to arr.
+            'linear':    Applies explicit linear regression to (x,y)
+            'poly':      Applies explicit polynomial regression to (x,y) with degree
+                        up to poly_deg
+            'poly_inv':  Applies explcity polynomial regression to (y,x) with degree
+                        up to poly_deg
+            'poly_para': Applies parametric poly regression to (r,x) and (r,y) with
+                        degree up to poly_deg
+        poly_deg:
+            degree of regression for all poly methods. Note 'linear' ignores this
+            argument.
+
+        decenter:
+            Tuple to optionally subtract from from points prior to regression
+
+        Returns:
+        -------
+        coef_time_series:
+            Returns np.ndarray of regressed coefficients.
+        """
+        n_frames = len(mean_points)
+
+        if regression_method == "poly_para":
+            n_coef = 2 * (poly_deg + 1)
+        elif regression_method == "linear":
+            n_coef = 2
+        else:
+            n_coef = poly_deg + 1
+
+        coef_time_series = np.zeros((n_frames, n_coef))
+
+        for i, (_, frame_points) in enumerate(mean_points):
+
+            if decenter:
+                frame_points[:, 1:] -= decenter
+
+            coef_time_series[i] = regress_frame_mean(
+                frame_points, regression_method, poly_deg
+            )
+
+        return coef_time_series
 
     def train_variance(self, kernel_fit=False):
         """
@@ -550,22 +607,6 @@ def get_contour(
     return selected_contours
 
 
-def _create_average_image_from_numpy_array(arr: GrayVideo) -> FloatImage:
-    """
-    Creates average frame from numpy array ofr frames.
-    Parameters:
-    ----------
-    arr: np.ndarray
-        numpy array that contains all frames to average
-
-    Returns:
-    -------
-    np.ndarray:
-        average image created.
-    """
-    return np.mean(arr, axis=AX_FRAME)
-
-
 def apply_gauss_space_blur(
     arr: GrayVideo,
     kernel_size: tuple[int, int] = (81, 81),
@@ -709,7 +750,7 @@ def click_coordinates(
     return selected_point
 
 
-def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
+def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]) -> Float2D:
     """
     Create background image for fixed subtraction method.
     Args:
@@ -718,7 +759,7 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
         Or number of initial frames to create average image to subtract from
         frames (int).
     Returns:
-        background_img_np (np.ndarray): Numpy array of average image (in
+        np.ndarray: Numpy array of average image (in
         grayscale).
     """
 
@@ -731,11 +772,7 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]):
     if end_frame == -1:
         end_frame = len(frames)
 
-    background_img_np = _create_average_image_from_numpy_array(
-        arr=frames[start_frame:end_frame]
-    )
-
-    return background_img_np
+    return np.mean(frames[start_frame:end_frame], axis=AX_FRAME)
 
 
 def background_subtract(
