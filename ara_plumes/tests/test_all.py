@@ -4,9 +4,11 @@ from unittest.mock import MagicMock
 import cv2
 import numpy as np
 
+from ..utils import _square_poly_coef
+from ..utils import circle_intersection
+from ..utils import circle_poly_intersection
 from ara_plumes import models
 from ara_plumes import regressions
-from ara_plumes import utils
 from ara_plumes.models import apply_gauss_space_blur
 from ara_plumes.models import apply_gauss_time_blur
 from ara_plumes.models import get_contour
@@ -150,22 +152,43 @@ def test_convert_video_to_numpy_array():
     np.testing.assert_equal(result[0].shape, (100, 100))
 
 
-def test_circle_poly_intersection_real():
-    x0 = np.sqrt(1 / 2 * (-1 + np.sqrt(5)))
-    y0 = x0**2
-    expected = np.array([[-x0, y0], [x0, y0]])
-    result = utils.circle_poly_intersection(1, 0, 0, 1, 0, 0, True)
-    np.testing.assert_array_almost_equal(result, expected)
+def test_circle_poly_intersection():
+    # linear
+    coef = (1, 0)
+    r = 1
+    x0 = 0
+    y0 = 0
+    expected = np.array(
+        [[-1 / np.sqrt(2), -1 / np.sqrt(2)], [1 / np.sqrt(2), 1 / np.sqrt(2)]]
+    )
+    result = circle_poly_intersection(r, x0, y0, coef[::-1])
+    np.testing.assert_array_almost_equal(expected, result)
+
+    # quadratic
+    coef = (1, 0, 0)
+    y = (-1 + np.sqrt(5)) / 2
+
+    expected = np.array([[-np.sqrt(y), y], [np.sqrt(y), y]])
+    result = circle_poly_intersection(r, x0, y0, coef[::-1])
+    np.testing.assert_array_almost_equal(expected, result)
+
+    # cubic
+    coef = (1, 0, -1, 0)
+    expected = np.array([[-1, 0], [1, 0]])
+    result = circle_poly_intersection(r, x0, y0, coef[::-1])
+    np.testing.assert_array_almost_equal(expected, result)
 
 
-def test_circle_poly_intersection_complex():
-    x0 = np.sqrt(1 / 2 * (-1 + np.sqrt(5)))
-    x1 = complex(0, np.sqrt(1 / 2 * (1 + np.sqrt(5))))
-    y0 = x0**2
-    y1 = x1**2
-    expected = np.array([[-x0, y0], [-x1, y1], [x1, y1], [x0, y0]])
-    result = utils.circle_poly_intersection(1, 0, 0, 1, 0, 0, False)
-    np.testing.assert_array_almost_equal(result, expected)
+def test_square_poly_coef():
+    coef = (1, 0, 1)
+    expected = np.array([1, 0, 2, 0, 1])
+    result = _square_poly_coef(coef)
+    np.testing.assert_array_equal(expected, result)
+
+    coef = (1, 0, 2)
+    expected = np.array([1, 0, 4, 0, 4])
+    result = _square_poly_coef(coef)
+    np.testing.assert_array_equal(expected, result)
 
 
 def test_edge_regression_sinusoid():
@@ -210,5 +233,5 @@ def test_circle_intersection():
     y1 = 0
     r1 = 1
     expected = np.array([[1, 1], [1, -1]])
-    result = utils.circle_intersection(x0=x0, y0=y0, r0=r0, x1=x1, y1=y1, r1=r1)
+    result = circle_intersection(x0=x0, y0=y0, r0=r0, x1=x1, y1=y1, r1=r1)
     np.testing.assert_almost_equal(expected, result)
