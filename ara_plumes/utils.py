@@ -15,6 +15,7 @@ from .typing import ColorImage
 from .typing import Contour_List
 from .typing import Float2D
 from .typing import GrayImage
+from .typing import NpFlt
 from .typing import X_pos
 from .typing import Y_pos
 
@@ -46,38 +47,80 @@ def circle_intersection(x0, y0, r0, x1, y1, r1):
     return sol
 
 
-def circle_poly_intersection(r, x0, y0, a, b, c, real=True):
+def circle_poly_intersection(r, x0, y0, poly_coef):
     """
-    Find the intersection point(s) of a circle centered at (x0,y0) with radius
-    r and a polynomial of the form y=ax^2+bx+c.
+    Find roots of function F where
+    F(x) = (x - x0)**2 + (y(x)-y0)**2 - r**2
 
-    Find roots of the poly g(x) = x^2 + (ax^2+bx+c)^2-r^2
+    where y(x) = a0 + a1 x + ... + an x^n is the polynomial
+    with coef poly_coef = [a0, a1, ..., an] in ascending order.
+
+    Parameters:
+    ----------
+    r:
+        radii of circle
+
+    x0,y0:
+        center of circle
+
+    poly_coef:
+        coefficients of polynomial function in ascending degree order.
+
+    Returns:
+    -------
+    np.ndarray:
+        Array of solutions
     """
+    if len(poly_coef) == 1:
+        F_coef = [x0**2 + (y0 - poly_coef[0]) ** 2 - r * 2, -2 * x0, 1]
+    else:
+        F_coef = _square_poly_coef(poly_coef)
+        F_coef[: len(poly_coef)] += -2 * y0 * np.array(poly_coef)
+        F_coef[0] += x0**2 + y0**2 - r**2
+        F_coef[1] += -2 * x0
+        F_coef[2] += 1
 
-    coeff = [
-        c**2 - 2 * c * y0 + y0**2 + x0**2 - r**2,
-        2 * b * c - 2 * b * y0 - 2 * x0,
-        1 + b**2 + 2 * a * c - 2 * a * y0,
-        2 * a * b,
-        a**2,
-    ]
-    roots = np.polynomial.polynomial.polyroots(coeff)
+    roots = np.polynomial.polynomial.polyroots(F_coef)
+    roots = np.real(roots[np.isreal(roots)])
 
-    if real is True:
-        roots = np.real(roots[np.isreal(roots)])
-
-    def f_poly(x):
-        return a * x**2 + b * x + c
-
-    # y = f_poly(roots)
+    y_poly = np.polynomial.Polynomial(poly_coef)
 
     sol = []
     for x in roots:
-        y = f_poly(x)
-        sol.append([x, y])
+        sol.append([x, y_poly(x)])
 
-    sol = np.array(sol)
-    return sol
+    return np.array(sol)
+
+
+def _square_poly_coef(coef: tuple[any]) -> np.ndarray[tuple[any], NpFlt]:
+    """
+    coef of poly in ascend/descend order. Results returned in same order.
+
+    Parameters:
+    ----------
+    coef:
+        List of poly coefficients, coef = [a0, a1, ..., an], where
+        P(x) = a0 + a1 x + ... +an x^n.
+
+
+    Returns:
+    -------
+        np.ndarray:
+            Coefficients of squared polynomial [c0, c1, ..., c2n], where
+            P^2(x) = c0 + c1 x + .. + c2n x^2n.
+
+            ck = sum ai * a_(k-i) for i in range(k)
+    """
+
+    def a_i(i):
+        if i < len(coef):
+            return coef[i]
+        return 0
+
+    def n_coef(n):
+        return np.sum([a_i(i) * a_i(n - i) for i in range(n + 1)])
+
+    return np.array([n_coef(n) for n in range(2 * len(coef) - 1)])
 
 
 #############################
