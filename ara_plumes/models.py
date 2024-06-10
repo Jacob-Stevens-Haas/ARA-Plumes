@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.ndimage import convolve1d
 from scipy.signal.windows import gaussian
-from tqdm import tqdm
 
 from . import regressions
 from . import utils
@@ -113,7 +112,7 @@ class PLUME:
 
         coef_time_series = np.zeros((n_frames, n_coef))
 
-        for i, (_, frame_points) in enumerate(tqdm(mean_points)):
+        for i, (_, frame_points) in enumerate(mean_points):
 
             if decenter:
                 frame_points[:, 1:] -= decenter
@@ -220,7 +219,7 @@ class PLUME:
             end_frame = len(clean_vid)
 
         print("applying concentric circles:")
-        for k, frame_k in enumerate(tqdm(clean_vid)):
+        for k, frame_k in enumerate(clean_vid):
             k += start_frame
             selected_contours = get_contour(frame_k, **get_contour_kws)
 
@@ -561,7 +560,7 @@ def apply_gauss_space_blur(
     if iterative:
         blurred_arr = np.empty_like(arr)
 
-        for i, frame in enumerate(tqdm(arr)):
+        for i, frame in enumerate(arr):
             blurred_arr[i] = cv2.GaussianBlur(frame, kernel_size, sigma_x, sigma_y)
 
     else:
@@ -601,7 +600,7 @@ def apply_gauss_time_blur(
 
         blurred_arr = np.zeros_like(arr, dtype=np.uint8)
 
-        for i in tqdm(range(arr.shape[AX_FRAME])):
+        for i in range(arr.shape[AX_FRAME]):
 
             start_idx = max(i - kernel_size // 2, 0)
             end_idx = min(i + kernel_size // 2 + 1, arr.shape[AX_FRAME])
