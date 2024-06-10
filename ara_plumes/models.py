@@ -113,7 +113,7 @@ class PLUME:
 
         coef_time_series = np.zeros((n_frames, n_coef))
 
-        for i, (_, frame_points) in tqdm(enumerate(mean_points)):
+        for i, (_, frame_points) in enumerate(tqdm(mean_points)):
 
             if decenter:
                 frame_points[:, 1:] -= decenter
@@ -130,10 +130,10 @@ class PLUME:
         fixed_range: tuple[int, int] = (0, -1),
         gauss_space_blur: bool = True,
         gauss_time_blur: bool = True,
-        gauss_space_kws: dict = {},
-        gauss_time_kws: dict = {},
-        concentric_circle_kws: dict = {},
-        get_contour_kws: dict = {},
+        gauss_space_kws: Optional[dict] = None,
+        gauss_time_kws: Optional[dict] = None,
+        concentric_circle_kws: Optional[dict] = None,
+        get_contour_kws: Optional[dict] = None,
     ) -> tuple[
         List[tuple[Frame, PlumePoints]],
         List[tuple[Frame, PlumePoints]],
@@ -201,10 +201,14 @@ class PLUME:
 
         if gauss_space_blur:
             print("applying space blur:")
+            if gauss_space_kws is None:
+                gauss_space_kws = {}
             clean_vid = apply_gauss_space_blur(arr=clean_vid, **gauss_space_kws)
 
         if gauss_time_blur:
             print("applying time blur:")
+            if gauss_time_kws is None:
+                gauss_time_kws = {}
             clean_vid = apply_gauss_time_blur(arr=clean_vid, **gauss_time_kws)
 
         mean_points = []
@@ -230,11 +234,6 @@ class PLUME:
             mean_points.append((k, mean_k))
             var1_points.append((k, var1_k))
             var2_points.append((k, var2_k))
-
-        self.clean_vid = clean_vid
-        self.mean_points = mean_points
-        self.var1_points = var1_points
-        self.var2_points = var2_points
 
         return mean_points, var1_points, var2_points
 
@@ -747,7 +746,7 @@ def background_subtract(
         dtype=frames[0].dtype,
     )
 
-    for i, frame in enumerate(tqdm(frames[start_frame:end_frame])):
+    for i, frame in enumerate(frames[start_frame:end_frame]):
         clean_vid[i] = cv2.subtract(frame, background_img_np)
 
     return clean_vid
