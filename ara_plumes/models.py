@@ -123,31 +123,24 @@ class PLUME:
 
         return coef_time_series
 
-    def train(
-        self,
-        img_range: tuple[int, int] = (0, -1),
+    @staticmethod
+    def clean_video(
+        arr: GrayVideo,
         fixed_range: tuple[int, int] = (0, -1),
         gauss_space_blur: bool = True,
         gauss_time_blur: bool = True,
         gauss_space_kws: Optional[dict] = None,
         gauss_time_kws: Optional[dict] = None,
-        concentric_circle_kws: Optional[dict] = None,
-        get_contour_kws: Optional[dict] = None,
-    ) -> tuple[
-        List[tuple[Frame, PlumePoints]],
-        List[tuple[Frame, PlumePoints]],
-        List[tuple[Frame, PlumePoints]],
-    ]:
+    ) -> GrayVideo:
         """
-        Apply connetric circles to frames range.
+        Apply fixed background subtraction and gaussian bluring
+        to GrayVideo.
 
         Parameters:
-        -----------
-        img_range: list (default None)
-            Range of images to apply background subtraction method and
-            concentric circles too. Default None uses remaining frames
-            after declared fixed_range used to generated background
-            image.
+        ----------
+        arr:
+            Array of frames to apply background subtraction and blurring
+            to.
 
         fixed_range:
             Range of images to use as background image for subtraction
@@ -164,6 +157,58 @@ class PLUME:
 
         gauss_time_kws:
             dictionary for keyword arguments for apply_gauss_time_blur function.
+
+        Returns:
+        -------
+        clean_vid:
+            Frames with background subtraction and blurring applied.
+        """
+        if len(arr.shape) == 4:
+            raise TypeError("arr must be be in gray.")
+
+        print("applying background subtract:")
+        clean_vid = background_subtract(frames=arr, fixed_range=fixed_range)
+
+        if gauss_space_blur:
+            print("applying space blur:")
+            if gauss_space_kws is None:
+                gauss_space_kws = {}
+            clean_vid = apply_gauss_space_blur(arr=clean_vid, **gauss_space_kws)
+
+        if gauss_time_blur:
+            print("applying time blur:")
+            if gauss_time_kws is None:
+                gauss_time_kws = {}
+            clean_vid = apply_gauss_time_blur(arr=clean_vid, **gauss_time_kws)
+
+        return clean_vid
+
+    @staticmethod
+    def video_to_ROM(
+        arr: GrayVideo,
+        orig_center: tuple[int, int],
+        img_range: tuple[int, int] = (0, -1),
+        concentric_circle_kws: Optional[dict] = None,
+        get_contour_kws: Optional[dict] = None,
+    ) -> tuple[
+        List[tuple[Frame, PlumePoints]],
+        List[tuple[Frame, PlumePoints]],
+        List[tuple[Frame, PlumePoints]],
+    ]:
+        """
+        Apply connetric circles to frames range.
+
+        Parameters:
+        -----------
+        arr:
+            Array of frames to apply method to.
+
+        orig_center:
+            tuple declaring plume leak source location.
+
+        img_range: list (default None)
+            Range of images to apply background subtraction method and
+            concentric circles too. Default uses all frames from arr.
 
         concentric_circle_kws:
             dictionary containing arguments for concentric_circle function.
@@ -186,47 +231,23 @@ class PLUME:
             attained from frame k.
 
         """
-        if hasattr(self, "numpy_frames"):
-            if len(self.numpy_frames.shape) == 4:
-                raise TypeError("numpy_frames must be be in gray.")
-
-            print("applying background subtract:")
-            clean_vid = background_subtract(
-                frames=self.numpy_frames, fixed_range=fixed_range, img_range=img_range
-            )
-
-        else:
-            raise AttributeError("PLUME object must read in a numpy array of frames.")
-
-        if gauss_space_blur:
-            print("applying space blur:")
-            if gauss_space_kws is None:
-                gauss_space_kws = {}
-            clean_vid = apply_gauss_space_blur(arr=clean_vid, **gauss_space_kws)
-
-        if gauss_time_blur:
-            print("applying time blur:")
-            if gauss_time_kws is None:
-                gauss_time_kws = {}
-            clean_vid = apply_gauss_time_blur(arr=clean_vid, **gauss_time_kws)
-
         mean_points = []
         var1_points = []
         var2_points = []
 
         start_frame, end_frame = img_range
         if end_frame == -1:
-            end_frame = len(clean_vid)
+            end_frame = len(arr)
 
         print("applying concentric circles:")
-        for k, frame_k in enumerate(clean_vid):
+        for k, frame_k in enumerate(arr[start_frame:end_frame]):
             k += start_frame
             selected_contours = get_contour(frame_k, **get_contour_kws)
 
             mean_k, var1_k, var2_k = concentric_circle(
                 frame_k,
                 selected_contours=selected_contours,
-                orig_center=self.orig_center,
+                orig_center=orig_center,
                 **concentric_circle_kws,
             )
 
