@@ -72,7 +72,7 @@ def circle_poly_intersection(r, x0, y0, poly_coef):
         Array of solutions
     """
     if len(poly_coef) == 1:
-        F_coef = [x0**2 + (y0 - poly_coef[0]) ** 2 - r * 2, -2 * x0, 1]
+        F_coef = [x0**2 + (y0 - poly_coef[0]) ** 2 - r**2, -2 * x0, 1]
     else:
         F_coef = _square_poly_coef(poly_coef)
         F_coef[: len(poly_coef)] += -2 * y0 * np.array(poly_coef)
