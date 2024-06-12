@@ -153,6 +153,18 @@ def test_convert_video_to_numpy_array():
 
 
 def test_circle_poly_intersection():
+    # constant
+    coef = [0]
+    r = 1
+    x0 = 0
+    y0 = 0
+
+    expected = np.array([[-1, 0], [1, 0]])
+
+    result = circle_poly_intersection(r, x0, y0, coef)
+
+    np.testing.assert_array_almost_equal(expected, result)
+
     # linear
     coef = (1, 0)
     r = 1
