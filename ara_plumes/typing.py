@@ -24,6 +24,7 @@ X_pos = NewType("X_pos", int)
 Contour_List = List[np.ndarray[tuple[int, Literal[2]], np.dtype[Any]]]
 PlumePoints = np.ndarray[tuple[int, Literal[3]], NpFlt]
 
+Bool1D = np.ndarray[tuple[int], np.bool_]
 Float1D = np.ndarray[tuple[int], NpFlt]
 Float2D = np.ndarray[tuple[int, int], NpFlt]
 Float3D = np.ndarray[tuple[int, int, int], NpFlt]

@@ -5,6 +5,10 @@ import cv2
 import numpy as np
 
 from ..concentric_circle import concentric_circle
+from ..models import _poly_para_rxy_to_trd
+from ..models import _poly_rxy_to_trd
+from ..models import _sol_in_contour
+from ..models import flatten_var_points
 from ..utils import _square_poly_coef
 from ..utils import circle_intersection
 from ..utils import circle_poly_intersection
@@ -294,3 +298,78 @@ def test_circle_intersection():
     expected = np.array([[1, 1], [1, -1]])
     result = circle_intersection(x0=x0, y0=y0, r0=r0, x1=x1, y1=y1, r1=r1)
     np.testing.assert_almost_equal(expected, result)
+
+
+def test_flatten_var_points():
+    t = 0
+    points = np.array([[0, 0, 0], [1, 0, 1], [2, 0, 2], [3, 0, 3]])
+    vari = (t, points)
+    vari_points = [vari, vari]
+    coef_timeseries = np.array([[1, 0], [1, 0]])
+
+    def f(x, r):
+        return np.sqrt((x - r / np.sqrt(2)) ** 2 + r**2 / 2)
+
+    expected = np.array([[0, 0, 0], [0, 1, f(1, 1)], [0, 2, f(2, 2)], [0, 3, f(3, 3)]])
+    expected = np.vstack((expected, expected))
+    length = 5
+    selected_contours = [
+        np.array(
+            [[[0, length]], [[0, 0]], [[length, 0]], [[length, length]]], dtype=np.int32
+        )
+    ]
+    selected_contours = [selected_contours, selected_contours]
+
+    result = flatten_var_points(
+        coef_timeseries,
+        vari_points,
+        regression_method="poly",
+        selected_contours=selected_contours,
+    )
+    np.testing.assert_array_almost_equal(expected, result)
+
+
+def test_poly_para_rxy_to_trd():
+    t = 0
+    points = np.array([[0, 0, 0], [1, 0, 1], [2, 0, 2], [3, 0, 3]])
+    vari = (t, points)
+    coef = np.array([1, 0, 1, 0]) / np.sqrt(2)
+    result = _poly_para_rxy_to_trd(coef, vari)
+
+    def f(x, r):
+        return np.sqrt((x - r / np.sqrt(2)) ** 2 + r**2 / 2)
+
+    expected = np.array([[0, 0, 0], [0, 1, f(1, 1)], [0, 2, f(2, 2)], [0, 3, f(3, 3)]])
+    np.testing.assert_array_almost_equal(expected, result)
+
+
+def test_poly_rxy_to_trd():
+    t = 0
+    points = np.array([[0, 0, 0], [1, 0, 1], [2, 0, 2], [3, 0, 3]])
+    vari = (t, points)
+    coef = np.array([1, 0])
+    length = 5
+    selected_contours = [
+        np.array(
+            [[[0, length]], [[0, 0]], [[length, 0]], [[length, length]]], dtype=np.int32
+        )
+    ]
+
+    result = _poly_rxy_to_trd(
+        coef=coef, vari_points=vari, selected_contours=selected_contours
+    )
+
+    def f(x, r):
+        return np.sqrt((x - r / np.sqrt(2)) ** 2 + r**2 / 2)
+
+    expected = np.array([[0, 0, 0], [0, 1, f(1, 1)], [0, 2, f(2, 2)], [0, 3, f(3, 3)]])
+
+    np.testing.assert_array_almost_equal(expected, result)
+
+
+def test_sol_in_contour():
+    contour = [np.array([[[0, 2]], [[0, 0]], [[2, 0]], [[2, 2]]], dtype=np.int32)]
+    sols = [[1, 1], [3, 3]]
+    result = _sol_in_contour(sols=sols, selected_contours=contour)
+    expected = np.array([True, False])
+    np.testing.assert_array_equal(expected, result)
