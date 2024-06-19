@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import cv2
 import numpy as np
 
+from ..models import _sol_in_contour
 from ..utils import _square_poly_coef
 from ..utils import circle_intersection
 from ..utils import circle_poly_intersection
@@ -247,3 +248,11 @@ def test_circle_intersection():
     expected = np.array([[1, 1], [1, -1]])
     result = circle_intersection(x0=x0, y0=y0, r0=r0, x1=x1, y1=y1, r1=r1)
     np.testing.assert_almost_equal(expected, result)
+
+
+def test_sol_in_contour():
+    contour = [np.array([[[0, 2]], [[0, 0]], [[2, 0]], [[2, 2]]], dtype=np.int32)]
+    sols = [[1, 1], [3, 3]]
+    result = _sol_in_contour(sols=sols, selected_contours=contour)
+    expected = np.array([True, False])
+    np.testing.assert_array_equal(expected, result)
