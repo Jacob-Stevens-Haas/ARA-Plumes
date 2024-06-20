@@ -765,6 +765,61 @@ def background_subtract(
     return clean_vid
 
 
+def get_contour_list(
+    clean_vid: GrayVideo,
+    threshold_method: str = "OTSU",
+    num_of_contours: int = 1,
+    contour_smoothing: bool = False,
+    contour_smoothing_eps: int = 50,
+    find_contour_method: int = cv2.CHAIN_APPROX_NONE,
+) -> List[Contour_List]:
+    """
+    Return contours learned from frames of clean video.
+
+    Parameters:
+    ----------
+    clean_vid:
+        frames of gray video.
+
+    threshold_method: str (default "OTSU")
+        Opencv method used for applying thresholding.
+
+    num_of_contours: int (default 1)
+        Number of contours selected to be used (largest to smallest).
+
+    contour_smoothing: bool (default False)
+        Used cv2.approxPolyDP to apply additional smoothing to contours
+        selected contours.
+
+    contour_smoothing_eps: positive int (default 50)
+        hyperparater for tuning cv2.approxPolyDP in contour_smoothing.
+        Level of smoothing to be applied to plume detection contours.
+        Only used when contour_smoothing = True.
+
+    find_contour_method:
+        Method used by opencv to find contours. 1 is cv2.CHAIN_APPROX_NONE.
+        2 is cv2.CHAIN_APPROX_SIMPLE.
+
+    Returns:
+    --------
+    cont_list:
+        Returns list of selected contours from each frame of clean_vid.
+
+    """
+    cont_list = []
+    for frame in clean_vid:
+        selected_contours = get_contour(
+            frame,
+            threshold_method=threshold_method,
+            num_of_contours=num_of_contours,
+            contour_smoothing=contour_smoothing,
+            contour_smoothing_eps=contour_smoothing_eps,
+            find_contour_method=find_contour_method,
+        )
+        cont_list.append(selected_contours)
+    return cont_list
+
+
 def flatten_var_points(
     coef_timeseries: Float2D,
     vari_points: List[PlumePoints],

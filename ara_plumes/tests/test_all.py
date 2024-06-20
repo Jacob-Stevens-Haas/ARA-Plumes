@@ -9,6 +9,7 @@ from ..models import _poly_para_rxy_to_trd
 from ..models import _poly_rxy_to_trd
 from ..models import _sol_in_contour
 from ..models import flatten_var_points
+from ..models import get_contour_list
 from ..utils import _square_poly_coef
 from ..utils import circle_intersection
 from ..utils import circle_poly_intersection
@@ -69,6 +70,18 @@ def test_concentric_circle():
     np.testing.assert_array_equal(expected_mean, result_mean)
     np.testing.assert_array_equal(expected_var1, result_var1)
     np.testing.assert_array_equal(expected_var2, result_var2)
+
+
+def test_get_contour_list():
+    width, height = 400, 400
+    square_img = np.zeros((width, height), dtype=np.uint8)
+    square_img[100:301, 100:301] = 255
+    clean_vid = np.array([square_img, square_img])
+    expected = np.array([[[100, 100]], [[100, 300]], [[300, 300]], [[300, 100]]])
+    expected = [expected, expected]
+    result = get_contour_list(clean_vid, find_contour_method=2)
+    for e, r in zip(expected, result):
+        np.testing.assert_array_almost_equal(e, r[0])
 
 
 def test_get_contour():
