@@ -84,6 +84,7 @@ def circle_poly_intersection(r, x0, y0, a, b, c, real=True):
 # General Purpose functions #
 #############################
 
+
 # General Purpose functions
 def count_files(directory: str, extension: str) -> int:
     """
@@ -308,6 +309,7 @@ class VideoPointPicker:
 ###################
 # Post Processing #
 ###################
+
 
 # For saving frames as video
 def create_video(directory, output_file, fps=15, extension="png", folder="movies"):
