@@ -1,4 +1,5 @@
 import logging
+import warnings
 from typing import Optional
 
 import cv2
@@ -116,10 +117,13 @@ class PLUME:
 
             if decenter:
                 frame_points[:, 1:] -= decenter
-
-            coef_time_series[i] = regress_frame_mean(
-                frame_points, regression_method, poly_deg
-            )
+            try:
+                coef_time_series[i] = regress_frame_mean(
+                    frame_points, regression_method, poly_deg
+                )
+            except Exception as e:
+                warnings.warn(f"Return NaN. {e}")
+                coef_time_series[i] = [np.nan for _ in range(n_coef)]
 
         return coef_time_series
 
