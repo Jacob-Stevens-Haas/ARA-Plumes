@@ -105,7 +105,7 @@ def concentric_circle(
     # array of distance of each point on contour to original center
     contour_dist_list = []
     for contour in selected_contours:
-        a = contour.reshape(-1, 2)
+        a = contour
         b = np.array(orig_center)
         contour_dist = np.sqrt(np.sum((a - b) ** 2, axis=1))
         contour_dist_list.append(contour_dist)
@@ -205,7 +205,7 @@ def concentric_circle(
 
             # ISSUE PROBABLY IS HERE
             dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
-            intersection_points_i = contour.reshape(-1, 2)[dist_mask]
+            intersection_points_i = contour[dist_mask]
             intersection_points.append(intersection_points_i)
 
         # TO DO: re translate these - DONE
