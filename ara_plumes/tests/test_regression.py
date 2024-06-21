@@ -40,6 +40,31 @@ def test_regress_multiframe_mean():
     result = regress_multiframe_mean(mean_points, "poly", 3, decenter=origin)
     np.testing.assert_array_almost_equal(expected, result)
 
+    # test poly_para
+    mean_points_1 = np.vstack((R, poly1(R), poly2(R))).T
+    mean_points_2 = np.vstack((R, poly2(R), poly1(R))).T
+
+    mean_points = [(1, mean_points_1[::slice, :]), (2, mean_points_2[::slice, :])]
+    result = regress_multiframe_mean(mean_points, "poly_para", 3)
+
+    np.testing.assert_array_almost_equal(
+        np.hstack((expected[0], expected[1])), result[0]
+    )
+    np.testing.assert_array_almost_equal(
+        np.hstack((expected[1], expected[0])), result[1]
+    )
+
+    # test poly_para nan
+    mean_points = [(1, mean_points_1[::slice, :]), (2, mean_points_2[0, :])]
+    result = regress_multiframe_mean(mean_points, "poly_para", 3)
+
+    np.testing.assert_array_almost_equal(
+        np.hstack((expected[0], expected[1])), result[0]
+    )
+    np.testing.assert_array_almost_equal(
+        np.array([np.nan for _ in range(8)]), result[1]
+    )
+
 
 def test_regress_mean_points_k():
     # linear
