@@ -582,12 +582,14 @@ def apply_gauss_space_blur(
         blurred_arr = np.empty_like(arr)
 
         for i, frame in enumerate(arr):
-            blurred_arr[i] = cv2.GaussianBlur(frame, kernel_size, sigma_x, sigma_y)
+            blurred_arr[i] = cv2.GaussianBlur(
+                frame, kernel_size, sigma_x, sigmaY=sigma_y
+            )
 
     else:
         blurred_arr = np.array(
             [
-                cv2.GaussianBlur(frame_i, kernel_size, sigma_x, sigma_y)
+                cv2.GaussianBlur(frame_i, kernel_size, sigma_x, sigmaY=sigma_y)
                 for frame_i in arr
             ]
         )
