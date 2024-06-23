@@ -589,7 +589,8 @@ def apply_gauss_space_blur(
             [
                 cv2.GaussianBlur(frame_i, kernel_size, sigma_x, sigma_y)
                 for frame_i in arr
-            ]
+            ],
+            dtype=np.uint8,
         )
 
     return blurred_arr
