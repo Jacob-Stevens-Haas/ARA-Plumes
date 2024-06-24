@@ -31,7 +31,26 @@ def test_regress_multiframe_mean():
 
     np.testing.assert_array_almost_equal(expected, result)
 
-    # test decenter
+
+def test_regress_multiframe_mean_decenter():
+    regress_multiframe_mean = PLUME.regress_multiframe_mean
+    expected = np.array([[1, 2, 3, 4], [4, 3, 2, 1]])
+    a, b, c, d = expected[0]
+    e, f, g, h = expected[1]
+
+    def poly1(t):
+        return a * t**3 + b * t**2 + c * t + d
+
+    def poly2(t):
+        return e * t**3 + f * t**2 + g * t + h
+
+    slice = 4
+    R = np.linspace(0, 1, 101)
+    mean_points_1 = np.vstack((R, R, poly1(R))).T
+    mean_points_2 = np.vstack((R, R, poly2(R))).T
+
+    mean_points = [(1, mean_points_1[::slice, :]), (2, mean_points_2[::slice, :])]
+
     origin = (10, 10)
     mean_points_1[:, 1:] += origin
     mean_points_2[:, 1:] += origin
@@ -39,6 +58,22 @@ def test_regress_multiframe_mean():
 
     result = regress_multiframe_mean(mean_points, "poly", 3, decenter=origin)
     np.testing.assert_array_almost_equal(expected, result)
+
+
+def test_regress_multiframe_mean_poly_para():
+    regress_multiframe_mean = PLUME.regress_multiframe_mean
+    expected = np.array([[1, 2, 3, 4], [4, 3, 2, 1]])
+    a, b, c, d = expected[0]
+    e, f, g, h = expected[1]
+
+    def poly1(t):
+        return a * t**3 + b * t**2 + c * t + d
+
+    def poly2(t):
+        return e * t**3 + f * t**2 + g * t + h
+
+    slice = 4
+    R = np.linspace(0, 1, 101)
 
     # test poly_para
     mean_points_1 = np.vstack((R, poly1(R), poly2(R))).T
@@ -54,8 +89,29 @@ def test_regress_multiframe_mean():
         np.hstack((expected[1], expected[0])), result[1]
     )
 
+
+def test_regress_multiframe_mean_poly_para_nan():
+    regress_multiframe_mean = PLUME.regress_multiframe_mean
+    expected = np.array([[1, 2, 3, 4], [4, 3, 2, 1]])
+    a, b, c, d = expected[0]
+    e, f, g, h = expected[1]
+
+    def poly1(t):
+        return a * t**3 + b * t**2 + c * t + d
+
+    def poly2(t):
+        return e * t**3 + f * t**2 + g * t + h
+
+    slice = 4
+    R = np.linspace(0, 1, 101)
+    mean_points_1 = np.vstack((R, poly1(R), poly2(R))).T
+    mean_points_2 = np.vstack((R, poly2(R), poly1(R))).T
+
     # test poly_para nan
-    mean_points = [(1, mean_points_1[::slice, :]), (2, mean_points_2[0, :])]
+    mean_points = [
+        (1, mean_points_1[::slice, :]),
+        (2, mean_points_2[0, :].reshape(1, 3)),
+    ]
     result = regress_multiframe_mean(mean_points, "poly_para", 3)
 
     np.testing.assert_array_almost_equal(
