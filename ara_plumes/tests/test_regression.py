@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from ..models import PLUME
 from ..regressions import do_parametric_regression
@@ -187,6 +188,21 @@ def test_do_polynomial_regression():
     step = 4
     result = do_polynomial_regression(x[::step], y[::step], poly_deg=poly_deg)
     np.testing.assert_almost_equal(expected, result)
+
+
+def test_do_polynomial_regression_insufficient_points():
+    expected = (1, 2, 3)
+    poly_deg = 4
+    a, b, c = expected
+
+    def poly_func(x):
+        return a * x**2 + b * x + c
+
+    x = np.linspace(0, 1, 101)
+    y = poly_func(x)
+
+    with pytest.raises(np.linalg.LinAlgError):
+        do_polynomial_regression(x[:3], y[:3], poly_deg=poly_deg)
 
 
 def test_do_sinusoid_regression():
