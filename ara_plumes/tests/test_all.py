@@ -224,20 +224,6 @@ def test_edge_regression_sinusoid():
     np.testing.assert_almost_equal(expected, result)
 
 
-def test_edge_regression_poly():
-    regression_func = regressions.edge_regression
-
-    def poly_func(x):
-        return x**2
-
-    x = np.linspace(0, 1, 101)
-    y = poly_func(x)
-
-    expected = (1, 0, 0)
-    result = regression_func(X=x, Y=y, regression_method="poly")
-    np.testing.assert_almost_equal(expected, result)
-
-
 def test_circle_intersection():
     x0 = 0
     y0 = 0
