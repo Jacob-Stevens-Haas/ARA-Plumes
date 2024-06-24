@@ -75,6 +75,11 @@ def do_polynomial_regression(
     poly_deg: int = 2,
 ) -> Float1D:
     """Return regressed poly coefficients"""
+    if len(X) < poly_deg + 1:
+        raise np.linalg.LinAlgError(
+            "Number of points insufficients for unique regression with poly_deg ="
+            f" {poly_deg}."
+        )
     coef = np.polyfit(X, Y, deg=poly_deg)
     return coef
 
