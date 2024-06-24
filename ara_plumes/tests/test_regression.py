@@ -5,6 +5,7 @@ from ..models import PLUME
 from ..regressions import do_parametric_regression
 from ..regressions import do_polynomial_regression
 from ..regressions import do_sinusoid_regression
+from ..regressions import edge_regression
 from ..regressions import regress_frame_mean
 
 
@@ -219,7 +220,7 @@ def test_do_sinusoid_regression():
     Y = sinusoid_func(tt, rr).reshape(-1)
 
     step = 4
-    result = do_sinusoid_regression(X[::step], Y[::step])
+    result = do_sinusoid_regression(X[::step], Y[::step], (1, 1, 1, 1))
 
     np.testing.assert_array_almost_equal(expected, result)
 
@@ -239,5 +240,20 @@ def test_do_parametric_regression():
     Y = np.hstack((poly1(X).reshape(-1, 1), poly2(X).reshape(-1, 1)))
 
     result = do_parametric_regression(X, Y, poly_deg=3)
+
+    np.testing.assert_array_almost_equal(expected, result)
+
+
+def test_edge_regression_linear():
+    expected = (1, 2, 3)
+    np.random.seed(1)
+
+    t_feat = np.random.rand(100)
+    x_feat = np.random.rand(100)
+
+    X = np.vstack((t_feat, x_feat)).T
+    Y = expected[0] + expected[1] * t_feat + expected[2] * x_feat
+
+    result = edge_regression(X, Y, regression_method="linear")
 
     np.testing.assert_array_almost_equal(expected, result)
