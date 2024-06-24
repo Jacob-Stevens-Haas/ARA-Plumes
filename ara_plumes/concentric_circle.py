@@ -105,9 +105,8 @@ def concentric_circle(
     # array of distance of each point on contour to original center
     contour_dist_list = []
     for contour in selected_contours:
-        a = contour
-        b = np.array(orig_center)
-        contour_dist = np.sqrt(np.sum((a - b) ** 2, axis=1))
+        origin = np.array(orig_center)
+        contour_dist = np.sqrt(np.sum((contour - origin) ** 2, axis=1))
         contour_dist_list.append(contour_dist)
 
     # Initialize numpy array to store center
