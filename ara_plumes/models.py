@@ -122,7 +122,9 @@ class PLUME:
                     frame_points, regression_method, poly_deg
                 )
             except np.linalg.LinAlgError:
-                warnings.warn(f"Insufficient training points in frame {i}", stacklevel=2)
+                warnings.warn(
+                    f"Insufficient training points in frame {i}", stacklevel=2
+                )
                 coef_time_series[i] = [np.nan for _ in range(n_coef)]
 
         return coef_time_series
