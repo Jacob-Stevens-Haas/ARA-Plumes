@@ -539,6 +539,8 @@ def get_contour(
 
         selected_contours = smoothed_contours
 
+    selected_contours = [c.reshape(-1, 2) for c in selected_contours]
+
     return selected_contours
 
 

@@ -71,17 +71,30 @@ def test_get_contour():
     square_img = np.zeros((width, height), dtype=np.uint8)
     square_img[100:301, 100:301] = 255
     square_img_color = cv2.cvtColor(square_img, cv2.COLOR_GRAY2BGR)
-    expected = np.array([[[100, 100]], [[100, 300]], [[300, 300]], [[300, 100]]])
+    expected_big = np.array(
+        [[100, 100], [100, 300], [300, 300], [300, 100]], dtype=np.int32
+    )
+    expected_small = np.array([[25, 25], [25, 50], [50, 50], [50, 25]], dtype=np.int32)
 
     # gray test
     selected_contour = get_contour(square_img, find_contour_method=2)
-    result = selected_contour[0]
-    np.testing.assert_array_equal(expected, result)
+    result_big = selected_contour[0]
+    np.testing.assert_array_equal(expected_big, result_big)
 
     # color test
     selected_contour = get_contour(square_img_color, find_contour_method=2)
-    result = selected_contour[0]
-    np.testing.assert_array_equal(expected, result)
+    result_big = selected_contour[0]
+    np.testing.assert_array_equal(expected_big, result_big)
+
+    # two contours
+    two_square_img = square_img.copy()
+    two_square_img[25:51, 25:51] = 255
+    selected_contour = get_contour(
+        two_square_img, num_of_contours=2, find_contour_method=2
+    )
+    result_big, result_small = selected_contour
+    np.testing.assert_array_almost_equal(expected_big, result_big)
+    np.testing.assert_array_almost_equal(expected_small, result_small)
 
 
 def test_gauss_space_blur():
