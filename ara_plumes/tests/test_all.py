@@ -109,7 +109,7 @@ def test_gauss_time_blur():
         test_numpy_frames, kernel_size=ksize, sigma=np.inf, iterative=True
     )
     result = apply_gauss_time_blur(
-        1.0 * test_numpy_frames, kernel_size=ksize, sigma=np.inf, iterative=False
+        test_numpy_frames, kernel_size=ksize, sigma=np.inf, iterative=False
     )
 
     def expected_seq(k, ksize=ksize, n_frames=n_frames):
