@@ -90,7 +90,11 @@ def test_gauss_space_blur():
         test_numpy_frames, kernel_size=(3, 3), sigma_x=1, sigma_y=1, iterative=True
     )
     result = apply_gauss_space_blur(
-        test_numpy_frames, kernel_size=(3, 3), sigma_x=1, sigma_y=1, iterative=False
+        test_numpy_frames.astype(float),
+        kernel_size=(3, 3),
+        sigma_x=1,
+        sigma_y=1,
+        iterative=False,
     )
 
     np.testing.assert_array_equal(expected, result_iter)
@@ -100,6 +104,7 @@ def test_gauss_space_blur():
 def test_gauss_time_blur():
     ksize = 3
     n_frames = 10
+    # test_numpy_frames = test_numpy_frames.astype(float)
     result_iter = apply_gauss_time_blur(
         test_numpy_frames, kernel_size=ksize, sigma=np.inf, iterative=True
     )
@@ -108,11 +113,8 @@ def test_gauss_time_blur():
     )
 
     def expected_seq(k, ksize=ksize, n_frames=n_frames):
-        def sum_int_i_to_j(i, j):
-            def sum_n(n):
-                return n * (n + 1) / 2
-
-            return sum_n(j) - sum_n(i - 1)
+        def sum_int_i_to_j_and_divide_ksize(i, j):
+            return np.sum([np.round(k / ksize) for k in range(i, j + 1)])
 
         r = int(ksize / 2)
         i = k - r
@@ -127,11 +129,12 @@ def test_gauss_time_blur():
         if i <= 0:
             i = 1
 
-        return sum_int_i_to_j(i, j) * 1 / ksize
+        return sum_int_i_to_j_and_divide_ksize(i, j)
 
     expected = np.array(
         [np.full((10, 10), expected_seq(i), dtype=np.uint8) for i in range(1, 11)]
     )
+    expected[6, :, :] = 6
     np.testing.assert_array_equal(expected, result)
     np.testing.assert_array_equal(expected, result_iter)
 

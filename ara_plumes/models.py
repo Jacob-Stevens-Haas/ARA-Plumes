@@ -593,7 +593,8 @@ def apply_gauss_space_blur(
                     frame_i, ksize=kernel_size, sigmaX=sigma_x, sigmaY=sigma_y
                 )
                 for frame_i in arr
-            ]
+            ],
+            dtype=np.uint8,
         )
 
     return blurred_arr
@@ -619,10 +620,9 @@ def apply_gauss_time_blur(
         raise ValueError(
             "Kernel size for Gaussian blur must be a positive, odd integer."
         )
-
+    gw = gaussian(kernel_size, sigma)
+    gw = gw / np.sum(gw)
     if iterative:
-        gw = gaussian(kernel_size, sigma)
-
         blurred_arr = np.zeros_like(arr, dtype=np.uint8)
 
         for i in range(arr.shape[AX_FRAME]):
@@ -633,7 +633,6 @@ def apply_gauss_time_blur(
             slice_arr = arr[start_idx:end_idx]
             convolved_slice = (
                 convolve1d(slice_arr, gw, axis=AX_FRAME, mode="constant", cval=0.0)
-                / np.sum(gw)
             ).astype(np.uint8)
 
             slice_index = min(kernel_size // 2, len(convolved_slice))
@@ -643,9 +642,8 @@ def apply_gauss_time_blur(
             blurred_arr[i] = convolved_slice[slice_index]
 
     else:
-        gw = gaussian(kernel_size, sigma)
         blurred_arr = (
-            convolve1d(arr, gw, axis=AX_FRAME, mode="constant", cval=0.0) / np.sum(gw)
+            convolve1d(arr, gw, axis=AX_FRAME, mode="constant", cval=0.0)
         ).astype(np.uint8)
 
     return blurred_arr
