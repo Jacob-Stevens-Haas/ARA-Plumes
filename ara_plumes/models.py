@@ -827,8 +827,8 @@ def flatten_var_points(
     regression_method: str,
 ) -> Float2D:
     """
-    Convert edge coordinates, (r,x,y), of plume learned at different frames
-    into L2 distances from mean regression path.
+    Convert edge coordinates, `(r,x,y)`, of plume learned at different frames
+    into `L2` distances from mean regression path at time t, `(t,r,d)`.
 
     Parameters:
     ----------
