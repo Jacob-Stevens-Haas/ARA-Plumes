@@ -77,7 +77,7 @@ def test_get_contour_list():
     square_img = np.zeros((width, height), dtype=np.uint8)
     square_img[100:301, 100:301] = 255
     clean_vid = np.array([square_img, square_img])
-    expected = np.array([[[100, 100]], [[100, 300]], [[300, 300]], [[300, 100]]])
+    expected = np.array([[100, 100], [100, 300], [300, 300], [300, 100]])
     expected = [expected, expected]
     result = get_contour_list(clean_vid, find_contour_method=2)
     for e, r in zip(expected, result):
@@ -88,7 +88,7 @@ def test_get_contour_list_decenter():
     square_img = np.zeros((width, height), dtype=np.uint8)
     square_img[100:301, 100:301] = 255
     clean_vid = np.array([square_img, square_img])
-    expected = np.array([[[0, 0]], [[0, 200]], [[200, 200]], [[200, 0]]])
+    expected = np.array([[0, 0], [0, 200], [200, 200], [200, 0]])
     expected = [expected, expected]
     result = get_contour_list(clean_vid, find_contour_method=2,decenter=(100,100))
     for e, r in zip(expected, result):
