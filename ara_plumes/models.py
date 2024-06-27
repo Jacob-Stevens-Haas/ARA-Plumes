@@ -772,6 +772,7 @@ def get_contour_list(
     contour_smoothing: bool = False,
     contour_smoothing_eps: int = 50,
     find_contour_method: int = cv2.CHAIN_APPROX_NONE,
+    decenter: Optional[tuple[int,int]]=None
 ) -> List[Contour_List]:
     """
     Return contours learned from frames of clean video.
@@ -799,6 +800,9 @@ def get_contour_list(
     find_contour_method:
         Method used by opencv to find contours. 1 is cv2.CHAIN_APPROX_NONE.
         2 is cv2.CHAIN_APPROX_SIMPLE.
+    
+    decenter:
+        To decenter founds contours so plume leak source is at origin `(0,0)`.
 
     Returns:
     --------
@@ -806,6 +810,12 @@ def get_contour_list(
         Returns list of selected contours from each frame of clean_vid.
 
     """
+    def _decenter_selected_contours(selected_contours,decenter):
+        selected_contours_origin = []
+        for cont in selected_contours:
+            selected_contours_origin.append(cont-decenter)
+        return selected_contours_origin
+
     cont_list = []
     for frame in clean_vid:
         selected_contours = get_contour(
@@ -816,7 +826,14 @@ def get_contour_list(
             contour_smoothing_eps=contour_smoothing_eps,
             find_contour_method=find_contour_method,
         )
+
+        if decenter is not None:
+            selected_contours = _decenter_selected_contours(
+                selected_contours, decenter
+            )
+            
         cont_list.append(selected_contours)
+
     return cont_list
 
 
