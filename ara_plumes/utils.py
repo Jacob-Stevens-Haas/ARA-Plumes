@@ -1,5 +1,6 @@
 import glob
 import os
+import time
 from typing import Optional
 
 import cv2
@@ -19,6 +20,29 @@ from .typing import NpFlt
 from .typing import X_pos
 from .typing import Y_pos
 
+
+# display utils
+def add_clock(f):
+    def _remove_underscore(name):
+        return name.replace('_',' ')
+
+    def _rename_f_sting(f_name):
+        if f_name == "video_to_ROM":
+            return "apply concentric circle"
+        if f_name.startswith('apply'):
+            return _remove_underscore(f_name)
+        return 'apply '+ _remove_underscore(f_name)
+        
+    def clocked_f(*args,**kwargs):
+        f_name = _rename_f_sting(f.__name__)
+        print(f_name+":", end='')
+        t0 = time.perf_counter()
+        result = f(*args,**kwargs)
+        elapsed_time = time.perf_counter()-t0
+        print("[%0.4fs]" % elapsed_time)
+        return result
+    
+    return clocked_f
 
 ##################
 # Math Functions #

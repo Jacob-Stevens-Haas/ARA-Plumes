@@ -11,6 +11,7 @@ from scipy.signal.windows import gaussian
 
 from . import regressions
 from . import utils
+from .utils import add_clock
 from .concentric_circle import concentric_circle
 from .regressions import regress_frame_mean
 from .typing import AX_FRAME
@@ -112,23 +113,21 @@ class PLUME:
         if len(arr.shape) == 4:
             raise TypeError("arr must be be in gray.")
 
-        print("applying background subtract:")
-        clean_vid = background_subtract(frames=arr, fixed_range=fixed_range)
+        clean_vid = background_subtract(frames=arr, fixed_range=fixed_range)  
 
         if gauss_space_blur:
-            print("applying space blur:")
             if gauss_space_kws is None:
                 gauss_space_kws = {}
             clean_vid = apply_gauss_space_blur(arr=clean_vid, **gauss_space_kws)
 
         if gauss_time_blur:
-            print("applying time blur:")
             if gauss_time_kws is None:
                 gauss_time_kws = {}
             clean_vid = apply_gauss_time_blur(arr=clean_vid, **gauss_time_kws)
 
         return clean_vid
 
+    @add_clock
     @staticmethod
     def video_to_ROM(
         arr: GrayVideo,
@@ -185,7 +184,6 @@ class PLUME:
         if end_frame == -1:
             end_frame = len(arr)
 
-        print("applying concentric circles:")
         for k, frame_k in enumerate(arr[start_frame:end_frame]):
             k += start_frame
             selected_contours = get_contour(frame_k, **get_contour_kws)
@@ -552,7 +550,7 @@ def get_contour(
 
     return selected_contours
 
-
+@add_clock
 def apply_gauss_space_blur(
     arr: GrayVideo,
     kernel_size: tuple[int, int] = (81, 81),
@@ -594,7 +592,7 @@ def apply_gauss_space_blur(
 
     return blurred_arr
 
-
+@add_clock
 def apply_gauss_time_blur(
     arr: GrayVideo, kernel_size: int = 5, sigma: float = 1, iterative: bool = True
 ) -> GrayVideo:
@@ -720,7 +718,7 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]) -> Flo
 
     return np.mean(frames[start_frame:end_frame], axis=AX_FRAME)
 
-
+@add_clock
 def background_subtract(
     frames: GrayVideo,
     fixed_range: tuple[int, int],
