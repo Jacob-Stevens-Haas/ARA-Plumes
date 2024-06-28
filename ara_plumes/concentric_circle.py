@@ -8,6 +8,8 @@ from .typing import GrayImage
 from .typing import PlumePoints
 from .typing import X_pos
 from .typing import Y_pos
+from .typing import List
+from .typing import Bool1D
 
 
 def concentric_circle(
@@ -31,43 +33,43 @@ def concentric_circle(
 
     Parameters:
     -----------
-    img: np.ndarray (gray or BGR)
+    img: 
         image to apply concentric circle too.
 
-    selected_contours: list
+    selected_contours: 
         List of contours learned from get_contour
 
     orig_center:
         (x,y) coordinates of plume leak source.
 
-    radii: int (default 50)
+    radii:
         The radii used to step out in concentric circles method.
 
-    num_of_circles: int, optional (default 22)
+    num_of_circles: 
         number of circles and radii steps to take in concentric circles method.
 
-    interior_scale: float (default 3/5)
+    interior_scale: 
         Used to scale down the radii used on the focusing rings. Called in
         find_next_center
 
-    rtol, atol: float (default 1e-2, 1e-6)
+    rtol, atol: 
         Relative and absolute tolerances. Used in np.isclose function in
         find_max_on_boundary and find_next_center functions.
         Checks if points are close to selected radii.
 
-    poly_deg: int (default 2)
+    poly_deg: 
         Specifying degree of polynomail to learn on points selected from
         concentric circle method.
 
-    mean_smoothing: bool (default True)
+    mean_smoothing: 
         Applying additional gaussian filter to learned concentric circle
         points. Only in y direction
 
-    mean_smoothing_sigma: int (default 2)
+    mean_smoothing_sigma: 
         Sigma parameter to be passed into gaussian_filter function when
         ``mean_smoothing = True``.
 
-    quiet: bool (default True)
+    quiet:
         suppresses error output
 
 
@@ -101,92 +103,69 @@ def concentric_circle(
     ############################
     # Apply Concentric Circles #
     ############################
-
-    # array of distance of each point on contour to original center
-    contour_dist_list = []
-    for contour in selected_contours:
-        origin = np.array(orig_center)
-        contour_dist = np.sqrt(np.sum((contour - origin) ** 2, axis=1))
-        contour_dist_list.append(contour_dist)
-
-    # Initialize numpy array to store center
-    points_mean = np.zeros(shape=(num_of_circs + 1, 3))
-    zero_index = 0
-    val = 0
-    points_mean[0] = np.insert(orig_center, zero_index, val)
-
-    # Plot first point on path
-    _, center = _find_max_on_boundary(
-        img_gray, orig_center, r=radii, rtol=rtol, atol=atol
+    points_mean = _apply_concentric_search(
+        img_gray,
+        num_of_circs,
+        orig_center,
+        radii,
+        interior_scale,
+        rtol,
+        atol,
+        quiet
     )
-
-    points_mean[1] = np.insert(center, zero_index, radii)
-
-    for step in range(2, num_of_circs + 1):
-        radius = radii * step
-
-        # Get center of next point
-        error_occured = False
-        try:
-            _, center = _find_next_center(
-                array=img_gray,
-                orig_center=orig_center,
-                neig_center=center,
-                r=radius,
-                scale=interior_scale,
-                rtol=rtol,
-                atol=atol,
-            )
-
-        except Exception as e:
-            if quiet:
-                print(f"Error occurred: {e}")
-            error_occured = True
-
-        if error_occured:
-            break
-
-        points_mean[step] = np.insert(center, zero_index, radius)
-
     ##########################
     # Apply poly fit to mean #
     ##########################
 
     # Apply gaussian filtering to points in y direction
     if mean_smoothing:
-        smooth_x = points_mean[:, 1]
-        smooth_y = gaussian_filter(points_mean[:, 2], sigma=mean_smoothing_sigma)
-        points_mean[:, 1:] = np.column_stack((smooth_x, smooth_y))
-
+        points_mean = _apply_mean_smoothing(points_mean,sigma=mean_smoothing_sigma)
+  
     #########################################
     # Check if points fall within a contour #
     #########################################
-
-    new_points_mean = []
-    for center in points_mean[1:]:
-        for contour in selected_contours:
-            # check if point lies within contour
-            if cv2.pointPolygonTest(contour, center[1:], False) == 1:
-                new_points_mean.append(center)
-                center[1:] = center[1:].round().astype(int)
-
-    if bool(new_points_mean):
-        points_mean = np.array(new_points_mean).reshape(-1, 3)
-        points_mean = np.vstack((np.insert(orig_center, zero_index, 0), points_mean))
+    xy_points_no_origin = points_mean[1:,1:]
+    points_mean[1:] = points_mean[1:][
+        _sol_in_contour(xy_points_no_origin,selected_contours)
+    ]
 
     points_mean = points_mean.astype(int)
     points_mean[:, 1:] -= orig_center
 
+    ############################
+    # Checking Variance points #
+    ############################
     poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
 
     f_mean = (
         lambda x: poly_coef_mean[0] * x**2 + poly_coef_mean[1] * x + poly_coef_mean[2]
     )
 
-    ############################
-    # Checking Variance points #
-    ############################
+    contour_dist_list = _contour_distances(selected_contours,orig_center)
 
+    # Initialize variance list to store points
+    points_var1, points_var2 = _get_var_points(
+        num_of_circs,radii,selected_contours, contour_dist_list,orig_center,
+        f_mean
+    )
+    
+    # add origin center back
+    points_mean[:, 1:] += orig_center
+    points_var1[:, 1:] += orig_center
+    points_var2[:, 1:] += orig_center
+
+    return points_mean, points_var1, points_var2
+
+
+def _get_var_points(
+        num_of_circs,
+        radii,
+        selected_contours,
+        contour_dist_list,
+        orig_center,
+        f_mean
+):
+    zero_index = 0
     # Initialize variance list to store points
     var1_points = []
     var2_points = []
@@ -227,26 +206,58 @@ def concentric_circle(
             avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
             # Insert associated radii
             avg_var2_i = np.insert(avg_var2_i, zero_index, radius)
-            var2_points.append(list(avg_var2_i))
+            var2_points.append(list(avg_var2_i))    
+    
+    def _insert_origin(vari_points):
+        if vari_points:
+            return np.vstack((list(np.insert((0, 0), 0, 0)), np.array(vari_points)))
+        return np.array([[0,0,0]])
 
-    # Concatenate original center to both lists
-    # TO DO: concatenate (0,0) to each list - DONE
-    if bool(var1_points):
-        points_var1 = np.vstack((list(np.insert((0, 0), 0, 0)), np.array(var1_points)))
-    else:
-        points_var1 = np.insert((0, 0), zero_index, 0).reshape(1, -1)
+    points_var1 = _insert_origin(var1_points)
+    points_var2 = _insert_origin(var2_points)
 
-    if bool(var2_points):
-        points_var2 = np.vstack((list(np.insert((0, 0), 0, 0)), np.array(var2_points)))
-    else:
-        points_var2 = np.insert((0, 0), zero_index, 0).reshape(1, -1)
+    return points_var1, points_var2
 
-    points_mean[:, 1:] += orig_center
-    points_var1[:, 1:] += orig_center
-    points_var2[:, 1:] += orig_center
+def _apply_concentric_search(img_gray,num_of_circs,orig_center,radii,interior_scale,rtol,atol,quiet):
+    # Initialize numpy array to store center
+    points_mean = np.zeros(shape=(num_of_circs + 1, 3))
+    zero_index = 0
+    val = 0
+    points_mean[0] = np.insert(orig_center, zero_index, val)
 
-    return points_mean, points_var1, points_var2
+    # Plot first point on path
+    _, center = _find_max_on_boundary(
+        img_gray, orig_center, r=radii, rtol=rtol, atol=atol
+    )
 
+    points_mean[1] = np.insert(center, zero_index, radii)
+
+    for step in range(2, num_of_circs + 1):
+        radius = radii * step
+
+        # Get center of next point
+        error_occured = False
+        try:
+            _, center = _find_next_center(
+                array=img_gray,
+                orig_center=orig_center,
+                neig_center=center,
+                r=radius,
+                scale=interior_scale,
+                rtol=rtol,
+                atol=atol,
+            )
+
+        except Exception as e:
+            if quiet:
+                print(f"Error occurred: {e}")
+            error_occured = True
+
+        if error_occured:
+            break
+
+        points_mean[step] = np.insert(center, zero_index, radius)
+    return points_mean
 
 def _find_max_on_boundary(array, center, r, rtol=1e-3, atol=1e-6):
     col, row = center
@@ -315,3 +326,47 @@ def _find_next_center(
     max_indices = (col, row)
 
     return max_value, max_indices
+
+
+def _contour_distances(selected_contours:Contour_List, origin: tuple[int,int]):
+    """
+    Gets L2 distances between array of contours and single point origin.
+    """
+    contour_dist_list = []
+    for contour in selected_contours:
+        contour_dist = np.sqrt(np.sum((contour - np.array(origin)) ** 2, axis=1))
+        contour_dist_list.append(contour_dist)
+
+    return contour_dist_list
+
+def _apply_mean_smoothing(points,sigma):
+    smooth_x = points[:, 1]
+    smooth_y = gaussian_filter(points[:, 2], sigma=sigma)
+    points[:, 1:] = np.column_stack((smooth_x, smooth_y))
+    return points
+
+def _sol_in_contour(
+    sols: List[tuple[int, int]], selected_contours: Contour_List
+) -> Bool1D:
+    """
+    Checks if points lie within any set of contours.
+
+    Parameters:
+    -----------
+    sols: List of (x,y) coordinates to check
+    selected_contours: List of contours
+
+    Returns:
+    -------
+    Bool1D: 1d array of bool vals specifying which points in sol lie within selected
+            contours.
+    """
+    mask = []
+    for sol in sols:
+        in_arr = False
+        for contour in selected_contours:
+            if cv2.pointPolygonTest(contour, sol, False) == 1:
+                in_arr = True
+        mask.append(in_arr)
+
+    return np.array(mask)
