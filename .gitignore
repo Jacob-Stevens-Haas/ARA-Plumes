@@ -19,5 +19,5 @@ commit-msg
 *__pycache__
 testing/
 plume_videos/
-
+message.txt
 build/
