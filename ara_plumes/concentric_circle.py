@@ -1,3 +1,5 @@
+from typing import cast
+
 import cv2
 import numpy as np
 from scipy.ndimage import gaussian_filter
@@ -94,21 +96,15 @@ def concentric_circle(
         the concentric circle with raddi r(k).
     """
 
-    # convert image to gray
     if len(img.shape) == 3:
         img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     else:
         img_gray = img.copy()
+    img_gray = cast(GrayImage, img_gray)
 
-    ############################
-    # Apply Concentric Circles #
-    ############################
     points_mean = _apply_concentric_search(
         img_gray, num_of_circs, orig_center, radii, interior_scale, rtol, atol, quiet
     )
-    ##########################
-    # Apply poly fit to mean #
-    ##########################
 
     # Apply gaussian filtering to points in y direction
     if mean_smoothing:
@@ -116,7 +112,6 @@ def concentric_circle(
 
     #########################################
     # Check if points fall within a contour #
-    #########################################
     # fix this
     xy_points_no_origin = points_mean[1:, 1:]
     points_mean[1:] = points_mean[1:][
@@ -208,8 +203,15 @@ def _get_var_points(
 
 
 def _apply_concentric_search(
-    img_gray, num_of_circs, orig_center, radii, interior_scale, rtol, atol, quiet
-):
+    img_gray: GrayImage,
+    num_of_circs: int,
+    orig_center: tuple[float, float],
+    radii: int,
+    interior_scale: float,
+    rtol: float,
+    atol: float,
+    quiet: bool,
+) -> PlumePoints:
     # Initialize numpy array to store center
     points_mean = np.zeros(shape=(num_of_circs + 1, 3))
     zero_index = 0
