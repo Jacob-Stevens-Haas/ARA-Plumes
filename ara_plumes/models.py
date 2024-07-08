@@ -252,7 +252,7 @@ class PLUME:
 
             mean_k, var1_k, var2_k = concentric_circle(
                 frame_k,
-                selected_contours=selected_contours,
+                contours=selected_contours,
                 orig_center=orig_center,
                 **concentric_circle_kws,
             )

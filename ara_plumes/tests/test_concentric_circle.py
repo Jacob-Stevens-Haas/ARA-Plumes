@@ -29,7 +29,7 @@ def test_concentric_circle():
     selected_contours = get_contour(rectangle_plume)
     result_mean, result_var1, result_var2 = concentric_circle(
         rectangle_plume,
-        selected_contours=selected_contours,
+        contours=selected_contours,
         orig_center=orig_center,
         radii=r,
         num_of_circs=num_of_circs,

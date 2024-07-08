@@ -6,8 +6,8 @@ import numpy as np
 from .typing import Bool1D
 from .typing import ColorImage
 from .typing import Contour_List
+from .typing import Float2D
 from .typing import GrayImage
-from .typing import List
 from .typing import PlumePoints
 from .typing import X_pos
 from .typing import Y_pos
@@ -15,7 +15,7 @@ from .typing import Y_pos
 
 def concentric_circle(
     img: GrayImage | ColorImage,
-    selected_contours: Contour_List,
+    contours: Contour_List,
     orig_center: tuple[X_pos, Y_pos],
     radii: int = 50,
     num_of_circs: int = 30,
@@ -95,30 +95,25 @@ def concentric_circle(
         img_gray, num_of_circs, orig_center, radii, interior_scale, rtol, atol, quiet
     )
 
-    # Check if points fall within a contour #
-    # fix this
-    xy_points_no_origin = points_mean[1:, 1:]
-    points_mean[1:] = points_mean[1:][
-        _sol_in_contour(xy_points_no_origin, selected_contours)
-    ]
+    # Limit points to those within contours, plus origin #
+    xy_points_no_origin = cast(Float2D, points_mean[1:, 1:])
+    mask = _sol_in_contours(xy_points_no_origin, contours)
+    points_mean = cast(PlumePoints, np.vstack((points_mean[:0], points_mean[1:][mask])))
 
-    points_mean = points_mean.astype(int)
     points_mean[:, 1:] -= orig_center
 
-    ############################
     # Checking Variance points #
-    ############################
     poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
 
     f_mean = (
         lambda x: poly_coef_mean[0] * x**2 + poly_coef_mean[1] * x + poly_coef_mean[2]
     )
 
-    contour_dist_list = _contour_distances(selected_contours, orig_center)
+    contour_dist_list = _contour_distances(contours, orig_center)
 
     # Initialize variance list to store points
     points_var1, points_var2 = _get_var_points(
-        num_of_circs, radii, selected_contours, contour_dist_list, orig_center, f_mean
+        num_of_circs, radii, contours, contour_dist_list, orig_center, f_mean
     )
 
     # add origin center back
@@ -339,9 +334,7 @@ def _contour_distances(selected_contours: Contour_List, origin: tuple[int, int])
     return contour_dist_list
 
 
-def _sol_in_contour(
-    sols: List[tuple[int, int]], selected_contours: Contour_List
-) -> Bool1D:
+def _sol_in_contours(sols: Float2D, selected_contours: Contour_List) -> Bool1D:
     """
     Checks if points lie within any set of contours.
 
