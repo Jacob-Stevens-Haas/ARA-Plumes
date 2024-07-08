@@ -2,7 +2,6 @@ from typing import cast
 
 import cv2
 import numpy as np
-from scipy.ndimage import gaussian_filter
 
 from .typing import Bool1D
 from .typing import ColorImage
@@ -24,8 +23,6 @@ def concentric_circle(
     rtol: float = 1e-2,
     atol: float = 1e-6,
     poly_deg: float = 2,
-    mean_smoothing: bool = True,
-    mean_smoothing_sigma: int = 2,
     quiet: bool = True,
 ) -> tuple[PlumePoints, PlumePoints, PlumePoints]:
     """
@@ -63,14 +60,6 @@ def concentric_circle(
         Specifying degree of polynomail to learn on points selected from
         concentric circle method.
 
-    mean_smoothing:
-        Applying additional gaussian filter to learned concentric circle
-        points. Only in y direction
-
-    mean_smoothing_sigma:
-        Sigma parameter to be passed into gaussian_filter function when
-        ``mean_smoothing = True``.
-
     quiet:
         suppresses error output
 
@@ -106,11 +95,6 @@ def concentric_circle(
         img_gray, num_of_circs, orig_center, radii, interior_scale, rtol, atol, quiet
     )
 
-    # Apply gaussian filtering to points in y direction
-    if mean_smoothing:
-        points_mean = _apply_mean_smoothing(points_mean, sigma=mean_smoothing_sigma)
-
-    #########################################
     # Check if points fall within a contour #
     # fix this
     xy_points_no_origin = points_mean[1:, 1:]
@@ -353,13 +337,6 @@ def _contour_distances(selected_contours: Contour_List, origin: tuple[int, int])
         contour_dist_list.append(contour_dist)
 
     return contour_dist_list
-
-
-def _apply_mean_smoothing(points, sigma):
-    smooth_x = points[:, 1]
-    smooth_y = gaussian_filter(points[:, 2], sigma=sigma)
-    points[:, 1:] = np.column_stack((smooth_x, smooth_y))
-    return points
 
 
 def _sol_in_contour(
