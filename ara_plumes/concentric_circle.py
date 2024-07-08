@@ -2,14 +2,14 @@ import cv2
 import numpy as np
 from scipy.ndimage import gaussian_filter
 
+from .typing import Bool1D
 from .typing import ColorImage
 from .typing import Contour_List
 from .typing import GrayImage
+from .typing import List
 from .typing import PlumePoints
 from .typing import X_pos
 from .typing import Y_pos
-from .typing import List
-from .typing import Bool1D
 
 
 def concentric_circle(
@@ -33,10 +33,10 @@ def concentric_circle(
 
     Parameters:
     -----------
-    img: 
+    img:
         image to apply concentric circle too.
 
-    selected_contours: 
+    selected_contours:
         List of contours learned from get_contour
 
     orig_center:
@@ -45,27 +45,27 @@ def concentric_circle(
     radii:
         The radii used to step out in concentric circles method.
 
-    num_of_circles: 
+    num_of_circles:
         number of circles and radii steps to take in concentric circles method.
 
-    interior_scale: 
+    interior_scale:
         Used to scale down the radii used on the focusing rings. Called in
         find_next_center
 
-    rtol, atol: 
+    rtol, atol:
         Relative and absolute tolerances. Used in np.isclose function in
         find_max_on_boundary and find_next_center functions.
         Checks if points are close to selected radii.
 
-    poly_deg: 
+    poly_deg:
         Specifying degree of polynomail to learn on points selected from
         concentric circle method.
 
-    mean_smoothing: 
+    mean_smoothing:
         Applying additional gaussian filter to learned concentric circle
         points. Only in y direction
 
-    mean_smoothing_sigma: 
+    mean_smoothing_sigma:
         Sigma parameter to be passed into gaussian_filter function when
         ``mean_smoothing = True``.
 
@@ -104,14 +104,7 @@ def concentric_circle(
     # Apply Concentric Circles #
     ############################
     points_mean = _apply_concentric_search(
-        img_gray,
-        num_of_circs,
-        orig_center,
-        radii,
-        interior_scale,
-        rtol,
-        atol,
-        quiet
+        img_gray, num_of_circs, orig_center, radii, interior_scale, rtol, atol, quiet
     )
     ##########################
     # Apply poly fit to mean #
@@ -119,14 +112,15 @@ def concentric_circle(
 
     # Apply gaussian filtering to points in y direction
     if mean_smoothing:
-        points_mean = _apply_mean_smoothing(points_mean,sigma=mean_smoothing_sigma)
-  
+        points_mean = _apply_mean_smoothing(points_mean, sigma=mean_smoothing_sigma)
+
     #########################################
     # Check if points fall within a contour #
     #########################################
-    xy_points_no_origin = points_mean[1:,1:]
+    # fix this
+    xy_points_no_origin = points_mean[1:, 1:]
     points_mean[1:] = points_mean[1:][
-        _sol_in_contour(xy_points_no_origin,selected_contours)
+        _sol_in_contour(xy_points_no_origin, selected_contours)
     ]
 
     points_mean = points_mean.astype(int)
@@ -141,14 +135,13 @@ def concentric_circle(
         lambda x: poly_coef_mean[0] * x**2 + poly_coef_mean[1] * x + poly_coef_mean[2]
     )
 
-    contour_dist_list = _contour_distances(selected_contours,orig_center)
+    contour_dist_list = _contour_distances(selected_contours, orig_center)
 
     # Initialize variance list to store points
     points_var1, points_var2 = _get_var_points(
-        num_of_circs,radii,selected_contours, contour_dist_list,orig_center,
-        f_mean
+        num_of_circs, radii, selected_contours, contour_dist_list, orig_center, f_mean
     )
-    
+
     # add origin center back
     points_mean[:, 1:] += orig_center
     points_var1[:, 1:] += orig_center
@@ -158,12 +151,7 @@ def concentric_circle(
 
 
 def _get_var_points(
-        num_of_circs,
-        radii,
-        selected_contours,
-        contour_dist_list,
-        orig_center,
-        f_mean
+    num_of_circs, radii, selected_contours, contour_dist_list, orig_center, f_mean
 ):
     zero_index = 0
     # Initialize variance list to store points
@@ -206,19 +194,22 @@ def _get_var_points(
             avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
             # Insert associated radii
             avg_var2_i = np.insert(avg_var2_i, zero_index, radius)
-            var2_points.append(list(avg_var2_i))    
-    
+            var2_points.append(list(avg_var2_i))
+
     def _insert_origin(vari_points):
         if vari_points:
             return np.vstack((list(np.insert((0, 0), 0, 0)), np.array(vari_points)))
-        return np.array([[0,0,0]])
+        return np.array([[0, 0, 0]])
 
     points_var1 = _insert_origin(var1_points)
     points_var2 = _insert_origin(var2_points)
 
     return points_var1, points_var2
 
-def _apply_concentric_search(img_gray,num_of_circs,orig_center,radii,interior_scale,rtol,atol,quiet):
+
+def _apply_concentric_search(
+    img_gray, num_of_circs, orig_center, radii, interior_scale, rtol, atol, quiet
+):
     # Initialize numpy array to store center
     points_mean = np.zeros(shape=(num_of_circs + 1, 3))
     zero_index = 0
@@ -226,9 +217,8 @@ def _apply_concentric_search(img_gray,num_of_circs,orig_center,radii,interior_sc
     points_mean[0] = np.insert(orig_center, zero_index, val)
 
     # Plot first point on path
-    _, center = _find_max_on_boundary(
-        img_gray, orig_center, r=radii, rtol=rtol, atol=atol
-    )
+    _, center = _find_max_on_boundary(img_gray, orig_center, r=radii)
+    # code to choose only one
 
     points_mean[1] = np.insert(center, zero_index, radii)
 
@@ -259,33 +249,56 @@ def _apply_concentric_search(img_gray,num_of_circs,orig_center,radii,interior_sc
         points_mean[step] = np.insert(center, zero_index, radius)
     return points_mean
 
-def _find_max_on_boundary(array, center, r, rtol=1e-3, atol=1e-6):
+
+def _find_max_on_boundary(array, center, r, n_points=101):
+    """
+    Find the max value (and index) of an array on a circle centered
+    at center with radii r
+
+    Parameters:
+    ----------
+    """
     col, row = center
     n, d = array.shape
 
-    # Generate a grid of indices for the array
-    xx, yy = np.meshgrid(np.arange(d), np.arange(n))
+    def _get_x_values(col, r, n_points):
+        x0 = np.max([0, col - r])
+        x1 = np.min([d, col + r])
+        return np.linspace(x0, x1, n_points)
 
-    # Get Euclidean distance from each point on grid to center
-    distances = np.sqrt((xx - col) ** 2 + (yy - row) ** 2)
+    def _y_in_range(yi, row):
+        if round(yi) < 0:
+            return False
+        if round(yi) > row:
+            return False
+        return True
 
-    # Create mask for points on the boundary (distances == r)
-    boundary_mask = np.isclose(distances, r, rtol=rtol, atol=atol)
+    def _find_max_val_and_idx(arr):
+        max_value = np.max(arr)
+        max_indices = np.where(arr == max_value)[0]
 
-    # Apply the boundary mask to the array to get the subset
-    boundary_subset = array[boundary_mask]
+        return max_value, max_indices
 
-    # Find the maximum value within the subset
-    max_value = np.max(boundary_subset)
+    xy_circle = []
+    for xi in _get_x_values(col, r, n_points):
+        y0 = np.sqrt(r**2 - (xi - col) ** 2) + row
+        y1 = -np.sqrt(r**2 - (xi - col) ** 2) + row
 
-    # Find the indices of the maximum elements within the boundary
-    max_indices = np.argwhere(np.isclose(array, max_value) & boundary_mask)
+        if _y_in_range(y0, row):
+            xy_circle.append((xi, y0))
 
-    row, col = max_indices[0]
+        if _y_in_range(y1, row):
+            xy_circle.append((xi, y1))
 
-    max_indices = (col, row)
+    xy_circle = np.array(xy_circle).round().astype(int)
 
-    return max_value, max_indices
+    xy_circle_vals = np.array([array[y, x] for (x, y) in xy_circle])
+
+    max_val, max_idx = _find_max_val_and_idx(xy_circle_vals)
+
+    max_indices = np.unique(xy_circle[max_idx], axis=0).reshape(-1)  # something funky
+
+    return max_val, max_indices
 
 
 def _find_next_center(
@@ -328,7 +341,7 @@ def _find_next_center(
     return max_value, max_indices
 
 
-def _contour_distances(selected_contours:Contour_List, origin: tuple[int,int]):
+def _contour_distances(selected_contours: Contour_List, origin: tuple[int, int]):
     """
     Gets L2 distances between array of contours and single point origin.
     """
@@ -339,11 +352,13 @@ def _contour_distances(selected_contours:Contour_List, origin: tuple[int,int]):
 
     return contour_dist_list
 
-def _apply_mean_smoothing(points,sigma):
+
+def _apply_mean_smoothing(points, sigma):
     smooth_x = points[:, 1]
     smooth_y = gaussian_filter(points[:, 2], sigma=sigma)
     points[:, 1:] = np.column_stack((smooth_x, smooth_y))
     return points
+
 
 def _sol_in_contour(
     sols: List[tuple[int, int]], selected_contours: Contour_List
