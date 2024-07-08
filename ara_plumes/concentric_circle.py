@@ -100,18 +100,18 @@ def concentric_circle(
     mask = _sol_in_contours(xy_points_no_origin, contours)
     points_mean = cast(PlumePoints, np.vstack((points_mean[:0], points_mean[1:][mask])))
 
-    points_mean[:, 1:] -= orig_center
+    # points_mean[:, 1:] -= orig_center
 
-    # Checking Variance points #
-    poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
+    # # Checking edge points #
+    # poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
 
-    f_mean = (
-        lambda x: poly_coef_mean[0] * x**2 + poly_coef_mean[1] * x + poly_coef_mean[2]
-    )
+    # f_mean = (
+    #     lambda x: poly_coef_mean[0] * x**2 + poly_coef_mean[1] * x + poly_coef_mean[2]
+    # )
 
     contour_dist_list = _contour_distances(contours, orig_center)
 
-    # Initialize variance list to store points
+    # Initialize edge list to store points
     points_var1, points_var2 = _get_var_points(
         num_of_circs, radii, contours, contour_dist_list, orig_center, f_mean
     )
@@ -322,13 +322,16 @@ def _find_next_center(
     return max_value, max_indices
 
 
-def _contour_distances(selected_contours: Contour_List, origin: tuple[int, int]):
+def _contour_distances(
+    contours: Contour_List, origin: tuple[float, float]
+) -> list[PlumePoints]:
     """
     Gets L2 distances between array of contours and single point origin.
     """
     contour_dist_list = []
-    for contour in selected_contours:
-        contour_dist = np.sqrt(np.sum((contour - np.array(origin)) ** 2, axis=1))
+    for contour in contours:
+        distances = np.sqrt(np.sum((contour - np.array(origin)) ** 2, axis=1))
+        contour_dist = np.hstack((distances.reshape((-1, 1)), contour))
         contour_dist_list.append(contour_dist)
 
     return contour_dist_list

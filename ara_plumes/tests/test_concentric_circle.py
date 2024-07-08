@@ -1,5 +1,6 @@
 import numpy as np
 
+from ..concentric_circle import _contour_distances
 from ..concentric_circle import _find_max_on_boundary
 from ..concentric_circle import concentric_circle
 from ..models import get_contour
@@ -75,3 +76,12 @@ def test_find_max_on_boundary():
 
     np.testing.assert_equal(expected[0], result[0])
     np.testing.assert_array_almost_equal(expected[1], result[1])
+
+
+def test_contour_distances():
+    contour = np.array([[0, 0], [0, 1]])
+    origin = (1.0, 0.0)
+    ranges = np.array([[1], [np.sqrt(2)]])
+    expected = [np.hstack((ranges, contour))]
+    result = _contour_distances([contour], origin=origin)
+    np.testing.assert_allclose(result, expected)
