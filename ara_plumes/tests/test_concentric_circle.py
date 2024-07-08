@@ -4,12 +4,14 @@ from ..concentric_circle import _contour_distances
 from ..concentric_circle import _find_max_on_boundary
 from ..concentric_circle import concentric_circle
 from ..models import get_contour
+from ..typing import X_pos
+from ..typing import Y_pos
 
 
 def test_concentric_circle():
     # create data
     scale = 4
-    orig_center = (50, 200)
+    orig_center = (X_pos(50), Y_pos(200))
     height, width = 400, 400
     bw_img = np.zeros((height, width), dtype=np.uint8)
 

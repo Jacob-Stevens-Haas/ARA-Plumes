@@ -100,85 +100,48 @@ def concentric_circle(
     mask = _sol_in_contours(xy_points_no_origin, contours)
     points_mean = cast(PlumePoints, np.vstack((points_mean[:0], points_mean[1:][mask])))
 
-    # points_mean[:, 1:] -= orig_center
+    contour_dists = _contour_distances(contours, orig_center)
 
-    # # Checking edge points #
-    # poly_coef_mean = np.polyfit(points_mean[:, 1], points_mean[:, 2], deg=poly_deg)
-
-    # f_mean = (
-    #     lambda x: poly_coef_mean[0] * x**2 + poly_coef_mean[1] * x + poly_coef_mean[2]
-    # )
-
-    contour_dist_list = _contour_distances(contours, orig_center)
-
-    # Initialize edge list to store points
-    points_var1, points_var2 = _get_var_points(
-        num_of_circs, radii, contours, contour_dist_list, orig_center, f_mean
+    points_var1, points_var2 = _get_edge_points(
+        num_of_circs, radii, contour_dists, orig_center
     )
-
-    # add origin center back
-    points_mean[:, 1:] += orig_center
-    points_var1[:, 1:] += orig_center
-    points_var2[:, 1:] += orig_center
-
     return points_mean, points_var1, points_var2
 
 
-def _get_var_points(
-    num_of_circs, radii, selected_contours, contour_dist_list, orig_center, f_mean
-):
-    zero_index = 0
-    # Initialize variance list to store points
-    var1_points = []
-    var2_points = []
+def _get_edge_points(
+    num_of_circs: int,
+    radii: float,
+    contours: list[PlumePoints],
+    orig_center: tuple[float, float],
+) -> tuple[PlumePoints, PlumePoints]:
+    cw_edge_points = []
+    ccw_edge_points = []
 
     for step in range(1, num_of_circs + 1):
         radius = step * radii
+        contour_crosses = _find_intersections(contours, radius)
+        edge_candidates = _interpolate_intersections(contour_crosses, radius)
+        polar_candidates = polar_angle(edge_candidates, orig_center)
+        # cw_edge_points.append(... find the max or min polar candidate)
+        # ccw_edge_points.append(... find the max or min polar candidate)
+    # return as PlumePoints type
+    return ccw_edge_points, cw_edge_points
 
-        var_above = []
-        var_below = []
 
-        intersection_points = []
-        for i in range(len(selected_contours)):
-            contour_dist = contour_dist_list[i]
-            contour = selected_contours[i]
+def _find_intersections(contours: list[PlumePoints], radius: float) -> set[PlumePoints]:
+    ...
 
-            # ISSUE PROBABLY IS HERE
-            dist_mask = np.isclose(contour_dist, radius, rtol=1e-2)
-            intersection_points_i = contour[dist_mask]
-            intersection_points.append(intersection_points_i)
 
-        # TO DO: re translate these - DONE
-        for ip_i in intersection_points:
-            for point in ip_i:
-                if f_mean(point[0] - orig_center[0]) <= point[1] - orig_center[1]:
-                    var_above.append(point - orig_center)
-                else:
-                    var_below.append(point - orig_center)
+def _interpolate_intersections(
+    contour_crosses: set[PlumePoints], radius: float
+) -> PlumePoints:
+    ...
 
-        if bool(var_above):
-            # Average the selected variance points (if multiple selected)
-            avg_var1_i = np.array(var_above).mean(axis=0).round().astype(int)
-            # Insert associated radii
-            avg_var1_i = np.insert(avg_var1_i, zero_index, radius)
-            var1_points.append(list(avg_var1_i))
 
-        if bool(var_below):
-            # Average the selected variance points (if multiple selected)
-            avg_var2_i = np.array(var_below).mean(axis=0).round().astype(int)
-            # Insert associated radii
-            avg_var2_i = np.insert(avg_var2_i, zero_index, radius)
-            var2_points.append(list(avg_var2_i))
-
-    def _insert_origin(vari_points):
-        if vari_points:
-            return np.vstack((list(np.insert((0, 0), 0, 0)), np.array(vari_points)))
-        return np.array([[0, 0, 0]])
-
-    points_var1 = _insert_origin(var1_points)
-    points_var2 = _insert_origin(var2_points)
-
-    return points_var1, points_var2
+def polar_angle(
+    edge_candidates: PlumePoints, orig_center: tuple[float, float]
+) -> set[tuple[float, float, float, float]]:
+    ...
 
 
 def _apply_concentric_search(
