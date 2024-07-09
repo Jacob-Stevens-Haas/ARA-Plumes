@@ -22,7 +22,6 @@ def concentric_circle(
     interior_scale: float = 3 / 5,
     rtol: float = 1e-2,
     atol: float = 1e-6,
-    poly_deg: float = 2,
     quiet: bool = True,
 ) -> tuple[PlumePoints, PlumePoints, PlumePoints]:
     """
@@ -55,10 +54,6 @@ def concentric_circle(
         Relative and absolute tolerances. Used in np.isclose function in
         find_max_on_boundary and find_next_center functions.
         Checks if points are close to selected radii.
-
-    poly_deg:
-        Specifying degree of polynomail to learn on points selected from
-        concentric circle method.
 
     quiet:
         suppresses error output
@@ -129,7 +124,20 @@ def _get_edge_points(
 
 
 def _find_intersections(contours: list[PlumePoints], radius: float) -> set[PlumePoints]:
-    ...
+    """
+    Find pairs of points where set of points where they cross over certain radii value.
+    """
+    pairs_of_points = []
+    for contour in contours:
+        sign = contour[-1, 0] < radius
+        for point_idx, (cur_radius, *_) in enumerate(contour):
+            if sign ^ (cur_radius < radius):
+                pairs_of_points.append(
+                    np.vstack((contour[point_idx - 1], contour[point_idx]))
+                )
+                sign = not sign
+
+    return pairs_of_points
 
 
 def _interpolate_intersections(

@@ -1,6 +1,7 @@
 import numpy as np
 
 from ..concentric_circle import _contour_distances
+from ..concentric_circle import _find_intersections
 from ..concentric_circle import _find_max_on_boundary
 from ..concentric_circle import concentric_circle
 from ..models import get_contour
@@ -87,3 +88,57 @@ def test_contour_distances():
     expected = [np.hstack((ranges, contour))]
     result = _contour_distances([contour], origin=origin)
     np.testing.assert_allclose(result, expected)
+
+
+def test_find_intersections():
+    contours = [
+        np.array(
+            [
+                [np.sqrt(2), 0, 0],
+                [np.sqrt(2), 2, 0],
+                [np.sqrt(10), 2, 2],
+                [np.sqrt(10), 0, 2],
+            ]
+        )
+    ]
+
+    expected = [
+        np.array([[np.sqrt(10), 0, 2], [np.sqrt(2), 0, 0]]),
+        np.array([[np.sqrt(2), 2, 0], [np.sqrt(10), 2, 2]]),
+    ]
+    result = _find_intersections(contours, radius=2)
+
+    for r, e in zip(result, expected):
+        np.testing.assert_array_almost_equal(r, e)
+
+
+def test_find_intersections_2_contours():
+    contours_2 = [
+        np.array(
+            [
+                [np.sqrt(2), 0, 0],
+                [np.sqrt(2), 2, 0],
+                [np.sqrt(10), 2, 2],
+                [np.sqrt(10), 0, 2],
+            ]
+        ),
+        np.array(
+            [
+                [np.sqrt(2), 2, 0],
+                [np.sqrt(2), 2, -2],
+                [np.sqrt(10), 4, -2],
+                [np.sqrt(10), 4, 0],
+            ]
+        ),
+    ]
+
+    expected = [
+        np.array([[np.sqrt(10), 0, 2], [np.sqrt(2), 0, 0]]),
+        np.array([[np.sqrt(2), 2, 0], [np.sqrt(10), 2, 2]]),
+        np.array([[np.sqrt(10), 4, 0], [np.sqrt(2), 2, 0]]),
+        np.array([[np.sqrt(2), 2, -2], [np.sqrt(10), 4, -2]]),
+    ]
+    result = _find_intersections(contours_2, radius=2)
+
+    for r, e in zip(result, expected):
+        np.testing.assert_array_almost_equal(r, e)
