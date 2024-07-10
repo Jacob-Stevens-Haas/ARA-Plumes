@@ -215,7 +215,21 @@ def _interpolate_intersections(
 def polar_angle(
     edge_candidates: PlumePoints, orig_center: tuple[float, float]
 ) -> set[tuple[float, float, float, float]]:
-    ...
+    """
+    Returns angle from orig_center based on (x,y) position.
+    Branch cut `theta in [-pi, pi]`
+    """
+    cx, cy = orig_center
+
+    polar_points = []
+    for rad, x_pos, y_pos in edge_candidates:
+        dy = y_pos - cy
+        dx = x_pos - cx
+        theta = np.arctan2(dy, dx)
+
+        polar_points.append((rad, x_pos, y_pos, theta))
+
+    return np.array(polar_points)
 
 
 def _apply_concentric_search(

@@ -5,6 +5,7 @@ from ..concentric_circle import _find_intersections
 from ..concentric_circle import _find_max_on_boundary
 from ..concentric_circle import _interpolate_intersections
 from ..concentric_circle import concentric_circle
+from ..concentric_circle import polar_angle
 from ..models import get_contour
 from ..typing import X_pos
 from ..typing import Y_pos
@@ -89,6 +90,23 @@ def test_contour_distances():
     expected = [np.hstack((ranges, contour))]
     result = _contour_distances([contour], origin=origin)
     np.testing.assert_allclose(result, expected)
+
+
+def test_polar_angle():
+    edge_candidates = np.array(
+        [[1, 1 / 2, np.sqrt(3) / 2], [1, -1 / 2, np.sqrt(3) / 2]]
+    )
+    orig_center = (0, 0)
+
+    result = polar_angle(edge_candidates, orig_center)
+    expected = np.array(
+        [
+            [1, 1 / 2, np.sqrt(3) / 2, np.pi / 3],
+            [1, -1 / 2, np.sqrt(3) / 2, 2 * np.pi / 3],
+        ]
+    )
+
+    np.testing.assert_array_almost_equal(expected, result)
 
 
 def test_interpolate_intersections():
