@@ -3,6 +3,7 @@ import numpy as np
 from ..concentric_circle import _contour_distances
 from ..concentric_circle import _find_intersections
 from ..concentric_circle import _find_max_on_boundary
+from ..concentric_circle import _interpolate_intersections
 from ..concentric_circle import concentric_circle
 from ..models import get_contour
 from ..typing import X_pos
@@ -88,6 +89,27 @@ def test_contour_distances():
     expected = [np.hstack((ranges, contour))]
     result = _contour_distances([contour], origin=origin)
     np.testing.assert_allclose(result, expected)
+
+
+def test_interpolate_intersections():
+    contours = [
+        np.array(
+            [
+                [np.sqrt(2), 0, 0],
+                [np.sqrt(2), 2, 0],
+                [np.sqrt(10), 2, 2],
+                [np.sqrt(10), 0, 2],
+            ]
+        )
+    ]
+    orig_center = (1, -1)
+    radius = 2
+    contour_crosses = _find_intersections(contours, radius)
+    result = _interpolate_intersections(contour_crosses, radius, orig_center)
+
+    expected = np.array([[2, 0, np.sqrt(3) - 1], [2, 2, np.sqrt(3) - 1]])
+
+    np.testing.assert_array_almost_equal(expected, result)
 
 
 def test_find_intersections():

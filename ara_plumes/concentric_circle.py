@@ -141,9 +141,75 @@ def _find_intersections(contours: list[PlumePoints], radius: float) -> set[Plume
 
 
 def _interpolate_intersections(
-    contour_crosses: set[PlumePoints], radius: float
+    contour_crosses: set[PlumePoints], radius: float, orig_center: tuple[float, float]
 ) -> PlumePoints:
-    ...
+    """
+    Apply linear interpolation to set of points where radius is
+    independent variable. Interpolation done via barycentric coordinates.
+
+    For sets of points `(x0,y0)` and `(x1,y1)` and original center `(cx,cy)`,
+    we find `a` such that
+
+     `||f(a) - (cx,cy)||^2_2` = radius
+
+     where,
+     `f(a):=(x,y)= a*(x0,y0) + (1-a)*(x1,y1)`
+
+     Parameters:
+     ----------
+     contours_crosses:
+        pairs of all points (r,x,y) that cross over radius.
+
+    radius:
+        radius of circle from original center
+
+    orig_center:
+        coorindate of center of circle.
+
+    Returns:
+    -------
+    PlumePoints
+    """
+
+    def bary_interpolation(x0, y0, x1, y1):
+        def bary_func(alpha):
+            return alpha * np.array([x0, y0]) + (1 - alpha) * np.array([x1, y1])
+
+        return bary_func
+
+    def opt_alpha(x0, y0, x1, y1, cx, cy, r):
+        denominator = (x0 - x1) ** 2 + (y0 - y1) ** 2
+        term1 = (cx - x1) * (x0 - x1)
+        term2 = (cy - y1) * (y0 - y1)
+
+        inner_term1 = -(cy**2) * (x0 - x1) ** 2
+        inner_term2 = r**2 * ((x0 - x1) ** 2 + (y0 - y1) ** 2)
+        inner_term3 = 2 * cy * (x0 - x1) * (-x1 * y0 + cx * (y0 - y1) + x0 * y1)
+        inner_term4 = (cx * y0 - x1 * y0 - cx * y1 + x0 * y1) ** 2
+
+        sqrt_term = np.sqrt(inner_term1 + inner_term2 + inner_term3 - inner_term4)
+
+        numerator = term1 + term2 - sqrt_term
+
+        alpha = numerator / denominator
+
+        return alpha
+
+    inter_points = []
+    cx, cy = orig_center
+    for pairs in contour_crosses:
+        r0, x0, y0 = pairs[0]
+        r1, x1, y1 = pairs[1]
+
+        if r0 < r1:
+            alpha_star = opt_alpha(x0, y0, x1, y1, cx, cy, radius)
+            xy_inter_point = bary_interpolation(x0, y0, x1, y1)(alpha_star)
+        else:
+            alpha_star = opt_alpha(x1, y1, x0, y0, cx, cy, radius)
+            xy_inter_point = bary_interpolation(x1, y1, x0, y0)(alpha_star)
+
+        inter_points.append(np.hstack((radius, xy_inter_point)))
+    return np.array(inter_points)
 
 
 def polar_angle(
