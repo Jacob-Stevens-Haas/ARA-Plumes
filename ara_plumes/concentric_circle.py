@@ -109,19 +109,33 @@ def _get_edge_points(
     contours: list[PlumePoints],
     orig_center: tuple[float, float],
 ) -> tuple[PlumePoints, PlumePoints]:
+    """
+    Find edge points based on largest and smallest polar angle on a given radii.
+    """
     cw_edge_points = []
     ccw_edge_points = []
 
     for step in range(1, num_of_circs + 1):
         radius = step * radii
         contour_crosses = _find_intersections(contours, radius)
-        edge_candidates = _interpolate_intersections(contour_crosses, radius)
-        polar_candidates = polar_angle(edge_candidates, orig_center)
+        if len(contour_crosses) == 0:
+            continue
 
-        # cw_edge_points.append(... find the max or min polar candidate)
-        # ccw_edge_points.append(... find the max or min polar candidate)
-    # return as PlumePoints type
-    return ccw_edge_points, cw_edge_points
+        edge_candidates = _interpolate_intersections(
+            contour_crosses, radius, orig_center
+        )
+        polar_candidates = _add_polar_angle(edge_candidates, orig_center)
+
+        if len(polar_candidates) == 1:
+            continue
+
+        max_idx = np.argmax(polar_candidates[:, -1])
+        min_idx = np.argmin(polar_candidates[:, -1])
+
+        cw_edge_points.append(polar_candidates[min_idx][:-1])
+        ccw_edge_points.append(polar_candidates[max_idx][:-1])
+
+    return np.array(ccw_edge_points), np.array(cw_edge_points)
 
 
 def _find_intersections(contours: list[PlumePoints], radius: float) -> set[PlumePoints]:
@@ -214,12 +228,17 @@ def _interpolate_intersections(
     return np.array(inter_points)
 
 
-def polar_angle(
+def _add_polar_angle(
     edge_candidates: PlumePoints, orig_center: tuple[float, float]
 ) -> set[tuple[float, float, float, float]]:
     """
-    Returns angle from orig_center based on (x,y) position.
+    Appends angle from orig_center based on (x,y) position.
     Branch cut `theta in [-pi, pi]`
+
+    Returns:
+    -------
+    np.ndarray([[ri,xi,yi,ti],...])
+
     """
     cx, cy = orig_center
 

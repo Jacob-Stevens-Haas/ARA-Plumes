@@ -1,11 +1,12 @@
 import numpy as np
 
+from ..concentric_circle import _add_polar_angle
 from ..concentric_circle import _contour_distances
 from ..concentric_circle import _find_intersections
 from ..concentric_circle import _find_max_on_boundary
+from ..concentric_circle import _get_edge_points
 from ..concentric_circle import _interpolate_intersections
 from ..concentric_circle import concentric_circle
-from ..concentric_circle import polar_angle
 from ..models import get_contour
 from ..typing import X_pos
 from ..typing import Y_pos
@@ -83,6 +84,29 @@ def test_find_max_on_boundary():
     np.testing.assert_array_almost_equal(expected[1], result[1])
 
 
+def test_get_edge_points_3_circles():
+    num_of_circs = 3
+    radii = 1
+    contour_distances = [
+        np.array(
+            [
+                [np.sqrt(2), 0, 0],
+                [np.sqrt(2), 2, 0],
+                [np.sqrt(10), 2, 2],
+                [np.sqrt(10), 0, 2],
+            ]
+        )
+    ]
+    orig_center = (1, -1)
+    result = _get_edge_points(num_of_circs, radii, contour_distances, orig_center)
+    expected = (
+        np.array([[2, 0, np.sqrt(3) - 1], [3, 0, 2 * np.sqrt(2) - 1]]),
+        np.array([[2, 2, np.sqrt(3) - 1], [3, 2, 2 * np.sqrt(2) - 1]]),
+    )
+    for e, r in zip(expected, result):
+        np.testing.assert_array_almost_equal(e, r)
+
+
 def test_contour_distances():
     contour = np.array([[0, 0], [0, 1]])
     origin = (1.0, 0.0)
@@ -92,13 +116,13 @@ def test_contour_distances():
     np.testing.assert_allclose(result, expected)
 
 
-def test_polar_angle():
+def test__add_polar_angle():
     edge_candidates = np.array(
         [[1, 1 / 2, np.sqrt(3) / 2], [1, -1 / 2, np.sqrt(3) / 2]]
     )
     orig_center = (0, 0)
 
-    result = polar_angle(edge_candidates, orig_center)
+    result = _add_polar_angle(edge_candidates, orig_center)
     expected = np.array(
         [
             [1, 1 / 2, np.sqrt(3) / 2, np.pi / 3],
