@@ -93,13 +93,31 @@ def concentric_circle(
     # Limit points to those within contours, plus origin #
     xy_points_no_origin = cast(Float2D, points_mean[1:, 1:])
     mask = _sol_in_contours(xy_points_no_origin, contours)
-    points_mean = cast(PlumePoints, np.vstack((points_mean[:0], points_mean[1:][mask])))
+    points_in_cont = points_mean[1:][mask]
+
+    if len(points_in_cont) == 0:
+        points_mean = cast(PlumePoints, points_mean[:1])
+    else:
+        points_mean = cast(
+            PlumePoints, np.vstack((points_mean[:1], points_mean[1:][mask]))
+        )
 
     contour_dists = _contour_distances(contours, orig_center)
 
     points_var1, points_var2 = _get_edge_points(
         num_of_circs, radii, contour_dists, orig_center
     )
+
+    if len(points_var1) == 0:
+        points_var1 = cast(PlumePoints, points_mean[:1])
+    else:
+        points_var1 = cast(PlumePoints, np.vstack((points_mean[:1], points_var1)))
+
+    if len(points_var2) == 0:
+        points_var2 = cast(PlumePoints, points_mean[:1])
+    else:
+        points_var2 = cast(PlumePoints, np.vstack((points_mean[:1], points_var2)))
+
     return points_mean, points_var1, points_var2
 
 
