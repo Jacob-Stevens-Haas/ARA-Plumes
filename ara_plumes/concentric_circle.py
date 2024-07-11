@@ -117,6 +117,7 @@ def _get_edge_points(
         contour_crosses = _find_intersections(contours, radius)
         edge_candidates = _interpolate_intersections(contour_crosses, radius)
         polar_candidates = polar_angle(edge_candidates, orig_center)
+
         # cw_edge_points.append(... find the max or min polar candidate)
         # ccw_edge_points.append(... find the max or min polar candidate)
     # return as PlumePoints type
@@ -178,6 +179,7 @@ def _interpolate_intersections(
         return bary_func
 
     def opt_alpha(x0, y0, x1, y1, cx, cy, r):
+        """return a that solves `||f(a) - (cx,cy)||**2 = radius`"""
         denominator = (x0 - x1) ** 2 + (y0 - y1) ** 2
         term1 = (cx - x1) * (x0 - x1)
         term2 = (cy - y1) * (y0 - y1)
