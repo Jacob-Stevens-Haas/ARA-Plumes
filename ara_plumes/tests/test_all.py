@@ -4,7 +4,6 @@ from unittest.mock import MagicMock
 import cv2
 import numpy as np
 
-from ..concentric_circle import concentric_circle
 from ara_plumes import models
 from ara_plumes import regressions
 from ara_plumes import utils
@@ -18,6 +17,7 @@ from ara_plumes.preprocessing import convert_video_to_numpy_array
 test_numpy_frames = np.array(
     [np.full((10, 10), i, dtype=np.uint8) for i in range(1, 11)]
 )
+
 
 def test_get_contour():
     width, height = 400, 400
