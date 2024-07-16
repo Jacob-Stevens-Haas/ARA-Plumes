@@ -23,16 +23,11 @@ def test_concentric_circle():
     bw_img[25, 50:251] = 255 / scale
     bw_img[375, 50:251] = 255 // scale
     bw_img[25:376, 250] = 255 // scale
+    bw_img[200, [100, 150, 200]] = 255
+    rectangle_plume = bw_img
 
     num_of_circs = 3
     r = 50
-    for i in range(num_of_circs):
-        i += 2
-        bw_img[200, r * i] = 255
-
-    rectangle_plume = bw_img.copy()
-
-    # get result
     selected_contours = get_contour(rectangle_plume)
     result_mean, result_var1, result_var2 = concentric_circle(
         rectangle_plume,
@@ -120,24 +115,23 @@ def test_append_polar_angle():
 
 
 def test_interpolate_intersections():
-    contours = [
-        np.array(
-            [
-                [np.sqrt(2), 0, 0],
-                [np.sqrt(2), 2, 0],
-                [np.sqrt(10), 2, 2],
-                [np.sqrt(10), 0, 2],
-            ]
-        )
-    ]
-    orig_center = (1, -1)
-    radius = 2
-    contour_crosses = _find_intersections(contours, radius)
+    contour_crosses = [np.array([[0, 0, 0], [2 * np.sqrt(2), 2, 2]])]
+    radius = np.sqrt(2)
+    orig_center = (0, 0)
     result = _interpolate_intersections(contour_crosses, radius, orig_center)
+    dist_to_origin = np.linalg.norm(result[0, 1:] - orig_center)
 
-    expected = np.array([[2, 0, np.sqrt(3) - 1], [2, 2, np.sqrt(3) - 1]])
+    # test distance from result to orig_center
+    np.testing.assert_equal(dist_to_origin, radius)
 
-    np.testing.assert_array_almost_equal(expected, result)
+    x0, y0 = contour_crosses[0][0, 1:]
+    x1, y1 = contour_crosses[0][1, 1:]
+    x_result, y_result = result[0, 1:]
+
+    slope1 = (y_result - y0) / (x_result - x0)
+    slope2 = (y1 - y_result) / (x1 - x_result)
+
+    np.testing.assert_equal(slope1, slope2)
 
 
 def test_find_intersections():
