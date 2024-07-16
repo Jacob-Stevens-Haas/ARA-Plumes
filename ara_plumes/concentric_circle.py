@@ -136,16 +136,13 @@ def _get_edge_points(
     for step in range(1, num_of_circs + 1):
         radius = step * radii
         contour_crosses = _find_intersections(contours, radius)
-        if len(contour_crosses) == 0:
+        if len(contour_crosses) <= 1:
             continue
 
         edge_candidates = _interpolate_intersections(
             contour_crosses, radius, orig_center
         )
         polar_candidates = _append_polar_angle(edge_candidates, orig_center)
-
-        if len(polar_candidates) == 1:
-            continue
 
         max_idx = np.argmax(polar_candidates[:, -1])
         min_idx = np.argmin(polar_candidates[:, -1])
