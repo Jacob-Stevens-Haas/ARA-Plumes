@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..concentric_circle import _add_polar_angle
+from ..concentric_circle import _append_polar_angle
 from ..concentric_circle import _contour_distances
 from ..concentric_circle import _find_intersections
 from ..concentric_circle import _find_max_on_circle
@@ -102,13 +102,13 @@ def test_contour_distances():
     np.testing.assert_allclose(result, expected)
 
 
-def test__add_polar_angle():
+def test_append_polar_angle():
     edge_candidates = np.array(
         [[1, 1 / 2, np.sqrt(3) / 2], [1, -1 / 2, np.sqrt(3) / 2]]
     )
     orig_center = (0, 0)
 
-    result = _add_polar_angle(edge_candidates, orig_center)
+    result = _append_polar_angle(edge_candidates, orig_center)
     expected = np.array(
         [
             [1, 1 / 2, np.sqrt(3) / 2, np.pi / 3],

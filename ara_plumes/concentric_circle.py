@@ -142,7 +142,7 @@ def _get_edge_points(
         edge_candidates = _interpolate_intersections(
             contour_crosses, radius, orig_center
         )
-        polar_candidates = _add_polar_angle(edge_candidates, orig_center)
+        polar_candidates = _append_polar_angle(edge_candidates, orig_center)
 
         if len(polar_candidates) == 1:
             continue
@@ -158,7 +158,7 @@ def _get_edge_points(
 
 def _find_intersections(contours: list[PlumePoints], radius: float) -> set[PlumePoints]:
     """
-    Find pairs of points where set of points where they cross over certain radii value.
+    Find pairs of points where they cross over certain radii value.
 
     NOTE: In edge case where a point is exactly equal to radius, it is treated as
           greater than radius.
@@ -249,7 +249,7 @@ def _interpolate_intersections(
     return np.array(inter_points)
 
 
-def _add_polar_angle(
+def _append_polar_angle(
     edge_candidates: PlumePoints, orig_center: tuple[float, float]
 ) -> set[tuple[float, float, float, float]]:
     """
