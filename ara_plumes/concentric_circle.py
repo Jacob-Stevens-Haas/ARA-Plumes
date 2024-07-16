@@ -288,7 +288,7 @@ def _apply_concentric_search(
     points_mean[0] = np.insert(orig_center, zero_index, val)
 
     # Plot first point on path
-    _, center = _find_max_on_boundary(img_gray, orig_center, r=radii)
+    _, center = _find_max_on_circle(img_gray, orig_center, radius=radii)
     # code to choose only one
 
     points_mean[1] = np.insert(center, zero_index, radii)
@@ -321,26 +321,51 @@ def _apply_concentric_search(
     return points_mean
 
 
-def _find_max_on_boundary(array, center, r, n_points=101):
+def _find_max_on_circle(
+    array: GrayImage, center: tuple[float, float], radius: float, n_points: int = 101
+):
     """
-    Find the max value (and index) of an array on a circle centered
-    at center with radii r
+    Find the max value (and index) of an `array` on a circle centered
+    at `center` with `radius`. Values restricted to those that fall within
+    array.
+
+    Coordinates for circle calculated along linspace along horizontal axis.
 
     Parameters:
     ----------
+    array:
+        Array of float values.
+
+    center:
+        coordinate specifying center of circle
+
+    radius:
+        radius of circle.
+
+    n_points:
+        number of points used in linspace for calculating coordinates points
+        of circle.
+
+    Returns:
+    -------
+    max_value:
+        max value along circle on array.
+
+    max_indices:
+        indices of max_value on array.
     """
     col, row = center
-    n, d = array.shape
+    height, width = array.shape
 
     def _get_x_values(col, r, n_points):
         x0 = np.max([0, col - r])
-        x1 = np.min([d, col + r])
+        x1 = np.min([width - 0.5, col + r])
         return np.linspace(x0, x1, n_points)
 
-    def _y_in_range(yi, row):
+    def _y_in_range(yi, height):
         if round(yi) < 0:
             return False
-        if round(yi) > row:
+        if round(yi) > height - 1:
             return False
         return True
 
@@ -351,23 +376,23 @@ def _find_max_on_boundary(array, center, r, n_points=101):
         return max_value, max_indices
 
     xy_circle = []
-    for xi in _get_x_values(col, r, n_points):
-        y0 = np.sqrt(r**2 - (xi - col) ** 2) + row
-        y1 = -np.sqrt(r**2 - (xi - col) ** 2) + row
+    for xi in _get_x_values(col, radius, n_points):
+        y0 = np.sqrt(radius**2 - (xi - col) ** 2) + row
+        y1 = -np.sqrt(radius**2 - (xi - col) ** 2) + row
 
-        if _y_in_range(y0, row):
+        if _y_in_range(y0, height):
             xy_circle.append((xi, y0))
 
-        if _y_in_range(y1, row):
+        if _y_in_range(y1, height):
             xy_circle.append((xi, y1))
 
-    xy_circle = np.array(xy_circle).round().astype(int)
+    xy_circle = np.unique(np.array(xy_circle).round().astype(int), axis=0)
 
     xy_circle_vals = np.array([array[y, x] for (x, y) in xy_circle])
 
     max_val, max_idx = _find_max_val_and_idx(xy_circle_vals)
 
-    max_indices = np.unique(xy_circle[max_idx], axis=0).reshape(-1)  # something funky
+    max_indices = xy_circle[max_idx].reshape(-1)
 
     return max_val, max_indices
 

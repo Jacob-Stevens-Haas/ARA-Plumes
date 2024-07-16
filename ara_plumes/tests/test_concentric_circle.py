@@ -3,7 +3,7 @@ import numpy as np
 from ..concentric_circle import _add_polar_angle
 from ..concentric_circle import _contour_distances
 from ..concentric_circle import _find_intersections
-from ..concentric_circle import _find_max_on_boundary
+from ..concentric_circle import _find_max_on_circle
 from ..concentric_circle import _get_edge_points
 from ..concentric_circle import _interpolate_intersections
 from ..concentric_circle import concentric_circle
@@ -58,30 +58,16 @@ def test_concentric_circle():
     np.testing.assert_array_equal(expected_var2, result_var2)
 
 
-def test_find_max_on_boundary():
-    scale = 4
-    orig_center = (50, 200)
-    height, width = 400, 400
-    bw_img = np.zeros((height, width), dtype=np.uint8)
-
-    bw_img[25:376, 50] = 255 // scale
-    bw_img[25, 50:251] = 255 / scale
-    bw_img[375, 50:251] = 255 // scale
-    bw_img[25:376, 250] = 255 // scale
-
-    num_of_circs = 3
-    r = 50
-    for i in range(num_of_circs):
-        i += 2
-        bw_img[200, r * i] = 255
-
-    rectangle_plume = bw_img.copy()
-
-    expected = (255, np.array([100, 200]))
-    result = _find_max_on_boundary(rectangle_plume, orig_center, r=50)
-
-    np.testing.assert_equal(expected[0], result[0])
-    np.testing.assert_array_almost_equal(expected[1], result[1])
+def test_find_max_on_circle():
+    axis = np.arange(5).reshape(-1, 1)
+    # arr is surface u = x*y in positive quadrant
+    arr = axis @ axis.T
+    radii = [x_dist * np.sqrt(2) for x_dist in axis.flatten()]
+    for x_dist, radius in zip(axis, radii):
+        max_val, amax = _find_max_on_circle(arr, (0, 0), radius)
+        # Max should be on the diagonal, i.e. x = y
+        assert max_val == x_dist[0] ** 2
+        np.testing.assert_array_equal(amax, [x_dist[0], x_dist[0]])
 
 
 def test_get_edge_points_3_circles():
