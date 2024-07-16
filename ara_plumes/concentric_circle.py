@@ -159,6 +159,9 @@ def _get_edge_points(
 def _find_intersections(contours: list[PlumePoints], radius: float) -> set[PlumePoints]:
     """
     Find pairs of points where set of points where they cross over certain radii value.
+
+    NOTE: In edge case where a point is exactly equal to radius, it is treated as
+          greater than radius.
     """
     pairs_of_points = []
     for contour in contours:
