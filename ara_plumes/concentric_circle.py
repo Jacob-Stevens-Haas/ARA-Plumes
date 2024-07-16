@@ -344,7 +344,8 @@ def _find_max_on_circle(
 
     n_points:
         number of points used in linspace for calculating coordinates points
-        of circle.
+        of circle. Values must be sufficiently high to cover all points
+        on circle. Safe minimum is 2/3*radius in pixel distance, rounded.
 
     Returns:
     -------
