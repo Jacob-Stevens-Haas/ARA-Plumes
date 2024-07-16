@@ -65,8 +65,9 @@ def test_find_max_on_circle():
         np.testing.assert_array_equal(amax, [x_dist[0], x_dist[0]])
 
 
-def test_get_edge_points_3_circles():
-    num_of_circs = 3
+def test_get_edge_points():
+    # Image of test
+    # https://www.desmos.com/calculator/umi82ahhey
     radii = 1
     contour_distances = [
         np.array(
@@ -79,13 +80,20 @@ def test_get_edge_points_3_circles():
         )
     ]
     orig_center = (1, -1)
-    result = _get_edge_points(num_of_circs, radii, contour_distances, orig_center)
-    expected = (
-        np.array([[2, 0, np.sqrt(3) - 1], [3, 0, 2 * np.sqrt(2) - 1]]),
-        np.array([[2, 2, np.sqrt(3) - 1], [3, 2, 2 * np.sqrt(2) - 1]]),
-    )
-    for e, r in zip(expected, result):
-        np.testing.assert_array_almost_equal(e, r)
+    ccw, cw = _get_edge_points(1, radii, contour_distances, orig_center)
+
+    # test empty array when no intersection is found.
+    assert len(ccw) == 0
+    assert len(cw) == 0
+
+    ccw, cw = _get_edge_points(3, radii, contour_distances, orig_center)
+
+    # test ccw points have greater angle than cw points.
+    for ccw_point, cw_point in zip(ccw, cw):
+        ccw_theta = np.arctan2(ccw_point[2], ccw_point[1])
+        cw_theta = np.arctan2(cw_point[2], cw_point[1])
+
+        assert ccw_theta >= cw_theta
 
 
 def test_contour_distances():
