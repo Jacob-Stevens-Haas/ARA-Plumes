@@ -329,7 +329,7 @@ def _find_max_on_circle(
     at `center` with `radius`. Values restricted to those that fall within
     array.
 
-    Coordinates for circle calculated along linspace along horizontal axis.
+    Coordinates for circle calculated along linspace for horizontal axis.
 
     Parameters:
     ----------
