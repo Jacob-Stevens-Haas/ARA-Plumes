@@ -284,15 +284,13 @@ def _apply_concentric_search(
 ) -> PlumePoints:
     # Initialize numpy array to store center
     points_mean = np.zeros(shape=(num_of_circs + 1, 3))
-    zero_index = 0
-    val = 0
-    points_mean[0] = np.insert(orig_center, zero_index, val)
+    points_mean[0] = (0, *orig_center)
 
     # Plot first point on path
     _, center = _find_max_on_circle(img_gray, orig_center, radius=radii)
     # code to choose only one
 
-    points_mean[1] = np.insert(center, zero_index, radii)
+    points_mean[1] = (radii, *center)
 
     for step in range(2, num_of_circs + 1):
         radius = radii * step
@@ -318,13 +316,16 @@ def _apply_concentric_search(
         if error_occured:
             break
 
-        points_mean[step] = np.insert(center, zero_index, radius)
+        points_mean[step] = (radius, *center)
     return points_mean
 
 
 def _find_max_on_circle(
-    array: GrayImage, center: tuple[float, float], radius: float, n_points: int = None
-):
+    array: GrayImage,
+    center: tuple[float, float],
+    radius: float,
+    n_points: None | int = None,
+) -> tuple[float, tuple[int, int]]:
     """
     Find the max value (and index) of an `array` on a circle centered
     at `center` with `radius`. Values restricted to those that fall within
