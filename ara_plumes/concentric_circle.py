@@ -1,3 +1,4 @@
+import warnings
 from typing import cast
 
 import cv2
@@ -322,14 +323,15 @@ def _apply_concentric_search(
 
 
 def _find_max_on_circle(
-    array: GrayImage, center: tuple[float, float], radius: float, n_points: int = 101
+    array: GrayImage, center: tuple[float, float], radius: float, n_points: int = None
 ):
     """
     Find the max value (and index) of an `array` on a circle centered
     at `center` with `radius`. Values restricted to those that fall within
     array.
 
-    Coordinates for circle calculated along linspace for horizontal axis.
+    Coordinates for circle calculated along polar linspace in [0,pi/4].
+    Remaining points calucluated via symmetry.
 
     Parameters:
     ----------
@@ -345,7 +347,7 @@ def _find_max_on_circle(
     n_points:
         number of points used in linspace for calculating coordinates points
         of circle. Values must be sufficiently high to cover all points
-        on circle. Safe minimum is 2/3*radius in pixel distance, rounded.
+        on circle. Safe minimum is ~pi*radius/2 in pixel distance, rounded.
 
     Returns:
     -------
@@ -355,20 +357,13 @@ def _find_max_on_circle(
     max_indices:
         indices of max_value on array.
     """
-    col, row = center
     height, width = array.shape
 
-    def _get_x_values(col, r, n_points):
-        x0 = np.max([0, col - r])
-        x1 = np.min([width - 0.5, col + r])
-        return np.linspace(x0, x1, n_points)
+    if n_points is None:
+        n_points = int(round(np.pi * radius / 2))
 
-    def _y_in_range(yi, height):
-        if round(yi) < 0:
-            return False
-        if round(yi) > height - 1:
-            return False
-        return True
+    if n_points < int(round(np.pi * radius / 2)):
+        warnings.warn("Number of points is less than safe minimum.")
 
     def _find_max_val_and_idx(arr):
         max_value = np.max(arr)
@@ -376,18 +371,37 @@ def _find_max_on_circle(
 
         return max_value, max_indices
 
-    xy_circle = []
-    for xi in _get_x_values(col, radius, n_points):
-        y0 = np.sqrt(radius**2 - (xi - col) ** 2) + row
-        y1 = -np.sqrt(radius**2 - (xi - col) ** 2) + row
+    def _generate_circle_coords(cx, cy, radius, n_points):
+        if radius == 0:
+            return np.array([[cx, cy]])
+        xy_points = []
+        theta_linspace = np.linspace(0, np.pi / 4, n_points)
+        for theta in theta_linspace:
+            x, y = radius * np.cos(theta), radius * np.sin(theta)
+            points = [
+                (cx + x, cy + y),
+                (cx - x, cy + y),
+                (cx + x, cy - y),
+                (cx - x, cy - y),
+                (cx + y, cy + x),
+                (cx - y, cy + x),
+                (cx + y, cy - x),
+                (cx - y, cy - x),
+            ]
+            xy_points.extend(points)
+        return np.unique(np.array(xy_points).round().astype(int), axis=0)
 
-        if _y_in_range(y0, height):
-            xy_circle.append((xi, y0))
+    def _restrict_coords(xy_coords):
+        new_coords = []
+        for x, y in xy_coords:
+            if x < 0 or x > width - 1:
+                continue
+            if y < 0 or y > height - 1:
+                continue
+            new_coords.append((x, y))
+        return np.array(new_coords)
 
-        if _y_in_range(y1, height):
-            xy_circle.append((xi, y1))
-
-    xy_circle = np.unique(np.array(xy_circle).round().astype(int), axis=0)
+    xy_circle = _restrict_coords(_generate_circle_coords(*center, radius, n_points))
 
     xy_circle_vals = np.array([array[y, x] for (x, y) in xy_circle])
 
