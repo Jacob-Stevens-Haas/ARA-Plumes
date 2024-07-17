@@ -369,8 +369,9 @@ def _find_max_on_circle(
     def _find_max_val_and_idx(arr):
         max_value = np.max(arr)
         max_indices = np.where(arr == max_value)[0]
+        mid_max_index = max_indices[len(max_indices) // 2]
 
-        return max_value, max_indices
+        return max_value, mid_max_index
 
     def _generate_circle_coords(cx, cy, radius, n_points):
         if radius == 0:
