@@ -1,6 +1,5 @@
 import logging
 import warnings
-from typing import Literal
 from typing import Optional
 
 import cv2
@@ -11,7 +10,6 @@ from scipy.signal.windows import gaussian
 
 from . import regressions
 from . import utils
-from .utils import add_clock
 from .concentric_circle import concentric_circle
 from .regressions import regress_frame_mean
 from .typing import AX_FRAME
@@ -24,10 +22,10 @@ from .typing import Frame
 from .typing import GrayImage
 from .typing import GrayVideo
 from .typing import List
-from .typing import NpFlt
 from .typing import PlumePoints
 from .typing import X_pos
 from .typing import Y_pos
+from .utils import add_clock
 
 logger = logging.getLogger(__name__)
 
@@ -113,7 +111,7 @@ class PLUME:
         if len(arr.shape) == 4:
             raise TypeError("arr must be be in gray.")
 
-        clean_vid = background_subtract(frames=arr, fixed_range=fixed_range)  
+        clean_vid = background_subtract(frames=arr, fixed_range=fixed_range)
 
         if gauss_space_blur:
             if gauss_space_kws is None:
@@ -550,6 +548,7 @@ def get_contour(
 
     return selected_contours
 
+
 @add_clock
 def apply_gauss_space_blur(
     arr: GrayVideo,
@@ -591,6 +590,7 @@ def apply_gauss_space_blur(
         )
 
     return blurred_arr
+
 
 @add_clock
 def apply_gauss_time_blur(
@@ -718,6 +718,7 @@ def _create_background_img(frames: GrayVideo, img_range: tuple[int, int]) -> Flo
 
     return np.mean(frames[start_frame:end_frame], axis=AX_FRAME)
 
+
 @add_clock
 def background_subtract(
     frames: GrayVideo,
@@ -763,6 +764,177 @@ def background_subtract(
     return clean_vid
 
 
+def flatten_var_points(
+    coef_timeseries: Float2D,
+    vari_points: List[tuple[int, PlumePoints]],
+    selected_contours: List[Contour_List],
+    regression_method: str,
+) -> Float2D:
+    """
+    Convert edge coordinates, `(r,x,y)`, of plume learned at different frames
+    into `L2` distances from mean regression path at time t, `(t,r,d)`.
+
+    Parameters:
+    ----------
+    coef_timeseries:
+        Array of learned mean path polynomial coefficients, in descedning order of
+        degree, for each frame.
+
+    vari_points:
+        timestamp t, and (r,x,y) coordinate for edge of plume at time t.
+
+    selected_contours:
+        list of plume contours identified for each frame.
+
+    regression_method:
+        Method used to create mean path regression.
+
+    Returns:
+    -------
+    np.ndarray:
+        Array of coordinates, (t,r,d), of L2 distance, `d`, of mean regression path to
+        edge coordinate along concentric circle with radii `r` at time frame `t`.
+
+
+    Pseudo Example:
+    -------
+    >>> coef_timeseries = np.array([
+    ...         [a0,b0,c0],
+    ...         [a1,b1,c1]
+    ... ])
+    >>> vari_points = [
+    ...     (t0, np.array([[r0,x0,y0],[r1,x1,y0]]))
+    ...     (t1, np.array([[R0,X0,Y0],[R1,X1,Y1]]))
+    ... ]
+    >>> selected_contours = <list of contours>
+    >>> trd_arr = flatten_var_points(
+    ...              coef_timeseries,
+    ...              vari_points,
+    ...              'poly',
+                     selected_contours
+                  )
+    >>> trd_arr
+    >>> np.array([
+    ...     [t0,r0,d0]
+    ...     [t0,r1,d1],
+    ...     [t1,R0,D0],
+    ...     [t1,R1,D1]
+    ... ])
+
+    """
+    arr = None
+    for coef, vari, cont in zip(coef_timeseries, vari_points, selected_contours):
+        trd_arr = _convert_rxy_to_trd(coef, vari, cont, regression_method)
+        if arr is None:
+            arr = trd_arr
+        else:
+            arr = np.vstack((arr, trd_arr))
+
+    return arr
+
+
+def _convert_rxy_to_trd(
+    coef: Float1D,
+    vari_points: tuple[int, PlumePoints],
+    selected_contours: Contour_List,
+    regression_method: str,
+) -> PlumePoints:
+    """
+    Converts coordinates taken of edge model at time t to flatten p_mean space.
+    Takes elements in array vari_points, [r_0(t), x_0(t), y_0(t)], and converts
+    to flattened mean regression space of [t, r_0(t), d_0(t)] where d(t) is
+    L2 distance from the mean regression function along the concentric circle
+    with radii r(t).
+
+    Parameters:
+    ----------
+    coef: Array of polynomial coefficients in descending order of degree
+          for mean path.
+
+
+    vari_points: Timestamp t and (r,x,y) coordinates of edge model at timestamp t.
+    >>> vari_points = (t, np.array([
+    ...                     [r_0, x_0, y_0],
+    ...                     [r_1, x_1, y_1],
+    ...                           ...
+    ...                     [r_l, x_l, y_l]
+    ...                 ]))
+
+
+    selected_contours: List of contours.
+
+    regression_method: method used to create mean path polynomial. 'linear', 'poly',
+        'poly_inv', and 'poly_para'.
+
+    Returns:
+    -------
+    np.ndarray: Array of points [t,r_i(t), d_i(t)].
+    >>> np.array([
+            [t, r_0, d_0],
+            [t, r_1, d_1],
+            ...
+            [t, r_l, d_l]
+    ])
+
+    """
+    if regression_method == "poly" or regression_method == "linear":
+        return _poly_rxy_to_trd(coef, vari_points, selected_contours)
+
+    if regression_method == "poly_inv":
+        return _poly_rxy_to_trd(coef, vari_points, selected_contours, inv=True)
+
+    if regression_method == "poly_para":
+        return _poly_para_rxy_to_trd(coef, vari_points)
+
+
+def _poly_para_rxy_to_trd(
+    coef: Float1D, vari_points: tuple[int, PlumePoints]
+) -> Float2D:
+    """
+    convert vari_points to flattened p_mean points where coef is from parametric
+    polynomial.
+    """
+    mid_index = len(coef) // 2
+    f1 = np.polynomial.Polynomial(coef[:mid_index][::-1])
+    f2 = np.polynomial.Polynomial(coef[mid_index:][::-1])
+
+    t, points = vari_points
+    trd_arr = []
+    for r, x, y in points:
+        d = np.linalg.norm(np.array((f1(r), f2(r))) - (x, y))
+        trd_arr.append((t, r, d))
+
+    return np.array(trd_arr)
+
+
+def _poly_rxy_to_trd(
+    coef: Float1D,
+    vari_points: tuple[int, PlumePoints],
+    selected_contours: Contour_List,
+    inv: bool = False,
+) -> Float2D:
+    """
+    convert vari_points to flattened p_mean points where coef is from explicit
+    polynomial.
+    """
+    t, points = vari_points
+    x0, y0 = points[0][1:]
+
+    trd_arr = [(t, 0, 0)]
+    for r, x, y in points[1:, :]:
+        sols = utils.circle_poly_intersection(r=r, x0=x0, y0=y0, poly_coef=coef[::-1])
+        if inv:
+            if len(sols.shape) == 2:
+                sols = sols[:, ::-1]
+            else:
+                sols = sols[::-1]
+        sols = sols[_sol_in_contour(sols, selected_contours)]
+        d = np.linalg.norm(sols - (x, y))
+        trd_arr.append((t, r, d))
+
+    return np.array(trd_arr)
+
+
 def get_contour_list(
     clean_vid: GrayVideo,
     threshold_method: str = "OTSU",
@@ -770,7 +942,7 @@ def get_contour_list(
     contour_smoothing: bool = False,
     contour_smoothing_eps: int = 50,
     find_contour_method: int = cv2.CHAIN_APPROX_NONE,
-    decenter: Optional[tuple[int,int]]=None
+    decenter: Optional[tuple[int, int]] = None,
 ) -> List[Contour_List]:
     """
     Return contours learned from frames of clean video.
@@ -798,7 +970,7 @@ def get_contour_list(
     find_contour_method:
         Method used by opencv to find contours. 1 is cv2.CHAIN_APPROX_NONE.
         2 is cv2.CHAIN_APPROX_SIMPLE.
-    
+
     decenter:
         To decenter founds contours so plume leak source is at origin `(0,0)`.
 
@@ -808,10 +980,11 @@ def get_contour_list(
         Returns list of selected contours from each frame of clean_vid.
 
     """
-    def _decenter_selected_contours(selected_contours,decenter):
+
+    def _decenter_selected_contours(selected_contours, decenter):
         selected_contours_origin = []
         for cont in selected_contours:
-            selected_contours_origin.append(cont-decenter)
+            selected_contours_origin.append(cont - decenter)
         return selected_contours_origin
 
     cont_list = []
@@ -826,177 +999,11 @@ def get_contour_list(
         )
 
         if decenter is not None:
-            selected_contours = _decenter_selected_contours(
-                selected_contours, decenter
-            )
-            
+            selected_contours = _decenter_selected_contours(selected_contours, decenter)
+
         cont_list.append(selected_contours)
 
     return cont_list
-
-
-def flatten_var_points(
-    coef_timeseries: Float2D,
-    vari_points: List[PlumePoints],
-    selected_contours: Contour_List,
-    regression_method: str,
-) -> Float2D:
-    """
-    Convert edge coordinates, `(r,x,y)`, of plume learned at different frames
-    into `L2` distances from mean regression path at time t, `(t,r,d)`.
-
-    Parameters:
-    ----------
-    coef_timeseries:
-        Array of learend mean path polynomial coefficients, in descedning order of
-        degree, for each frame.
-
-    vari_points:
-        timestamp t, and (r,x,y) coordinate for edge of plume at time t.
-
-    selected_contours:
-        list of plume contours identified for each frame.
-
-    regression_method:
-        Method used to create mean path regression.
-
-    Returns:
-    -------
-    np.ndarray:
-        Array of coordinates, (t,r,d), of L2 distance, `d`, of mean regression path to
-        edge coordinate along concentric circle with radii `r` at time frame `t`.
-
-
-    Pseudo Example:
-    -------
-    >>> coef_timeseries = np.array([
-                [a0,b0,c0],
-                [a1,b1,c1]
-        ])
-    >>> vari_points = [
-            (t0, np.array([[r0,x0,y0],[r1,x1,y0]]))
-            (t1, np.array([[R0,X0,Y0],[R1,X1,Y1]]))
-        ]
-    >>> selected_contours = <list of contours>
-    >>> trd_arr = flatten_var_points(
-                     coef_timeseries,
-                     vari_points,
-                     'poly',
-                     selected_contours
-                  )
-    >>> trd_arr
-    >>> np.array([
-            [t0,r0,d0]
-            [t0,r1,d1],
-            [t1,R0,D0],
-            [t1,R1,D1]
-        ])
-
-    """
-    arr = None
-    for coef, vari, cont in zip(coef_timeseries, vari_points, selected_contours):
-        trd_arr = _convert_rxy_to_trd(coef, vari, cont, regression_method)
-        if arr is None:
-            arr = trd_arr
-        else:
-            arr = np.vstack((arr, trd_arr))
-
-    return arr
-
-
-def _convert_rxy_to_trd(
-    coef: Float1D,
-    vari_points: tuple[int, PlumePoints],
-    selected_contours: Contour_List,
-    regression_method: str,
-) -> np.ndarray[tuple[int, Literal[3]], NpFlt]:
-    """
-    Converts coordinates taken of edge model at time t to flatten p_mean space.
-    Takes elements in array vari_points, [r_0(t), x_0(t), y_0(t)], and converts
-    to flattened mean regression space of [t, r_0(t), d_0(t)] where d(t) is
-    L2 distance from the mean regression function along the concentric circle
-    with radii r(t).
-
-    Parameters:
-    ----------
-    coef: Array of polynomial coefficients in descending order of degree
-          for mean path.
-
-
-    vari_points: Timestamp t and (r,x,y) coordinates of edge model at timestamp t.
-        >>> vari_points = (t, np.array([
-                                [r_0, x_0, y_0],
-                                [r_1, x_1, y_1],
-                                 ...
-                                [r_l, x_l, y_l]
-                              ]))
-
-
-    selected_contours: List of contours.
-
-    regression_method: method used to create mean path polynomial. 'linear', 'poly',
-        'poly_inv', and 'poly_para'.
-
-    Returns:
-    -------
-    np.ndarray: Array of points [t,r_i(t), d_i(t)].
-            >>> np.array([
-                    [t, r_0, d_0],
-                    [t, r_1, d_1],
-                    ...
-                    [t, r_l, d_l]
-            ])
-
-    """
-    if regression_method == "poly" or regression_method == "linear":
-        return _poly_rxy_to_trd(coef, vari_points, selected_contours)
-
-    if regression_method == "poly_inv":
-        return _poly_rxy_to_trd(coef, vari_points, selected_contours, inv=True)
-
-    if regression_method == "poly_para":
-        return _poly_para_rxy_to_trd(coef, vari_points)
-
-
-def _poly_para_rxy_to_trd(coef, vari_points):
-    """
-    convert vari_points to flattened p_mean points where coef is from parametric
-    polynomial.
-    """
-    mid_index = len(coef) // 2
-    f1 = np.polynomial.Polynomial(coef[:mid_index][::-1])
-    f2 = np.polynomial.Polynomial(coef[mid_index:][::-1])
-
-    t, points = vari_points
-    trd_arr = []
-    for r, x, y in points:
-        d = np.linalg.norm(np.array((f1(r), f2(r))) - (x, y))
-        trd_arr.append((t, r, d))
-
-    return np.array(trd_arr)
-
-
-def _poly_rxy_to_trd(coef, vari_points, selected_contours, inv=False):
-    """
-    convert vari_points to flattened p_mean points where coef is from explicit
-    polynomial.
-    """
-    t, points = vari_points
-    x0, y0 = points[0][1:]
-
-    trd_arr = [(t, 0, 0)]
-    for r, x, y in points[1:, :]:
-        sols = utils.circle_poly_intersection(r=r, x0=x0, y0=y0, poly_coef=coef[::-1])
-        if inv:
-            if len(sols.shape) == 2:
-                sols = sols[:, ::-1]
-            else:
-                sols = sols[::-1]
-        sols = sols[_sol_in_contour(sols, selected_contours)]
-        d = np.linalg.norm(sols - (x, y))
-        trd_arr.append((t, r, d))
-
-    return np.array(trd_arr)
 
 
 def _sol_in_contour(

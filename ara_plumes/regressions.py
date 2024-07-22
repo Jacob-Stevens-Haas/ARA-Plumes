@@ -86,7 +86,7 @@ def do_polynomial_regression(
 
 
 def do_sinusoid_regression(
-    X: Float1D,
+    X: Float2D,
     Y: Float1D,
     initial_guess: tuple[float, float, float, float],
 ) -> Float1D:
@@ -127,7 +127,7 @@ def edge_regression(
     initial_guess: tuple = (1, 1, 1, 1),
 ) -> Float1D:
     """
-    Takes a nx2 array of (x,y) coordinate values and applies some form
+    Takes a nx3 array of (t,x,y) coordinate values and applies some form
     of regression or curve fitting returning a set of optimized regression coefficients.
 
     Parameters:
@@ -136,7 +136,7 @@ def edge_regression(
         array containing independent variables.
 
     Y:
-        array containing dependeant variables
+        array containing dependent variables
 
     regression_method: str
         specifies the regression method to be used on array, with the following
@@ -149,7 +149,7 @@ def edge_regression(
                           regression_kws dictionary under "method".
 
     initial_guess:
-        The initial guess used regression_method=='sinusoid'.
+        The initial guess used when regression_method=='sinusoid'.
 
     Returns:
     -------
@@ -167,7 +167,7 @@ def edge_regression(
     return coef
 
 
-def do_lstsq_regression(X, Y):
+def do_lstsq_regression(X: Float2D, Y: Float1D) -> Float1D:
     "Calculate multivariate lienar regression. Bias term is first returned term"
     X = np.hstack([np.ones((X.shape[0], 1)), X])
     coef, _, _, _ = lstsq(X, Y)
