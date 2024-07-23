@@ -4,7 +4,9 @@ from unittest.mock import MagicMock
 import cv2
 import numpy as np
 
+from ..models import _create_radius_pairs
 from ..models import _sol_in_contour
+from ..models import flatten_edge_points
 from ..utils import _square_poly_coef
 from ..utils import circle_intersection
 from ..utils import circle_poly_intersection
@@ -234,6 +236,31 @@ def test_circle_intersection():
     expected = np.array([[1, 1], [1, -1]])
     result = circle_intersection(x0=x0, y0=y0, r0=r0, x1=x1, y1=y1, r1=r1)
     np.testing.assert_almost_equal(expected, result)
+
+
+def test_flatten_edge_points():
+    mean_points = np.array([[1, 1, 0], [2, 1, 0]])
+    var_points = np.array([[1, 2, 0], [2, 3, 0]])
+    result = flatten_edge_points(mean_points, var_points)
+    expected = np.array([[1, 1], [2, 2]])
+
+    np.testing.assert_array_almost_equal(expected, result)
+
+
+def test_create_radius_pairs():
+    mean_points = np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]])
+    var_points = np.array([[1, 1, 1], [3, 3, 3], [4, 4, 4]])
+    result = _create_radius_pairs(mean_points, var_points)
+    expected = [
+        (1, np.array([1, 1]), np.array([1, 1])),
+        (3, np.array([3, 3]), np.array([3, 3])),
+    ]
+
+    assert len(result) == len(expected)
+    for (t1, mp1, vp1), (t2, mp2, vp2) in zip(expected, result):
+        np.testing.assert_almost_equal(t1, t2)
+        np.testing.assert_array_almost_equal(mp1, mp2)
+        np.testing.assert_array_almost_equal(vp1, vp2)
 
 
 def test_sol_in_contour():
