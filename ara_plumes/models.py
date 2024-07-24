@@ -779,31 +779,32 @@ def flatten_edge_points(mean_points: PlumePoints, vari_points: PlumePoints) -> F
 
 
 def _create_radius_pairs(
-    mean_points: PlumePoints, vari_points: PlumePoints
+    curve_1_pts: PlumePoints, curve_2_pts: PlumePoints
 ) -> List[tuple[float, Float1D, Float1D]]:
     """
-    Create pairs of coordinates points based on same radius.
+    Create pairs of coordinates points based on same radius. Curves are
+    assumed to be true functions of radius with matching discrete support.
     NOTE: In the event multiple pairs candidates are identified, the first
     pair is selected. If no pairs are identified, point is thrown out.
     """
     pairs = []
-    for r, x, y in vari_points:
-        mask, *_ = np.where(np.isclose(mean_points[:, 0], r))
+    for r, x, y in curve_2_pts:
+        mask, *_ = np.where(np.isclose(curve_1_pts[:, 0], r))
         if mask.size == 0:
             continue
-        pairs.append((r, mean_points[mask][0, 1:], np.array([x, y])))
+        pairs.append((r, curve_1_pts[mask][0, 1:], np.array([x, y])))
     return pairs
 
 
-def _sol_in_contour(
-    sols: List[tuple[int, int]], selected_contours: Contour_List
+def _points_in_contour(
+    points: List[tuple[int, int]], selected_contours: Contour_List
 ) -> Bool1D:
     """
     Checks if points lie within any set of contours.
 
     Parameters:
     -----------
-    sols: List of (x,y) coordinates to check
+    points: List of (x,y) coordinates to check
     selected_contours: List of contours
 
     Returns:
@@ -812,10 +813,10 @@ def _sol_in_contour(
             contours.
     """
     mask = []
-    for sol in sols:
+    for pnt in points:
         in_arr = False
         for contour in selected_contours:
-            if cv2.pointPolygonTest(contour, sol, False) == 1:
+            if cv2.pointPolygonTest(contour, pnt, False) == 1:
                 in_arr = True
         mask.append(in_arr)
 

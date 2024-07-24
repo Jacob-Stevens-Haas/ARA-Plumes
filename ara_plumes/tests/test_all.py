@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 
 from ..models import _create_radius_pairs
-from ..models import _sol_in_contour
+from ..models import _points_in_contour
 from ..models import flatten_edge_points
 from ..utils import _square_poly_coef
 from ..utils import circle_intersection
@@ -263,9 +263,9 @@ def test_create_radius_pairs():
         np.testing.assert_array_almost_equal(vp1, vp2)
 
 
-def test_sol_in_contour():
+def test_points_in_contour():
     contour = [np.array([[[0, 2]], [[0, 0]], [[2, 0]], [[2, 2]]], dtype=np.int32)]
     sols = [[1, 1], [3, 3]]
-    result = _sol_in_contour(sols=sols, selected_contours=contour)
+    result = _points_in_contour(points=sols, selected_contours=contour)
     expected = np.array([True, False])
     np.testing.assert_array_equal(expected, result)

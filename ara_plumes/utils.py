@@ -23,18 +23,15 @@ from .typing import Y_pos
 
 # display utils
 def add_clock(f):
-    def _remove_underscore(name):
-        return name.replace("_", " ")
-
-    def _rename_f_sting(f_name):
+    def _rename_string(f_name):
         if f_name == "video_to_ROM":
             return "apply concentric circle"
         if f_name.startswith("apply"):
-            return _remove_underscore(f_name)
-        return "apply " + _remove_underscore(f_name)
+            return f_name.replace("_", " ")
+        return "apply " + f_name.replace("_", " ")
 
     def clocked_f(*args, **kwargs):
-        f_name = _rename_f_sting(f.__name__)
+        f_name = _rename_string(f.__name__)
         print(f_name + ":", end="")
         t0 = time.perf_counter()
         result = f(*args, **kwargs)
