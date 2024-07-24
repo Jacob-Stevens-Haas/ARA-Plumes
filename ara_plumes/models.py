@@ -783,7 +783,7 @@ def _create_radius_pairs(
 ) -> List[tuple[float, Float1D, Float1D]]:
     """
     Create pairs of coordinates points based on same radius.
-    NOTE: In the event multiple pairs canddidates are identified, the first
+    NOTE: In the event multiple pairs candidates are identified, the first
     pair is selected. If no pairs are identified, point is thrown out.
     """
     pairs = []
