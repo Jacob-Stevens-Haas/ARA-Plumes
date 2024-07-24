@@ -767,6 +767,8 @@ def background_subtract(
 def flatten_edge_points(mean_points: PlumePoints, vari_points: PlumePoints) -> Float2D:
     """
     Convert points on center and edge to distances from each other for a given frame.
+    NOTE: if no pair can be form, points are rejected. If more than one candidate
+    pair is found, the first pair is selected.
     """
     pairs = _create_radius_pairs(mean_points, vari_points)
     rad_dist = []
