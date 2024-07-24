@@ -93,7 +93,7 @@ def concentric_circle(
 
     # Limit points to those within contours, plus origin #
     xy_points_no_origin = cast(Float2D, points_mean[1:, 1:])
-    mask = _sol_in_contours(xy_points_no_origin, contours)
+    mask = _points_in_contours(xy_points_no_origin, contours)
     points_in_cont = points_mean[1:][mask]
 
     if len(points_in_cont) == 0:
@@ -469,7 +469,7 @@ def _contour_distances(
     return contour_dist_list
 
 
-def _sol_in_contours(sols: Float2D, selected_contours: Contour_List) -> Bool1D:
+def _points_in_contours(sols: Float2D, selected_contours: Contour_List) -> Bool1D:
     """
     Checks if points lie within any set of contours.
 
