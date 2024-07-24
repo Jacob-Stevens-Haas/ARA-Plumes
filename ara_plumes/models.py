@@ -13,7 +13,6 @@ from . import utils
 from .concentric_circle import concentric_circle
 from .regressions import regress_frame_mean
 from .typing import AX_FRAME
-from .typing import Bool1D
 from .typing import ColorImage
 from .typing import Contour_List
 from .typing import Float1D
@@ -794,30 +793,3 @@ def _create_radius_pairs(
             continue
         pairs.append((r, curve_1_pts[mask][0, 1:], np.array([x, y])))
     return pairs
-
-
-def _points_in_contour(
-    points: List[tuple[int, int]], selected_contours: Contour_List
-) -> Bool1D:
-    """
-    Checks if points lie within any set of contours.
-
-    Parameters:
-    -----------
-    points: List of (x,y) coordinates to check
-    selected_contours: List of contours
-
-    Returns:
-    -------
-    Bool1D: 1d array of bool vals specifying which points in sol lie within selected
-            contours.
-    """
-    mask = []
-    for pnt in points:
-        in_arr = False
-        for contour in selected_contours:
-            if cv2.pointPolygonTest(contour, pnt, False) == 1:
-                in_arr = True
-        mask.append(in_arr)
-
-    return np.array(mask)

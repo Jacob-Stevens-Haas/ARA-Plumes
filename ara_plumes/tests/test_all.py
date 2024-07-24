@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 import cv2
 import numpy as np
 
+from ..concentric_circle import _points_in_contour
 from ..models import _create_radius_pairs
-from ..models import _points_in_contour
 from ..models import flatten_edge_points
 from ..utils import _square_poly_coef
 from ..utils import circle_intersection

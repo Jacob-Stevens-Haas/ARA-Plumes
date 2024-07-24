@@ -1,5 +1,6 @@
 import warnings
 from typing import cast
+from typing import List
 
 import cv2
 import numpy as np
@@ -93,7 +94,7 @@ def concentric_circle(
 
     # Limit points to those within contours, plus origin #
     xy_points_no_origin = cast(Float2D, points_mean[1:, 1:])
-    mask = _points_in_contours(xy_points_no_origin, contours)
+    mask = _points_in_contour(xy_points_no_origin, contours)
     points_in_cont = points_mean[1:][mask]
 
     if len(points_in_cont) == 0:
@@ -469,13 +470,15 @@ def _contour_distances(
     return contour_dist_list
 
 
-def _points_in_contours(sols: Float2D, selected_contours: Contour_List) -> Bool1D:
+def _points_in_contour(
+    points: List[tuple[int, int]], selected_contours: Contour_List
+) -> Bool1D:
     """
     Checks if points lie within any set of contours.
 
     Parameters:
     -----------
-    sols: List of (x,y) coordinates to check
+    points: List of (x,y) coordinates to check
     selected_contours: List of contours
 
     Returns:
@@ -484,10 +487,10 @@ def _points_in_contours(sols: Float2D, selected_contours: Contour_List) -> Bool1
             contours.
     """
     mask = []
-    for sol in sols:
+    for pnt in points:
         in_arr = False
         for contour in selected_contours:
-            if cv2.pointPolygonTest(contour, sol, False) == 1:
+            if cv2.pointPolygonTest(contour, pnt, False) == 1:
                 in_arr = True
         mask.append(in_arr)
 
