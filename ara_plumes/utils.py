@@ -1,6 +1,9 @@
 import glob
 import os
+import sys
 import time
+from logging import getLogger
+from logging import StreamHandler
 from typing import Optional
 
 import cv2
@@ -20,6 +23,11 @@ from .typing import NpFlt
 from .typing import X_pos
 from .typing import Y_pos
 
+logger = getLogger(__name__)
+handler = StreamHandler(stream=sys.stdout)
+logger.addHandler(handler)
+logger.setLevel("INFO")
+
 
 # display utils
 def add_clock(f):
@@ -32,11 +40,10 @@ def add_clock(f):
 
     def clocked_f(*args, **kwargs):
         f_name = _rename_string(f.__name__)
-        print(f_name + ":", end="")
         t0 = time.perf_counter()
         result = f(*args, **kwargs)
         elapsed_time = time.perf_counter() - t0
-        print("[%0.4fs]" % elapsed_time)
+        logger.info(f_name + ": " + "[%0.4fs]" % elapsed_time)
         return result
 
     return clocked_f
