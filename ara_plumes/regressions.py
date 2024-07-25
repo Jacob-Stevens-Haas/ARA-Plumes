@@ -143,7 +143,7 @@ def edge_regression(
         options listed below.
         - `linear`: Performs standard least squares regression with scipy.linalg.stlsq
 
-        - `sinusoid`: Fits a growing sinusoid of the form `A*sin(w*x - gamma*t)+Bx`
+        - `sinusoid`: Fits a growing sinusoid of the form `y=A*sin(w*x - gamma*t)+Bx`
                           where x is the independent variable. Multiple fitting
                           techniques can be employed which can be specified in the
                           regression_kws dictionary under "method".
