@@ -253,7 +253,7 @@ def _append_polar_angle(
 ) -> set[tuple[float, float, float, float]]:
     """
     Appends angle from orig_center based on (x,y) position.
-    Branch cut `theta in [-pi, pi]`
+    Branch cut `theta in [-pi/2, 3pi/2]`
 
     Returns:
     -------
@@ -267,6 +267,8 @@ def _append_polar_angle(
         dy = y_pos - cy
         dx = x_pos - cx
         theta = np.arctan2(dy, dx)
+        if theta >= -np.pi and theta < -np.pi / 2:
+            theta += 2 * np.pi
 
         polar_points.append((rad, x_pos, y_pos, theta))
 

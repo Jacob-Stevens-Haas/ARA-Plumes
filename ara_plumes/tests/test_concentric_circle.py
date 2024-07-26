@@ -107,7 +107,7 @@ def test_contour_distances():
 
 def test_append_polar_angle():
     edge_candidates = np.array(
-        [[1, 1 / 2, np.sqrt(3) / 2], [1, -1 / 2, np.sqrt(3) / 2]]
+        [[1, 1 / 2, np.sqrt(3) / 2], [1, -1 / 2, np.sqrt(3) / 2], [1, -1, -1e-15]]
     )
     orig_center = (0, 0)
 
@@ -116,6 +116,7 @@ def test_append_polar_angle():
         [
             [1, 1 / 2, np.sqrt(3) / 2, np.pi / 3],
             [1, -1 / 2, np.sqrt(3) / 2, 2 * np.pi / 3],
+            [1, -1, 0, np.pi],
         ]
     )
 
