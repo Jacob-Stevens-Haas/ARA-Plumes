@@ -249,7 +249,7 @@ class PLUME:
 
         for i, (_, frame_points) in enumerate(mean_points):
 
-            if decenter:
+            if decenter is not None:
                 frame_points[:, 1:] -= decenter
             try:
                 coef_time_series[i] = regress_frame_mean(
