@@ -166,11 +166,13 @@ class PLUME:
 
         var1_points:
             List of tuples containing frame count, k, and var1 points, (r(k),x(k),y(k)),
-            attained from frame k.
+            attained from frame k of the counter-clockwise edge of the plume.  For a
+            plume drifting left, that is the lower edge.
 
         var2_points:
             List of tuples containing frame count, k, and var2 points, (r(k),x(k),y(k)),
-            attained from frame k.
+            attained from frame k of the clockwise edge of the plume.  For a plume
+            drifting left, that is the upper edge.
 
         """
         mean_points = []
@@ -247,7 +249,7 @@ class PLUME:
 
         for i, (_, frame_points) in enumerate(mean_points):
 
-            if decenter:
+            if decenter is not None:
                 frame_points[:, 1:] -= decenter
             try:
                 coef_time_series[i] = regress_frame_mean(

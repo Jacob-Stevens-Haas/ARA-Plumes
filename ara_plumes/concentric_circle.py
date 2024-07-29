@@ -70,14 +70,16 @@ def concentric_circle(
         with radii r(k).
 
     points_var1:
-        Returns nx3 array containing observed points along upper envolope path,
-        i.e., above the mean path. The kth entry is of the form [r(k), x(k), y(k)],
+        Returns nx3 array containing observed points along the counter-clockwise
+        envolope path.  For a plume drifting to the left, this will be the edge
+        below the mean path. The kth entry is of the form [r(k), x(k), y(k)],
         i.e the coordinate (x,y) of the intersection with the plume contour along
         the concentric circle with raddi r(k).
 
     points_var2:
-        Returns nx3 array containing observed points along lower envolope path,
-        i.e., below the mean path. The kth entry is of the form [r(k), x(k), y(k)],
+        Returns nx3 array containing observed points along the clockwise
+        envolope path.  For a plume drifting to the left, this will be the edge
+        above the mean path. The kth entry is of the form [r(k), x(k), y(k)],
         i.e the coordinate (x,y) of the intersection with the plume contour along
         the concentric circle with raddi r(k).
     """
@@ -253,7 +255,10 @@ def _append_polar_angle(
 ) -> set[tuple[float, float, float, float]]:
     """
     Appends angle from orig_center based on (x,y) position.
-    Branch cut `theta in [-pi, pi]`
+    Branch cut `theta in [pi/2, -3pi/2]`
+
+    This odd branch cut is based on the y-axis, in image coordinates,
+    being reversed.
 
     Returns:
     -------
@@ -267,6 +272,8 @@ def _append_polar_angle(
         dy = y_pos - cy
         dx = x_pos - cx
         theta = np.arctan2(dy, dx)
+        if theta > np.pi / 2 and theta <= np.pi:
+            theta -= 2 * np.pi
 
         polar_points.append((rad, x_pos, y_pos, theta))
 

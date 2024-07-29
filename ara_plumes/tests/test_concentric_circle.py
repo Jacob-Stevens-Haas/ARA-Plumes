@@ -90,8 +90,8 @@ def test_get_edge_points():
 
     # test ccw points have greater angle than cw points.
     for ccw_point, cw_point in zip(ccw, cw):
-        ccw_theta = np.arctan2(ccw_point[2], ccw_point[1])
-        cw_theta = np.arctan2(cw_point[2], cw_point[1])
+        ccw_theta = np.arctan2(ccw_point[2], -ccw_point[1])
+        cw_theta = np.arctan2(cw_point[2], -cw_point[1])
 
         assert ccw_theta >= cw_theta
 
@@ -107,7 +107,7 @@ def test_contour_distances():
 
 def test_append_polar_angle():
     edge_candidates = np.array(
-        [[1, 1 / 2, np.sqrt(3) / 2], [1, -1 / 2, np.sqrt(3) / 2]]
+        [[1, 1 / 2, np.sqrt(3) / 2], [1, -1 / 2, np.sqrt(3) / 2], [1, -1, -1e-15]]
     )
     orig_center = (0, 0)
 
@@ -115,7 +115,8 @@ def test_append_polar_angle():
     expected = np.array(
         [
             [1, 1 / 2, np.sqrt(3) / 2, np.pi / 3],
-            [1, -1 / 2, np.sqrt(3) / 2, 2 * np.pi / 3],
+            [1, -1 / 2, np.sqrt(3) / 2, -4 * np.pi / 3],
+            [1, -1, 0, -np.pi],
         ]
     )
 
