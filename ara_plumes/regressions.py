@@ -70,11 +70,7 @@ def regress_frame_mean(
     return coef
 
 
-def do_polynomial_regression(
-    X: Float1D,
-    Y: Float1D,
-    poly_deg: int = 2,
-) -> Float1D:
+def do_polynomial_regression(X: Float1D, Y: Float1D, poly_deg: int = 2) -> Float1D:
     """Return regressed poly coefficients"""
     if len(X) < poly_deg + 1:
         raise np.linalg.LinAlgError(
@@ -83,6 +79,27 @@ def do_polynomial_regression(
         )
     coef = np.polyfit(X, Y, deg=poly_deg)
     return coef
+
+
+def do_inv_quadratic_regression(X: Float1D, Y: Float1D) -> Float1D:
+    r"""Fit a curve x = a y^2 + by + c minimizing squared error in y
+
+    .. math::
+
+        x = a y^2 + b y + c
+
+        \hat y = \sqrt{\frac{x-c}{a} + \frac{b^2}{4a^2}} - \frac{b}{2a}
+
+        r = y - \hat y
+
+        \ell = \frac{1}{2}\|r\|^2
+
+        \partial_a \ell =
+        \partial_b \ell =
+        \partial_c \ell =
+
+
+    """
 
 
 def do_sinusoid_regression(
