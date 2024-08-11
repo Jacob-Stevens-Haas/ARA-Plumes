@@ -1,12 +1,17 @@
+from typing import cast
+
 import numpy as np
 import pytest
 
 from ..models import PLUME
+from ..regressions import _untildify
+from ..regressions import do_inv_quadratic_regression
 from ..regressions import do_parametric_regression
 from ..regressions import do_polynomial_regression
 from ..regressions import do_sinusoid_regression
 from ..regressions import edge_regression
 from ..regressions import regress_frame_mean
+from ..typing import Float1D
 
 
 def test_regress_multiframe_mean():
@@ -257,3 +262,36 @@ def test_edge_regression_linear():
     result = edge_regression(X, Y, regression_method="linear")
 
     np.testing.assert_array_almost_equal(expected, result)
+
+
+def test_inv_quad_regression():
+    # y=-x^2
+    true_data = np.array(
+        [
+            [0, 0],
+            [-0.25, 0.5],
+            [-1, 1],
+            [-4, 2],
+        ],
+        dtype=float,
+    )
+    X = true_data[:, 0]
+    Y = true_data[:, 1]
+    true_abc = np.array([-1, 0, 0])
+
+    coef0 = np.array([-1.0, 1e0, 1e0])
+    coef_solve = do_inv_quadratic_regression(X, Y, coef0)
+
+    np.testing.assert_allclose(true_abc, coef_solve)
+
+
+def test_untildify():
+    def tildify(abc: Float1D) -> Float1D:
+        a, b, c = abc
+        return np.array([1 / a, b**2 / (4 * a**2) - c / a, b / (2 * a)])
+
+    coef = np.random.rand(3)
+    result = tildify(_untildify(cast(Float1D, coef)))
+    np.testing.assert_allclose(result, coef)
+    result2 = _untildify(tildify(cast(Float1D, coef)))
+    np.testing.assert_allclose(result2, coef)
