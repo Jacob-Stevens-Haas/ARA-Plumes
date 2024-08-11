@@ -1,11 +1,13 @@
 import itertools
 from typing import cast
 from typing import Literal
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.linalg import lstsq
 from scipy.optimize import curve_fit
+from scipy.optimize import least_squares
 from scipy.signal import find_peaks
 from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
@@ -13,6 +15,9 @@ from tqdm import tqdm
 from .typing import Float1D
 from .typing import Float2D
 from .typing import NpFlt
+
+
+default_rng = np.random.default_rng(1)
 
 
 def regress_frame_mean(
@@ -81,25 +86,57 @@ def do_polynomial_regression(X: Float1D, Y: Float1D, poly_deg: int = 2) -> Float
     return coef
 
 
-def do_inv_quadratic_regression(X: Float1D, Y: Float1D) -> Float1D:
+def do_inv_quadratic_regression(
+    X: Float1D, Y: Float1D, coef0: Optional[Float1D] = None
+) -> Float1D:
     r"""Fit a curve x = a y^2 + by + c minimizing squared error in y
 
     .. math::
 
-        x = a y^2 + b y + c
+        x = a y^2 + b y + c  \\
+        y = \sqrt{(x-c)/a + \frac{b^2}{4a^2}} - \frac{b}{2a}  \\
+        y = \sqrt{\tilde a x + \tilde b} - \tilde c  \\
 
-        \hat y = \sqrt{\frac{x-c}{a} + \frac{b^2}{4a^2}} - \frac{b}{2a}
-
-        r = y - \hat y
-
-        \ell = \frac{1}{2}\|r\|^2
-
-        \partial_a \ell =
-        \partial_b \ell =
-        \partial_c \ell =
-
-
+        a = 1/ \tilde a  \\
+        b = 2 \frac{\tilde c}{\tilde a}  \\
+        c = \frac{\tilde c ^2 - \tilde b}{\tilde a}
     """
+    if coef0 is None:
+        coef0 = cast(Float1D, default_rng.normal(size=(3,)))
+    n_obs = len(Y)
+
+    def discriminant(a_til: float, b_til: float) -> Float1D:
+        return a_til * X + b_til
+
+    def y_hat(a_til: float, b_til: float, c_til: float) -> Float1D:
+        return np.sqrt(discriminant(a_til, b_til)) - c_til
+
+    def residuals(abc_til: Float1D) -> Float1D:
+        a_til, b_til, c_til = abc_til
+        return Y - y_hat(a_til, b_til, c_til)
+
+    def jacobian(abc_til: Float1D) -> Float2D:
+        a_til, b_til, c_til = abc_til
+        r_yhat = -np.eye(n_obs)
+        yhat_d = 1 / (2 * np.sqrt(discriminant(a_til, b_til)))
+        yhat_d = np.diag(yhat_d)
+        d_a = np.reshape(X, (-1, 1))
+        d_b = np.ones_like(d_a)
+        yhat_a = yhat_d @ d_a
+        yhat_b = yhat_d @ d_b
+        yhat_c = np.ones((len(Y), 1))
+        yhat_coef = np.hstack((yhat_a, yhat_b, yhat_c))
+        return r_yhat @ (yhat_coef)
+
+    result = least_squares(residuals, coef0, jacobian)  # type: ignore
+    c_tilde = result.x
+    coeff = _untildify(c_tilde)
+    return coeff
+
+
+def _untildify(abc_til: Float1D) -> Float1D:
+    a_til, b_til, c_til = abc_til
+    return np.array([1 / a_til, 2 * c_til / a_til, (c_til**2 - b_til) / a_til])
 
 
 def do_sinusoid_regression(
