@@ -103,6 +103,7 @@ def do_inv_quadratic_regression(
     """
     if coef0 is None:
         coef0 = cast(Float1D, default_rng.normal(size=(3,)))
+    coef0 = _tildify(coef0)
     n_obs = len(Y)
 
     def discriminant(a_til: float, b_til: float) -> Float1D:
@@ -128,7 +129,35 @@ def do_inv_quadratic_regression(
         yhat_coef = np.hstack((yhat_a, yhat_b, yhat_c))
         return r_yhat @ (yhat_coef)
 
-    result = least_squares(residuals, coef0, jacobian)  # type: ignore
+    def loss(abc_til: Float1D) -> float:
+        return cast(float, 1 / 2 * np.sum(residuals(abc_til) ** 2))
+
+    def grad(abc_til: Float1D) -> Float1D:
+        return residuals(abc_til) @ jacobian(abc_til)
+
+    def hess(abc_til: Float1D) -> Float2D:
+        a_til, b_til, c_til = abc_til
+        J = jacobian(abc_til)
+        d = discriminant(a_til, b_til)
+        yhat_dd_vec = -1 / 4 * np.sqrt(d**3)
+        diag_inds = np.diag_indices(len(X), 3)
+        yhat_dd = np.zeros((len(X), len(X), len(X)))
+        yhat_dd[diag_inds] = yhat_dd_vec
+        d_a = np.reshape(X, (-1, 1))
+        d_b = np.ones_like(d_a)
+        d_c = np.zeros_like(d_a)
+        d_coef = np.hstack((d_a, d_b, d_c))
+        yhat_2coef = np.einsum("ikl,lm", np.einsum("ij,jkl", d_coef.T, yhat_dd), d_coef)
+        return J.T @ J + np.einsum("j,ijk", residuals(abc_til), yhat_2coef)
+
+    def non_nan_residuals(abc_til):
+        res = residuals(abc_til)
+        if not all(np.isfinite(res)):
+            return 100 + 100 * np.ones_like(res) * np.linalg.norm(abc_til)
+        else:
+            return res
+
+    result = least_squares(non_nan_residuals, coef0)  # type: ignore
     c_tilde = result.x
     coeff = _untildify(c_tilde)
     return coeff
@@ -137,6 +166,11 @@ def do_inv_quadratic_regression(
 def _untildify(abc_til: Float1D) -> Float1D:
     a_til, b_til, c_til = abc_til
     return np.array([1 / a_til, 2 * c_til / a_til, (c_til**2 - b_til) / a_til])
+
+
+def _tildify(abc: Float1D) -> Float1D:
+    a, b, c = abc
+    return np.array([1 / a, b**2 / (4 * a**2) - c / a, b / (2 * a)])
 
 
 def do_sinusoid_regression(

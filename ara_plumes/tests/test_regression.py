@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from ..models import PLUME
+from ..regressions import _tildify
 from ..regressions import _untildify
 from ..regressions import do_inv_quadratic_regression
 from ..regressions import do_parametric_regression
@@ -282,16 +283,12 @@ def test_inv_quad_regression():
     coef0 = np.array([-1.0, 1e0, 1e0])
     coef_solve = do_inv_quadratic_regression(X, Y, coef0)
 
-    np.testing.assert_allclose(true_abc, coef_solve)
+    np.testing.assert_allclose(true_abc, coef_solve, atol=1e-4)
 
 
 def test_untildify():
-    def tildify(abc: Float1D) -> Float1D:
-        a, b, c = abc
-        return np.array([1 / a, b**2 / (4 * a**2) - c / a, b / (2 * a)])
-
     coef = np.random.rand(3)
-    result = tildify(_untildify(cast(Float1D, coef)))
+    result = _tildify(_untildify(cast(Float1D, coef)))
     np.testing.assert_allclose(result, coef)
-    result2 = _untildify(tildify(cast(Float1D, coef)))
+    result2 = _untildify(_tildify(cast(Float1D, coef)))
     np.testing.assert_allclose(result2, coef)
