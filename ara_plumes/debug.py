@@ -42,7 +42,7 @@ def fit_inverse(x: ScalarOrArray, a, b, c) -> ScalarOrArray:
     return np.sqrt(disc) - b / (2 * a)
 
 
-n = 1
+n = 4
 iterlist = list(range(n))
 for i, delta in enumerate(np.arange(0.0, 0.1 * n, 0.1)):
     X = true_data[:, 0].copy()
@@ -53,7 +53,7 @@ for i, delta in enumerate(np.arange(0.0, 0.1 * n, 0.1)):
     y_trains.append(Y)
     plt.scatter(X, Y, marker="x", color=CMAP[i])
     x_min_coeff = do_polynomial_regression(Y, X)
-    y_min_coeff = do_inv_quadratic_regression(X, Y, coef0=np.array([-1.0, 1e0, 1e0]))
+    y_min_coeff = do_inv_quadratic_regression(X, Y)
     a, b, c = x_min_coeff
     y_coeff_list.append(x_min_coeff)
     x_coeff_list.append(y_min_coeff)
@@ -111,13 +111,22 @@ plt.title(
     " better"
 )
 plt.scatter([np.argmin(y_errors[i]) for i in iterlist], iterlist, color="r", marker="x")
-# plt.figure()
-# y_errors_2 = np.array([
-#     [error_func(fit_inverse(X, *coeffs), y_data) for coeffs in coeffs_list]
-#     for y_data in y_trains
-# ])
-# plt.imshow(y_errors_2)
-# plt.colorbar()
-# plt.ylabel("dataset")
-# plt.xlabel("model")
-# plt.title("Y squared error")
+
+
+plt.figure()
+y_errors_2 = np.array(
+    [
+        [error_func(fit_inverse(X, *coeffs), y_data) for coeffs in x_coeff_list]
+        for y_data in y_trains
+    ]
+)
+plt.scatter(
+    [np.argmin(y_errors_2[i]) for i in iterlist], iterlist, color="r", marker="x"
+)
+plt.imshow(y_errors_2)
+plt.colorbar()
+plt.ylabel("dataset")
+plt.xlabel("model")
+plt.yticks(iterlist, yticklabels)
+plt.xticks(iterlist, xticklabels)
+plt.title("Sanity check: Y squared error, using y-fit models")

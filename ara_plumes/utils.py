@@ -3,8 +3,10 @@ import os
 import sys
 import time
 from logging import getLogger
+from logging import Logger
 from logging import StreamHandler
 from typing import Optional
+from warnings import warn
 
 import cv2
 import imageio
@@ -47,6 +49,19 @@ def add_clock(f):
         return result
 
     return clocked_f
+
+
+def _warn_external(
+    message: str, loggr: Optional[Logger] = None, category: Optional[type] = None
+):
+    """Convenience function to print a warning to the log, but also create a Warning
+
+    This allows warnings to be caught and debugged by the warnings filter, but also
+    appear in any concurrent log
+    """
+    if loggr is not None:
+        loggr.warn(message, stacklevel=2)
+    warn(message, category, stacklevel=2)
 
 
 # Math Functions

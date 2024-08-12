@@ -265,7 +265,14 @@ def test_edge_regression_linear():
     np.testing.assert_array_almost_equal(expected, result)
 
 
-def test_inv_quad_regression():
+@pytest.mark.parametrize(
+    argnames=["coef0"],
+    argvalues=[
+        (None,),
+        (np.array([-1.0, 1e0, 1e0]),),
+    ],
+)
+def test_inv_quad_regression(coef0):
     # y=-x^2
     true_data = np.array(
         [
@@ -280,7 +287,6 @@ def test_inv_quad_regression():
     Y = true_data[:, 1]
     true_abc = np.array([-1, 0, 0])
 
-    coef0 = np.array([-1.0, 1e0, 1e0])
     coef_solve = do_inv_quadratic_regression(X, Y, coef0)
 
     np.testing.assert_allclose(true_abc, coef_solve, atol=1e-4)

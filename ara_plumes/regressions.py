@@ -1,4 +1,5 @@
 import itertools
+from logging import getLogger
 from typing import cast
 from typing import Literal
 from typing import Optional
@@ -6,6 +7,7 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.linalg import lstsq
+from scipy.optimize import Bounds
 from scipy.optimize import curve_fit
 from scipy.optimize import least_squares
 from scipy.signal import find_peaks
@@ -15,9 +17,10 @@ from tqdm import tqdm
 from .typing import Float1D
 from .typing import Float2D
 from .typing import NpFlt
+from .utils import _warn_external
 
-
-default_rng = np.random.default_rng(1)
+rng = np.random.default_rng(1)
+logger = getLogger(__name__)
 
 
 def regress_frame_mean(
@@ -95,60 +98,28 @@ def do_inv_quadratic_regression(
 
         x = a y^2 + b y + c  \\
         y = \sqrt{(x-c)/a + \frac{b^2}{4a^2}} - \frac{b}{2a}  \\
-        y = \sqrt{\tilde a x + \tilde b} - \tilde c  \\
 
-        a = 1/ \tilde a  \\
-        b = 2 \frac{\tilde c}{\tilde a}  \\
-        c = \frac{\tilde c ^2 - \tilde b}{\tilde a}
+    gets reparametrized as:
+
+    .. math::
+
+        y = \sqrt{\tilde a (x - \tilde b)} - \tilde c  \\
+
+    TODO:
+    Couldn't seem to get the jacobian correct, even though the loss is simple.
+    As a result, this function's call to scipy invokes a finite difference
+    scheme to estimate the Jacobian.
     """
-    if coef0 is None:
-        coef0 = cast(Float1D, default_rng.normal(size=(3,)))
-    coef0 = _tildify(coef0)
-    n_obs = len(Y)
 
     def discriminant(a_til: float, b_til: float) -> Float1D:
-        return a_til * X + b_til
+        return a_til * (X - b_til)
 
     def y_hat(a_til: float, b_til: float, c_til: float) -> Float1D:
-        return np.sqrt(discriminant(a_til, b_til)) - c_til
+        return np.sqrt(discriminant(a_til, b_til)) + c_til
 
     def residuals(abc_til: Float1D) -> Float1D:
         a_til, b_til, c_til = abc_til
         return Y - y_hat(a_til, b_til, c_til)
-
-    def jacobian(abc_til: Float1D) -> Float2D:
-        a_til, b_til, c_til = abc_til
-        r_yhat = -np.eye(n_obs)
-        yhat_d = 1 / (2 * np.sqrt(discriminant(a_til, b_til)))
-        yhat_d = np.diag(yhat_d)
-        d_a = np.reshape(X, (-1, 1))
-        d_b = np.ones_like(d_a)
-        yhat_a = yhat_d @ d_a
-        yhat_b = yhat_d @ d_b
-        yhat_c = np.ones((len(Y), 1))
-        yhat_coef = np.hstack((yhat_a, yhat_b, yhat_c))
-        return r_yhat @ (yhat_coef)
-
-    def loss(abc_til: Float1D) -> float:
-        return cast(float, 1 / 2 * np.sum(residuals(abc_til) ** 2))
-
-    def grad(abc_til: Float1D) -> Float1D:
-        return residuals(abc_til) @ jacobian(abc_til)
-
-    def hess(abc_til: Float1D) -> Float2D:
-        a_til, b_til, c_til = abc_til
-        J = jacobian(abc_til)
-        d = discriminant(a_til, b_til)
-        yhat_dd_vec = -1 / 4 * np.sqrt(d**3)
-        diag_inds = np.diag_indices(len(X), 3)
-        yhat_dd = np.zeros((len(X), len(X), len(X)))
-        yhat_dd[diag_inds] = yhat_dd_vec
-        d_a = np.reshape(X, (-1, 1))
-        d_b = np.ones_like(d_a)
-        d_c = np.zeros_like(d_a)
-        d_coef = np.hstack((d_a, d_b, d_c))
-        yhat_2coef = np.einsum("ikl,lm", np.einsum("ij,jkl", d_coef.T, yhat_dd), d_coef)
-        return J.T @ J + np.einsum("j,ijk", residuals(abc_til), yhat_2coef)
 
     def non_nan_residuals(abc_til):
         res = residuals(abc_til)
@@ -157,7 +128,43 @@ def do_inv_quadratic_regression(
         else:
             return res
 
-    result = least_squares(non_nan_residuals, coef0)  # type: ignore
+    x_max = max(X)
+    x_min = min(X)
+    rightward_bounds = Bounds([1e-10, -np.inf, -np.inf], [np.inf, x_min, np.inf])  # type: ignore  # noqa:E501
+    leftward_bounds = Bounds([-np.inf, x_max, -np.inf], [-1e-10, np.inf, np.inf])  # type: ignore  # noqa:E501
+
+    def in_bounds(x, bounds: Bounds):
+        """Check if a point lies within bounds."""
+        lb, ub = bounds.lb, bounds.ub
+        return np.all((x >= lb) & (x <= ub))
+
+    if coef0 is not None:
+        coef0 = _tildify(coef0)
+        if in_bounds(coef0, leftward_bounds):
+            result = least_squares(residuals, coef0, bounds=leftward_bounds)
+        elif in_bounds(coef0, rightward_bounds):
+            result = least_squares(residuals, coef0, bounds=rightward_bounds)
+        else:
+            raise ValueError("coef0 is infeasible for regression data")
+        result_backup = least_squares(non_nan_residuals, coef0)
+    else:
+        coef_pos = np.array(
+            [rng.exponential(), x_min - 3 * rng.exponential(), rng.normal(scale=3)]
+        )
+        coef_neg = np.array(
+            [-rng.exponential(), x_max + 3 * rng.exponential(), rng.normal(scale=3)]
+        )
+        result_pos = least_squares(residuals, coef_pos, bounds=rightward_bounds)
+        result_neg = least_squares(residuals, coef_neg, bounds=leftward_bounds)
+        if result_pos.cost < result_neg.cost:
+            result = result_pos
+            result_backup = least_squares(non_nan_residuals, coef_pos)
+        else:
+            result = result_neg
+            result_backup = least_squares(non_nan_residuals, coef_neg)
+    if result_backup.cost < result.cost:
+        _warn_external("Used a hacky fallback in optimization.", logger)
+        result = result_backup
     c_tilde = result.x
     coeff = _untildify(c_tilde)
     return coeff
@@ -165,12 +172,12 @@ def do_inv_quadratic_regression(
 
 def _untildify(abc_til: Float1D) -> Float1D:
     a_til, b_til, c_til = abc_til
-    return np.array([1 / a_til, 2 * c_til / a_til, (c_til**2 - b_til) / a_til])
+    return np.array([1 / a_til, -2 * c_til / a_til, c_til**2 / a_til + b_til])
 
 
 def _tildify(abc: Float1D) -> Float1D:
     a, b, c = abc
-    return np.array([1 / a, b**2 / (4 * a**2) - c / a, b / (2 * a)])
+    return np.array([1 / a, c - b**2 / (4 * a), -b / (2 * a)])
 
 
 def do_sinusoid_regression(
