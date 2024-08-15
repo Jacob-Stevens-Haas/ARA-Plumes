@@ -13,6 +13,9 @@ from ..regressions import do_sinusoid_regression
 from ..regressions import edge_regression
 from ..regressions import regress_frame_mean
 from ..typing import Float1D
+from ..typing import Frame
+from ..typing import X_pos
+from ..typing import Y_pos
 
 
 def test_regress_multiframe_mean():
@@ -298,3 +301,14 @@ def test_untildify():
     np.testing.assert_allclose(result, coef)
     result2 = _untildify(_tildify(cast(Float1D, coef)))
     np.testing.assert_allclose(result2, coef)
+
+
+def test_plume_center_regression_doesnt_mutate():
+    mean_points = [(Frame(0), np.array([[1, 1, 1], [2, 2, 2]]))]
+    mean_point_arr_copy = np.copy(mean_points[0][1])
+    PLUME.regress_multiframe_mean(
+        mean_points=mean_points,
+        regression_method="linear",
+        decenter=(X_pos(1), Y_pos(1)),
+    )
+    np.testing.assert_array_equal(mean_points[0][1], mean_point_arr_copy)
