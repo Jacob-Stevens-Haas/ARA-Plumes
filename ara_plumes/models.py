@@ -248,6 +248,7 @@ class PLUME:
         coef_time_series = np.zeros((n_frames, n_coef))
 
         for i, (_, frame_points) in enumerate(mean_points):
+            frame_points = np.copy(frame_points)
 
             if decenter is not None:
                 frame_points[:, 1:] -= decenter
