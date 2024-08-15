@@ -66,9 +66,9 @@ def regress_frame_mean(
         coef = do_polynomial_regression(X, Y, poly_deg)
 
     if method == "poly_inv":
-        X = arr[:, 2]
-        Y = arr[:, 1]
-        coef = do_polynomial_regression(X, Y, poly_deg)
+        X = arr[:, 1]
+        Y = arr[:, 2]
+        coef = do_inv_quadratic_regression(X, Y)
 
     if method == "poly_para":
         X = arr[:, 0]
