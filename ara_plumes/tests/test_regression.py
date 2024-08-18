@@ -135,12 +135,12 @@ def test_regress_multiframe_mean_poly_para_nan():
 
 def test_regress_mean_points_k():
     # linear
-    slice = 4
+    slise = 4
     R = np.linspace(0, 1, 101)
     mean_points = np.vstack((R, R, R)).T
 
     expected = (1, 0)
-    result = regress_frame_mean(mean_points[::slice, :], method="linear")
+    result = regress_frame_mean(mean_points[::slise, :], method="linear")
     np.testing.assert_array_almost_equal(expected, result)
 
     # poly
@@ -150,18 +150,13 @@ def test_regress_mean_points_k():
     def poly_func(x):
         return a * x**2 + b * x + c
 
-    R = np.linspace(0, 1, 101)
     mean_points = np.vstack((R, R, poly_func(R))).T
-
-    result = regress_frame_mean(mean_points[::slice, :], method="poly")
-
+    result = regress_frame_mean(mean_points[::slise, :], method="poly")
     np.testing.assert_array_almost_equal(expected, result)
 
-    # poly_inv
-    mean_points = np.vstack((R, poly_func(R), R)).T
-
-    result = regress_frame_mean(mean_points[::slice, :], method="poly_inv")
-
+    # poly_inv - require lower branch of sqrt
+    mean_points = np.vstack((R, poly_func(R), -R)).T
+    result = regress_frame_mean(mean_points[::slise, :], method="poly_inv")
     np.testing.assert_array_almost_equal(expected, result)
 
     # poly_para
@@ -179,7 +174,7 @@ def test_regress_mean_points_k():
 
     mean_points = np.vstack((R, poly1(R), poly2(R))).T
 
-    result = regress_frame_mean(mean_points[::slice, :], method="poly_para", poly_deg=3)
+    result = regress_frame_mean(mean_points[::slise, :], method="poly_para", poly_deg=3)
 
     np.testing.assert_array_almost_equal(expected, result)
 
