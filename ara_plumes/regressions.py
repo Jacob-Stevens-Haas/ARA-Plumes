@@ -3,6 +3,7 @@ from logging import getLogger
 from typing import cast
 from typing import Literal
 from typing import Optional
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,12 +42,21 @@ def regress_frame_mean(
         'linear':    Applies explicit linear regression to (x,y)
         'poly':      Applies explicit polynomial regression to (x,y) with degree
                      up to poly_deg
-        'poly_inv':  Applies explcity polynomial regression to (y,x) with degree
-                     up to poly_deg
+        'poly_inv':  Applies a quadratic regression to (y, x), so that y is a square
+                     root curve.
+        'poly_inv_pin': Like poly_inv, but pins the square root origin to the bottom
+                        edge of the data
         'poly_para': Applies parametric poly regression to (r,x) and (r,y) with
                      degree up to poly_deg
     poly_deg:
         degree of regression for all poly methods. Note 'linear' ignores this argument.
+
+    It is assumed that the lower branch of the square root (pol_inv, poly_inv_pin) is
+    assumed as the default because in video coordinates, the y axis points
+    downwards.  Practically, this results in the same coefficients, but the
+    loss can only be written as a single branch.  If data is already in
+    traditional plotting coordinates (representing an upper branch),
+    multiply Y by -1.
 
     Returns:
     -------
@@ -68,7 +78,12 @@ def regress_frame_mean(
     if method == "poly_inv":
         X = arr[:, 1]
         Y = arr[:, 2]
-        coef = do_inv_quadratic_regression(X, Y)
+        coef = do_inv_quadratic_regression(X, -Y)
+
+    if method == "poly_inv_pin":
+        X = arr[:, 1]
+        Y = arr[:, 2]
+        coef = do_inv_quadratic_regression(X, -Y, pin_corner=True)
 
     if method == "poly_para":
         X = arr[:, 0]
@@ -90,7 +105,10 @@ def do_polynomial_regression(X: Float1D, Y: Float1D, poly_deg: int = 2) -> Float
 
 
 def do_inv_quadratic_regression(
-    X: Float1D, Y: Float1D, coef0: Optional[Float1D] = None
+    X: Float1D,
+    Y: Float1D,
+    coef0: Optional[Float1D] = None,
+    pin_corner: bool = False,
 ) -> Float1D:
     r"""Fit a curve x = a y^2 + by + c minimizing squared error in y
 
@@ -104,6 +122,13 @@ def do_inv_quadratic_regression(
     .. math::
 
         y = \sqrt{\tilde a (x - \tilde b)} - \tilde c  \\
+
+    Arguments:
+        X: training data, x axis
+        Y: training data, y axis
+        coef0: initial guess of coefficients
+        pin_corner: Whether to pin the vertex of the quadratic at the extreme of
+            the x and y values
 
     TODO:
     Couldn't seem to get the jacobian correct, even though the loss is simple.
@@ -124,14 +149,34 @@ def do_inv_quadratic_regression(
     def non_nan_residuals(abc_til):
         res = residuals(abc_til)
         if not all(np.isfinite(res)):
-            return 100 + 100 * np.ones_like(res) * np.linalg.norm(abc_til)
-        else:
-            return res
+            res[np.where(np.isnan(res))] = np.nanmax(res)
+        return res
 
     x_max = max(X)
     x_min = min(X)
+    y_min = np.min(Y)
     rightward_bounds = Bounds([1e-10, -np.inf, -np.inf], [np.inf, x_min, np.inf])  # type: ignore  # noqa:E501
     leftward_bounds = Bounds([-np.inf, x_max, -np.inf], [-1e-10, np.inf, np.inf])  # type: ignore  # noqa:E501
+
+    if pin_corner:
+        leftward_bounds.lb[2] = y_min
+        leftward_bounds.ub[2] = y_min + 1e-1
+        rightward_bounds.lb[2] = y_min
+        rightward_bounds.ub[2] = y_min + 1e-1
+        leftward_bounds.ub[1] = x_max + 1e-1
+        rightward_bounds.lb[1] = x_min - 1e-1
+
+    def gen_coef0(
+        sign: Union[Literal[1], Literal[-1]],
+        corner: tuple[float, float],
+        pin_corner: bool = False,
+    ) -> Float1D:
+        a0_til = sign * rng.exponential()
+        if pin_corner:
+            return np.array([a0_til, corner[0], corner[1]])
+        b0_til = corner[0] - sign * 3 * rng.exponential()
+        c0_til = rng.normal(scale=3)
+        return np.array([a0_til, b0_til, c0_til])
 
     def in_bounds(x, bounds: Bounds):
         """Check if a point lies within bounds."""
@@ -148,12 +193,8 @@ def do_inv_quadratic_regression(
             raise ValueError("coef0 is infeasible for regression data")
         result_backup = least_squares(non_nan_residuals, coef0)
     else:
-        coef_pos = np.array(
-            [rng.exponential(), x_min - 3 * rng.exponential(), rng.normal(scale=3)]
-        )
-        coef_neg = np.array(
-            [-rng.exponential(), x_max + 3 * rng.exponential(), rng.normal(scale=3)]
-        )
+        coef_pos = gen_coef0(1, (x_min, y_min), pin_corner)
+        coef_neg = gen_coef0(-1, (x_max, y_min), pin_corner)
         result_pos = least_squares(residuals, coef_pos, bounds=rightward_bounds)
         result_neg = least_squares(residuals, coef_neg, bounds=leftward_bounds)
         if result_pos.cost < result_neg.cost:
@@ -162,7 +203,7 @@ def do_inv_quadratic_regression(
         else:
             result = result_neg
             result_backup = least_squares(non_nan_residuals, coef_neg)
-    if result_backup.cost < result.cost:
+    if result_backup.cost < result.cost and not pin_corner:
         _warn_external("Used a hacky fallback in optimization.", logger)
         result = result_backup
     c_tilde = result.x
@@ -171,11 +212,13 @@ def do_inv_quadratic_regression(
 
 
 def _untildify(abc_til: Float1D) -> Float1D:
+    """Transform abc of y = sqrt(a(x-b))+c into the abc of x = ay^2 + by + c"""
     a_til, b_til, c_til = abc_til
     return np.array([1 / a_til, -2 * c_til / a_til, c_til**2 / a_til + b_til])
 
 
 def _tildify(abc: Float1D) -> Float1D:
+    """Transform abc of x = ay^2 + by + c into the abc of y = sqrt(a(x-b))+c"""
     a, b, c = abc
     return np.array([1 / a, c - b**2 / (4 * a), -b / (2 * a)])
 
