@@ -18,7 +18,6 @@ from tqdm import tqdm
 from .typing import Float1D
 from .typing import Float2D
 from .typing import NpFlt
-from .utils import _warn_external
 
 rng = np.random.default_rng(1)
 logger = getLogger(__name__)
@@ -146,15 +145,9 @@ def do_inv_quadratic_regression(
         a_til, b_til, c_til = abc_til
         return Y - y_hat(a_til, b_til, c_til)
 
-    def non_nan_residuals(abc_til):
-        res = residuals(abc_til)
-        if not all(np.isfinite(res)):
-            res[np.where(np.isnan(res))] = np.nanmax(res)
-        return res
-
     x_max = max(X)
     x_min = min(X)
-    y_min = np.min(Y)
+    y_min = min(Y)
     rightward_bounds = Bounds([1e-10, -np.inf, -np.inf], [np.inf, x_min, np.inf])  # type: ignore  # noqa:E501
     leftward_bounds = Bounds([-np.inf, x_max, -np.inf], [-1e-10, np.inf, np.inf])  # type: ignore  # noqa:E501
 
@@ -191,7 +184,6 @@ def do_inv_quadratic_regression(
             result = least_squares(residuals, coef0, bounds=rightward_bounds)
         else:
             raise ValueError("coef0 is infeasible for regression data")
-        result_backup = least_squares(non_nan_residuals, coef0)
     else:
         coef_pos = gen_coef0(1, (x_min, y_min), pin_corner)
         coef_neg = gen_coef0(-1, (x_max, y_min), pin_corner)
@@ -199,13 +191,8 @@ def do_inv_quadratic_regression(
         result_neg = least_squares(residuals, coef_neg, bounds=leftward_bounds)
         if result_pos.cost < result_neg.cost:
             result = result_pos
-            result_backup = least_squares(non_nan_residuals, coef_pos)
         else:
             result = result_neg
-            result_backup = least_squares(non_nan_residuals, coef_neg)
-    if result_backup.cost < result.cost and not pin_corner:
-        _warn_external("Used a hacky fallback in optimization.", logger)
-        result = result_backup
     c_tilde = result.x
     coeff = _untildify(c_tilde)
     return coeff
