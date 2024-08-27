@@ -50,7 +50,7 @@ def regress_frame_mean(
     poly_deg:
         degree of regression for all poly methods. Note 'linear' ignores this argument.
 
-    It is assumed that the lower branch of the square root (pol_inv, poly_inv_pin) is
+    The lower branch of the square root (pol_inv, poly_inv_pin) is
     assumed as the default because in video coordinates, the y axis points
     downwards.  Practically, this results in the same coefficients, but the
     loss can only be written as a single branch.  If data is already in
