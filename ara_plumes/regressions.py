@@ -27,6 +27,7 @@ def regress_frame_mean(
     arr: Float2D,
     method: str,
     poly_deg: int = 2,
+    direction: Literal["left", "right", "either"] = "either",
 ) -> Float1D:
     """
     Regressed mean_points from concentric_circle().
@@ -49,6 +50,8 @@ def regress_frame_mean(
                      degree up to poly_deg
     poly_deg:
         degree of regression for all poly methods. Note 'linear' ignores this argument.
+    direction:
+        Direction for poly_inverse regression.
 
     The lower branch of the square root (pol_inv, poly_inv_pin) is
     assumed as the default because in video coordinates, the y axis points
@@ -77,12 +80,12 @@ def regress_frame_mean(
     if method == "poly_inv":
         X = arr[:, 1]
         Y = arr[:, 2]
-        coef = do_inv_quadratic_regression(X, -Y)
+        coef = do_inv_quadratic_regression(X, -Y, direction=direction)
 
     if method == "poly_inv_pin":
         X = arr[:, 1]
         Y = arr[:, 2]
-        coef = do_inv_quadratic_regression(X, -Y, pin_corner=True)
+        coef = do_inv_quadratic_regression(X, -Y, pin_corner=True, direction=direction)
 
     if method == "poly_para":
         X = arr[:, 0]
@@ -108,6 +111,7 @@ def do_inv_quadratic_regression(
     Y: Float1D,
     coef0: Optional[Float1D] = None,
     pin_corner: bool = False,
+    direction: Literal["left", "right", "either"] = "either",
 ) -> Float1D:
     r"""Fit a curve x = a y^2 + by + c minimizing squared error in y
 
@@ -128,12 +132,17 @@ def do_inv_quadratic_regression(
         coef0: initial guess of coefficients
         pin_corner: Whether to pin the vertex of the quadratic at the extreme of
             the x and y values
+        direction: Whether to return the leftwards or rightwards root function,
+            or whichever fits best.  Because regression has a discontinuity at
+            a=0, some advance knowledge can be helpful.
 
     TODO:
     Couldn't seem to get the jacobian correct, even though the loss is simple.
     As a result, this function's call to scipy invokes a finite difference
     scheme to estimate the Jacobian.
     """
+    if coef0 is not None and direction != "either":
+        raise ValueError("If initial coefficients specified, it ")
 
     def discriminant(a_til: float, b_til: float) -> Float1D:
         return a_til * (X - b_til)
@@ -185,11 +194,17 @@ def do_inv_quadratic_regression(
         else:
             raise ValueError("coef0 is infeasible for regression data")
     else:
-        coef_pos = gen_coef0(1, (x_min, y_min), pin_corner)
-        coef_neg = gen_coef0(-1, (x_max, y_min), pin_corner)
-        result_pos = least_squares(residuals, coef_pos, bounds=rightward_bounds)
-        result_neg = least_squares(residuals, coef_neg, bounds=leftward_bounds)
-        if result_pos.cost < result_neg.cost:
+        if direction in ["either", "right"]:
+            coef_pos = gen_coef0(1, (x_min, y_min), pin_corner)
+            result_pos = least_squares(residuals, coef_pos, bounds=rightward_bounds)
+        if direction in ["either", "left"]:
+            coef_neg = gen_coef0(-1, (x_max, y_min), pin_corner)
+            result_neg = least_squares(residuals, coef_neg, bounds=leftward_bounds)
+        if (
+            direction == "either"
+            and result_pos.cost < result_neg.cost
+            or direction == "right"
+        ):
             result = result_pos
         else:
             result = result_neg

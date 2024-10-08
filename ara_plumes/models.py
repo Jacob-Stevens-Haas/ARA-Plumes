@@ -1,6 +1,7 @@
 import logging
 import warnings
 from typing import Any
+from typing import Literal
 from typing import Optional
 
 import cv2
@@ -210,6 +211,7 @@ class PLUME:
         mean_points: List[tuple[Frame, PlumePoints]],
         regression_method: str,
         poly_deg: int = 2,
+        direction: Literal["left", "right", "either"] = "either",
         decenter: Optional[tuple[X_pos, Y_pos]] = None,
     ) -> Float2D:
         """
@@ -232,6 +234,8 @@ class PLUME:
         poly_deg:
             degree of regression for all poly methods. Note 'linear' ignores this
             argument.
+        direction:
+            Direction for poly_inverse regression.
 
         decenter:
             Tuple to optionally subtract from from points prior to regression
@@ -259,7 +263,7 @@ class PLUME:
                 frame_points[:, 1:] -= decenter
             try:
                 coef_time_series[i] = regress_frame_mean(
-                    frame_points, regression_method, poly_deg
+                    frame_points, regression_method, poly_deg, direction
                 )
             except np.linalg.LinAlgError:
                 warnings.warn(
