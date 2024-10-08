@@ -1,5 +1,6 @@
 import logging
 import warnings
+from typing import Any
 from typing import Optional
 
 import cv2
@@ -130,8 +131,8 @@ class PLUME:
         arr: GrayVideo,
         orig_center: tuple[int, int],
         img_range: tuple[int, int] = (0, -1),
-        concentric_circle_kws: Optional[dict] = None,
-        get_contour_kws: Optional[dict] = None,
+        concentric_circle_kws: Optional[dict[str, Any]] = None,
+        get_contour_kws: Optional[dict[str, Any]] = None,
     ) -> tuple[
         List[tuple[Frame, PlumePoints]],
         List[tuple[Frame, PlumePoints]],
@@ -178,7 +179,11 @@ class PLUME:
         mean_points = []
         var1_points = []
         var2_points = []
-
+        if concentric_circle_kws is None:
+            concentric_circle_kws = {}
+        if get_contour_kws is None:
+            get_contour_kws = {}
+        orig_center = X_pos(orig_center[0]), Y_pos(orig_center[1])
         start_frame, end_frame = img_range
         if end_frame == -1:
             end_frame = len(arr)
