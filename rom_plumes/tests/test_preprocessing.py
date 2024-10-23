@@ -1,7 +1,7 @@
 import numpy as np
 
 from .mock_video_utils import MockVideoCapture
-from ara_plumes.preprocessing import _create_average_image_from_video
+from rom_plumes.preprocessing import _create_average_image_from_video
 
 
 def test_create_average_image_from_video():

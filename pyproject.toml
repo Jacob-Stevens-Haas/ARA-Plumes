@@ -3,7 +3,7 @@ requires = ["setuptools>=62", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ara-plumes"
+name = "rom-plumes"
 dynamic = ["version"]
 description = "Utilties for tracking smoke plumes"
 readme = "README.md"
@@ -51,10 +51,10 @@ dev = [
 ]
 
 [tool.setuptools_scm]
-write_to = "ara_plumes/version.py"
+write_to = "rom_plumes/version.py"
 
 [tool.setuptools]
-packages = ["ara_plumes"]
+packages = ["rom_plumes"]
 
 [tool.black]
 line-length = 88
@@ -80,5 +80,5 @@ addopts = '-m "not slow"'
 markers = ["slow"]
 
 [tool.coverage.run]
-omit = ["ara_plumes/tests/*"]
-source = ["ara_plumes"]
+omit = ["rom_plumes/tests/*"]
+source = ["rom_plumes"]
