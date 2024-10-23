@@ -10,12 +10,12 @@ from ..models import flatten_edge_points
 from ..utils import _square_poly_coef
 from ..utils import circle_intersection
 from ..utils import circle_poly_intersection
-from ara_plumes import models
-from ara_plumes import regressions
-from ara_plumes.models import apply_gauss_space_blur
-from ara_plumes.models import apply_gauss_time_blur
-from ara_plumes.models import get_contour
-from ara_plumes.preprocessing import convert_video_to_numpy_array
+from rom_plumes import models
+from rom_plumes import regressions
+from rom_plumes.models import apply_gauss_space_blur
+from rom_plumes.models import apply_gauss_time_blur
+from rom_plumes.models import get_contour
+from rom_plumes.preprocessing import convert_video_to_numpy_array
 
 
 test_numpy_frames = np.array(
