@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: rom-plumes
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Isaac
+    family-names: Griss Salas
+    email: grisal@uw.edu
+    affiliation: University of Washington
+  - given-names: Jacob
+    family-names: Stevens-Haas
+    email: jacob.stevens.haas@gmail.com
+    orcid: 'https://orcid.org/0000-0003-4142-5550'
+    affiliation: University of Washington
+repository-code: 'https://github.com/Jacob-Stevens-Haas/ROM-Plumes'
+abstract: >-
+  A package designed to create reduced order models from plume videos.
+keywords:
+  - fluids
+  - plumes
+license: MIT
+commit: 2bb39a68f2c57b768d6e5f02bfcb1464fac99288
+version: 0.8.0
+date-released: '2024-10-36'
